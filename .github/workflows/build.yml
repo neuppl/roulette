@@ -1,0 +1,25 @@
+on: [push, pull_request]
+name: build
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - macos-13
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@master
+      #
+      # Racket
+      #
+      - uses: Bogdanp/setup-racket@v1.7
+        with:
+          architecture: 'x64'
+          distribution: 'full'
+          version: 'current'
+      - run: raco pkg install --auto roulette-lib/ roulette/
+      - run: raco test roulette/
