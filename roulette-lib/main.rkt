@@ -21,7 +21,8 @@
   [-define-measurable* define-measurable*])
  (contract-out
   [infer (->i ([val (eng) (measurable-space-point (engine-domain (if (unsupplied-arg? eng) default-engine eng)))])
-              (#:engine [eng engine?])
+              (#:engine [eng engine?]
+               #:lazy? [lazy? boolean?])
               any)])
 
  ;; `private/measure.rkt`
@@ -77,8 +78,8 @@
 (define (measure-point m)
   (measurable-space-point (measure-domain m)))
 
-(define (infer val #:engine [eng default-engine])
-  ((engine-infer eng) val))
+(define (infer val #:engine [eng default-engine] #:lazy? [lazy? #f])
+  ((engine-infer eng) val lazy?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; reader

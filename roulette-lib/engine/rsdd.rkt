@@ -301,20 +301,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; infer
 
-(define (mass-function s tbl)
-  (match-define (semiring _predicate zero plus _var-set! _wmc) s)
-  (define (procedure elems)
-    (for/fold ([acc zero])
-              ([elem (in-set elems)])
-      (plus acc (hash-ref tbl elem zero))))
-  (define support (list->set (hash-keys tbl)))
-  (define (density val)
-    (hash-ref tbl val zero))
-  (measure procedure support density (immutable-set/c any/c)))
-
 (define (make-infer s)
-  (match-define (semiring _predicate _zero _plus var-set! wmc) s)
-  (λ (val)
+  (match-define (semiring _predicate zero plus var-set! wmc) s)
+  (λ (val lazy?)
     (define vars (list->set (symbolics val)))
 
     ;; Use `in-ddict-reverse` for "program order" as the variable order.
@@ -322,36 +311,32 @@
           #:when (set-member? vars var))
       (var-set! (const->label var) (measure (set #f)) (measure (set #t))))
 
-    ;; Compute WMCs.
-    (define-values (result size)
-      (with-size
-        (mass-function
-         s
-         (for/hash ([(val expr) (in-hash (flatten-symbolic val))]
-                    #:do [(define weight (wmc (size! (enc expr))))]
-                    #:unless (zero? weight))
-           (values val weight)))))
-
-    ;; Logging information for benchmarking and debugging.
-    (log-roulette-info "~a total size" size)
-    (log-roulette-info "~a recursive calls" (rsdd-num-recursive-calls))
-    result))
+    ;; Compute measure
+    (define ht (flatten-symbolic val))
+    (define (procedure elems)
+      (for/fold ([acc zero])
+                ([elem (in-set elems)])
+        (plus acc (density elem))))
+    (define/cache (density val)
+      (if (hash-has-key? ht val)
+          (wmc (enc/log! (hash-ref ht val)))
+          zero))
+    (define support
+      (list->set
+       (if lazy?
+           (hash-keys ht)
+           (filter (compose not zero? density) (hash-keys ht)))))
+    (measure procedure support density (immutable-set/c any/c))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; size
 
-(define current-bdds (make-parameter '()))
-
-(define-syntax-rule (with-size body ...)
-  (parameterize ([current-bdds '()])
-    (dynamic-wind
-      void
-      (λ () (values (let () body ...) (apply + (map cached-size (current-bdds)))))
-      (λ () (for-each rsdd-clear-scratch! (current-bdds))))))
-
-(define (size! bdd)
-  (current-bdds (cons bdd (current-bdds)))
-  bdd)
+(define (enc/log! expr)
+  (define bdd (enc expr))
+  (begin0
+    bdd
+    (log-roulette-info "~a total size" (cached-size bdd))
+    (log-roulette-info "~a recursive calls" (rsdd-num-recursive-calls))))
 
 (define (cached-size bdd)
   (cond

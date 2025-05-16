@@ -52,7 +52,7 @@
 (define (query e)
   (define ⊥ (unreachable))
   (define unnormalized
-    (infer (if evidence e ⊥)))
+    (infer (if evidence e ⊥) #:lazy? #t))
   (define prob (density unnormalized))
   (define normalizer
     (for/sum ([value (in-set (support unnormalized))]
@@ -61,8 +61,9 @@
   (if (zero? normalizer)
       (pmf (hash))
       (for/pmf ([value (in-set (support unnormalized))]
-                #:unless (unreachable? value))
-        (define weight (prob value))
+                #:unless (unreachable? value)
+                #:do [(define weight (prob value))]
+                #:unless (zero? weight))
         (values value (/ weight normalizer)))))
 
 (define (flip pr)
