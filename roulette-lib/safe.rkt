@@ -1,19 +1,24 @@
-#lang roulette
+#lang racket/base
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
 
 (provide
- (all-from-out roulette)
- (all-from-out "disrupt/private/interface.rkt"))
+ (except-out
+  (all-from-out rosette/safe)
+  define-symbolic
+  define-symbolic*)
+
+ (all-from-out "private/interface.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require "disrupt/private/interface.rkt")
+(require "private/interface.rkt"
+         rosette/safe)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; reader
 
 (module reader syntax/module-reader
-  #:language 'roulette/example/disrupt)
+  #:language 'roulette/safe)

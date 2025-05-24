@@ -23,7 +23,7 @@
 @;; document
 
 @title{Disrupt}
-@defmodule[roulette/example/disrupt #:lang]
+@defmodule*[(roulette/example/disrupt roulette/example/disrupt/safe) #:lang]
 
 Disrupt is an example discrete probabilistic programming language built on top
 of the RSDD inference engine.

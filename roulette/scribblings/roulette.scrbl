@@ -5,7 +5,6 @@
 
 @title{Roulette}
 @author{Cameron Moy}
-@defmodule[roulette #:lang]
 
 Roulette is an inference-aided host language, built on top of Rosette, that
 provides first-class support for @emph{measurable values}. The programmer-facing
@@ -26,8 +25,9 @@ $ raco pkg install roulette
 }|}]
 
 @bold{Roulette is currently under active development so expect frequent
-backwards incompatible changes.}
+backwards-incompatible changes.}
 
+@defmodule*[(roulette roulette/safe) #:lang]
 @(table-of-contents)
 
 @include-section["examples.scrbl"]

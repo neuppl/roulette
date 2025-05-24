@@ -8,25 +8,31 @@
                        syntax/parse)
            racket/sandbox
            roulette
-           "../example/private/pmf.rkt"
+           "../example/disrupt/private/pmf.rkt"
            "util.rkt")
 
   ;; sandbox
   (sandbox-namespace-specs
    (append (sandbox-namespace-specs)
-           '(roulette "../example/private/pmf.rkt")))
+           '(roulette "../example/disrupt/private/pmf.rkt")))
   (define eval
     (call-with-trusted-sandbox-configuration
      (λ ()
        (make-evaluator 'roulette/example/disrupt))))
+  (define eval-safe
+    (call-with-trusted-sandbox-configuration
+     (λ ()
+       (make-evaluator 'roulette/example/disrupt/safe))))
 
   ;; util
   (define-syntax check-program
     (syntax-parser
       [(_ prog ([val pr] ...))
+       #:with (?eval ...) #'(eval eval-safe)
        (syntax/loc this-syntax
-         (check-close (pmf->hash (eval 'prog))
-                      (hash (~@ val pr) ...)))]))
+         (begin
+           (check-close (pmf->hash (?eval 'prog))
+                        (hash (~@ val pr) ...)) ...))]))
 
   (define (pmf->hash pmf)
     (for/hash ([(val pr) (in-pmf pmf)])
