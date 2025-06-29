@@ -61,7 +61,7 @@
   #:target BUILDER
   #:fields label)
 (define-rsdd bdd-var
-  (_fun _rsdd_bdd_builder _int64 _bool -> _rsdd_bdd_ptr))
+  (_fun _rsdd_bdd_builder _int64 _stdbool -> _rsdd_bdd_ptr))
 
 (define-wrap rsdd-ite #:from bdd-ite #:target BUILDER #:fields x y z #:cache)
 (define-rsdd bdd-ite
@@ -113,15 +113,15 @@
 
 (define-wrap rsdd-true? #:from bdd-is-true #:fields x)
 (define-rsdd bdd-is-true
-  (_fun _rsdd_bdd_ptr -> _bool))
+  (_fun _rsdd_bdd_ptr -> _stdbool))
 
 (define-wrap rsdd-false? #:from bdd-is-false #:fields x)
 (define-rsdd bdd-is-false
-  (_fun _rsdd_bdd_ptr -> _bool))
+  (_fun _rsdd_bdd_ptr -> _stdbool))
 
 (define-wrap rsdd-const? #:from bdd-is-const #:fields x)
 (define-rsdd bdd-is-const
-  (_fun _rsdd_bdd_ptr -> _bool))
+  (_fun _rsdd_bdd_ptr -> _stdbool))
 
 (define-wrap rsdd-nodes #:from bdd-count-nodes #:fields x)
 (define-rsdd bdd-count-nodes
@@ -129,7 +129,7 @@
 
 (define-wrap rsdd-equal? #:from bdd-eq #:target BUILDER #:fields x y #:cache)
 (define-rsdd bdd-eq
-  (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _bool))
+  (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _stdbool))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wmc
