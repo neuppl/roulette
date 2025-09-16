@@ -1,4 +1,4 @@
-name: Benchmark CI
+name: Run benchmarks
 
 on:
   push:
@@ -7,22 +7,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-racket-test-and-copy-json-output:
-    runs-on: ubuntu-latest
+  run-benchmarks-and-copy-json-output:
+    runs-on: self-hosted
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Racket
-        uses: Bogdanp/setup-racket@v1.14
-        with:
-          architecture: 'x64'
-          distribution: 'full'
-          variant: 'CS'
-          version: 'current'
-
-      - name: Install Dependencies
+      - name: Install Racket Dependencies
         run: raco pkg install --auto --skip-installed roulette-lib/ roulette/ benchmark_ci/
       
       - name: Link benchmark hashlang
