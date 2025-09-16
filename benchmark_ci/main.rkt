@@ -8,8 +8,7 @@
          json
          syntax/wrap-modbeg
          syntax/location
-         racket/path
-         relation/type)
+         racket/path)
 
 (begin-for-syntax
   (define top-level-exprs '()))
@@ -44,9 +43,9 @@
                         'result (if (jsexpr? (car res))
                                     (car res)
                                     (if (pmf? (car res))
-                                      (for/hash ([(val prob) (in-pmf (car res))])
-                                            (values (->symbol val) prob))
-                                      "some non-jsonable result"))
+                                      (for/list ([(val prob) (in-pmf (car res))])
+                                            (list (~s val) prob))
+                                      (~s (car res))))
                         'real_time_ms real
                         'cpu_time_ms cpu
                         'gc_time_ms gc)
