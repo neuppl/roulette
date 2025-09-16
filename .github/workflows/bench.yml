@@ -24,7 +24,8 @@ jobs:
       - name: Run benchmarks
         run: ./run_benchmarks.sh
 
-      - uses: actions/checkout@v4
+      - name: Checkout benchmark data repository
+        uses: actions/checkout@v4
         with:
           repository: 'neuppl/roulette-bench-data'
           path: 'roulette-bench-data'  # This will be a subdirectory
@@ -36,7 +37,7 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "Output of ls: $(ls -la)"
 
-      - name: Copy files
+      - name: Copy results to benchmark data repository
         run: ./copy_results.sh
 
           
