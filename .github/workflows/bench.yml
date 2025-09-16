@@ -8,20 +8,33 @@ on:
 
 jobs:
   run-racket-test-and-copy-json-output:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
       
+      - name: Cache Racket dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/racket
+            ~/.local/share/racket
+          key: ${{ runner.os }}-racket-8.1
+      - name: Install Racket
+        uses: Bogdanp/setup-racket@v1.14
+        with:
+          architecture: 'x64'
+          distribution: 'full'
+          variant: 'CS'
+          version: 'current'
+      - name: Install Dependencies
+        run: raco pkg install --auto --skip-installed roulette-lib/ roulette/ benchmark_ci/
+
       
       - name: Link benchmark hashlang
         run: |
           raco link benchmark_ci
-      
-      - name: Install Racket Dependencies
-        run: |
-          raco pkg install relation-lib json make-log-interceptor 
 
       - name: Run benchmarks
         run: ./run_benchmarks.sh
