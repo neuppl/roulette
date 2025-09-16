@@ -44,7 +44,8 @@ jobs:
         with:
           repository: 'neuppl/roulette-bench-data'
           path: 'roulette-bench-data'  # This will be a subdirectory
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}  # MUST use PAT for push permissions
+          persist-credentials: true  # Keep credentials for push
         
       - name: log 
         run: |
