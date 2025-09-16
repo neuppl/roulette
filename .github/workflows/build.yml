@@ -21,5 +21,5 @@ jobs:
           architecture: 'x64'
           distribution: 'full'
           version: 'current'
-      - run: raco pkg install --auto roulette-lib/ roulette/
+      - run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/
       - run: raco test roulette/
