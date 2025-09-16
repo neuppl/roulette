@@ -57,7 +57,7 @@ jobs:
           
       - name: Commit and push changes
         run: |
-          cd roulette-benchmark-data
+          cd roulette-bench-data
           git add .
           git commit -m "push benchmark results"
           git push
