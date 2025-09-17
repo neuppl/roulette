@@ -41,12 +41,12 @@
         
         (define-values (result logs)
           (roulette-interceptor
-            (λ () (begin (define-values (res real cpu gc)
+            (λ () (define-values (res real cpu gc)
                             (time-apply (lambda () ?r ...) (list)))
-                         (hash 'res res 
-                               'real real 
-                               'cpu cpu 
-                               'gc gc)))))
+                  (hash 'res res 
+                        'real real 
+                        'cpu cpu 
+                        'gc gc))))
 
         (define res (hash-ref result 'res))
         (define real (hash-ref result 'real))
