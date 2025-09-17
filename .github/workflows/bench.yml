@@ -21,6 +21,9 @@ jobs:
         run: |
           raco link benchmark_ci
 
+      - name: Racket version
+        run: racket --version
+
       - name: Run benchmarks
         run: ./run_benchmarks.sh
 
@@ -36,7 +39,7 @@ jobs:
         run: |
           echo "Current directory: $(pwd)"
           echo "Output of ls: $(ls -la)"
-
+      
       - name: Copy results to benchmark data repository
         run: ./copy_results.sh
 
