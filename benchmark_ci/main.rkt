@@ -52,7 +52,8 @@
         (define real (hash-ref result 'real))
         (define cpu (hash-ref result 'cpu))
         (define gc (hash-ref result 'gc))
-        (define log-list (hash-ref logs 'info))
+        (define log-list (filter (lambda (x) (regexp-match? #rx"^roulette:" x))
+                         (hash-ref logs 'info)))
         (call-with-output-file (path-replace-suffix (file-name-from-path (quote-module-name)) ".json")
           (lambda (out)
             (write-json 
@@ -68,24 +69,25 @@
                 'gc_time_ms gc
                 'recursive-calls (string->number
                                     (second 
-                                    (regexp-match
-                                    #rx"roulette: ([0-9]+) recursive calls" 
-                                    (last log-list)))) 
-                'total-size (foldr (λ (x acc)
-                                      (if (boolean? x)
-                                          acc
-                                          (+ acc x)))
+                                      (regexp-match
+                                        #rx"roulette: ([0-9]+) recursive calls" 
+                                        (last log-list)))) 
+                'total-size (foldr  +
                                     0
-                                    (map (λ (s)
-                                          (define match (regexp-match
-                                            #rx"roulette: ([0-9]+) total size" s))
-                                          (if match
-                                              (string->number (second match))
-                                              #f))
-                                        log-list)))
-                        out))
+                                    (map 
+                                      (lambda (s) 
+                                        (define match (regexp-match 
+                                          #rx"roulette: ([0-9]+) total size" s))
+                                        (if match
+                                            (string->number (second match))
+                                            #f))
+                                      (filter  
+                                        (lambda (x) 
+                                          (regexp-match? #rx"roulette: ([0-9]+) total size" x))
+                                          log-list))))
+              out))
           #:exists 'replace)
-          (display (car res)))))
+        (display (car res)))))
 
 
 
