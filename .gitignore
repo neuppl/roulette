@@ -14,6 +14,7 @@ tables/
 *.synctex.gz
 *.bbl
 *.blg
+*.json
 .DS_Store
 .vscode
 *.rktd

@@ -12,3 +12,4 @@
 (define called (&& mary-wakes phone-working))
 (observe! called)
 (query burglary)
+(query (and (flip 0.5) (flip 0.5) (flip 0.5) (flip 0.5) (flip 0.5) (flip 0.5)))
