@@ -17,7 +17,7 @@ for benchmark in "$BENCHMARK_DIR"/*.rkt; do
         echo "Running benchmark: $(basename "$benchmark")"
 
         racket "$benchmark"
-        echo "----------------------------------------"
+        echo ""
     fi
 done
 
