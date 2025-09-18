@@ -21,7 +21,7 @@ jobs:
         with:
           architecture: 'x64'
           distribution: 'full'
-          version: '3.18'
+          version: '8.18'
 
       - name: Install Racket Dependencies
         run: raco pkg install --auto --skip-installed roulette-lib/ roulette/ benchmark_ci/
