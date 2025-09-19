@@ -15,14 +15,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      
-      - name: Set up Racket
-        uses: Bogdanp/setup-racket@v1.14
-        with:
-          architecture: 'x64'
-          distribution: 'full'
-          version: '8.18'
-          sudo: never # either 'always' or 'never'
+      # Racket setup below does not work due to lack of sudo permissions on self-hosted runner
+      # Unable to enter password for sudo through terminal... 
+      #- name: Set up Racket
+      #  uses: Bogdanp/setup-racket@v1.14
+      #  with:
+      #    architecture: 'x64'
+      #    distribution: 'full'
+      #    version: '8.18'
+      #    sudo: never # either 'always' or 'never'
 
       - name: Install Racket Dependencies
         run: raco pkg install --auto --skip-installed roulette-lib/ roulette/ benchmark_ci/
