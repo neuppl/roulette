@@ -46,12 +46,16 @@
     [(_ (x:id a:id ...) body:expr ...)
      #'(define x
          (let ([cache (make-hash)])
-           (λ (a ...)
+           (λ (a ... #:cached [cached? #t]
+                     #:debug [debug? #f])
+             (when debug? (displayln "inside cached func"))
              (define args (list a ...))
              (cond
-               [(hash-has-key? cache args)
+               [(and (hash-has-key? cache args) cached?)
+                (when debug? (printf "cache has key: ~v\n" args))
                 (hash-ref cache args)]
                [else
+                (when debug? (printf "cache does not have key: ~v\n" args))
                 (define result (let () body ...))
                 (hash-set! cache (list a ...) result)
                 result]))))]))
