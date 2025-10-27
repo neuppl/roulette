@@ -13,7 +13,8 @@
                           any)]
   [real-semiring semiring?]
   [complex-semiring semiring?]
-  [semiring? predicate/c]))
+  [semiring? predicate/c])
+  const->label)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -251,7 +252,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
 
-(define/cache (enc v)
+(define (enc v)
   (match v
     [(? expression?) (enc-expr v)]
     [(? constant?)   (enc-const v)]
@@ -300,27 +301,38 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; infer
-
+(require racket/dict)
 (define (make-infer s)
   (match-define (semiring _predicate zero plus var-set! wmc) s)
   (λ (val lazy?)
+    ;(displayln "inside make infer")
     (define vars (list->set (symbolics val)))
 
+    ;(printf "before for. size: ~v\n" (dict-count measures))
+    (displayln "before for")
     ;; Use `in-ddict-reverse` for "program order" as the variable order.
     (for ([(var measure) (in-ddict-reverse measures)]
           #:when (set-member? vars var))
-      (var-set! (const->label var) (measure (set #f)) (measure (set #t))))
+      (displayln var)
+      (define temp (const->label var))
+      ;(displayln "after const->label")
+      (var-set! temp (measure (set #f)) (measure (set #t))))
 
+    (displayln "after for")
     ;; Compute measure
     (define ht (flatten-symbolic val))
+    (displayln "after flatten-symbolic")
     (define (procedure elems)
       (for/fold ([acc zero])
                 ([elem (in-set elems)])
         (plus acc (density elem))))
-    (define/cache (density val)
-      (if (hash-has-key? ht val)
-          (wmc (enc/log! (hash-ref ht val)))
-          zero))
+    (define (density val)
+      (displayln "before enc/log!")
+      (begin0 
+        (if (hash-has-key? ht val)
+            (wmc (enc/log! (hash-ref ht val)))
+            zero)
+        (displayln "after enc/log!")))
     (define support
       (list->set
        (if lazy?

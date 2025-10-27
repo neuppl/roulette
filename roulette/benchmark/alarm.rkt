@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt 
 
 (define earthquake (flip 0.0001))
 (define burglary (flip 0.001))
