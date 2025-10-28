@@ -32,8 +32,8 @@
          roulette/private/util
          rosette/base/core/bool
          roulette/example/interrupt/private/search
-         (only-in racket/base [eq? racket:eq?])
-         "pmf.rkt")
+         "pmf.rkt"
+         "var-utils.rkt")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic features
 
@@ -49,78 +49,35 @@
   (if (symbolic? e) (query e) e))
 (define (choose-ignored map)
   (values (first map) (rest map)))
-
-(define/cache (replace-vars formula var-map) 
-  (match formula 
-    ;;OR
-    [(expression (== @||)
-                 e1
-                 e2)
-     (@|| (replace-vars e1 var-map) (replace-vars e2 var-map))]
-
-    ;;AND
-    [(expression (== @&&)
-                 e1
-                 e2)
-     (@&& (replace-vars e1 var-map) (replace-vars e2 var-map))]
-  
-    ;;NOT
-    [(expression (== @!)
-                 e1)
-     (@! (replace-vars e1 var-map))]
-    
-    ;;Implies
-    [(expression (== @=>)
-                 e1
-                 e2)
-     (@=> (replace-vars e1 var-map) (replace-vars e2 var-map))] 
-    
-    ;;Iff
-    [(expression (== @<=>)
-                 e1
-                 e2)
-     (@<=> (replace-vars e1 var-map) (replace-vars e2 var-map))]
-    
-
-    ;;Matches any variable v  
-    [v
-     (hash-ref var-map v v)]))
-
-
-(define (set-symbolic-vars flattened-map replacements)
-  (map (lambda (x) (cons (car x) (replace-vars (cdr x) replacements))) 
-       flattened-map))
  
 (define (find-costly-variable-assignment timeout flattened-map vars #:samples [samples #f])
-    (define initial-state (for/list ([v vars])
-                            (cons v UNKNOWN)))
-    (define score-func
-      (lambda (state)
-        (define assignments (for/hash ([var+asgn state]
-                                        #:unless (unknown? (cdr var+asgn)))
-                                (match-define (cons var asgn) var+asgn)
-                                (values var asgn)))
-        (define after-assignments 
-          (if (empty? assignments)
-              flattened-map
-              (begin
-                (set-symbolic-vars flattened-map assignments))))
+  (define initial-state (for/list ([v vars])
+                          (cons v UNKNOWN)))
+  (define score-func
+    (lambda (state)
+      (define assignments (for/hash ([var+asgn state]
+                                      #:unless (unknown? (cdr var+asgn)))
+                              (match-define (cons var asgn) var+asgn)
+                              (values var asgn)))
+      (define after-assignments 
+        (if (empty? assignments)
+            flattened-map
+            (begin
+              (set-symbolic-vars flattened-map assignments))))
 
-        (with-timeout timeout 
-                      (lambda () 
-                        (compute-pmf after-assignments)
-                        (for/sum ([var+asgn state])
-                                (match-define (cons var asgn) var+asgn)
-                                (if (unknown? asgn) 1 0)))
-                      (lambda () (displayln "timed out") -inf.0)) ; assign a negative score if computing the pmf times out
-        ))
-
-
-    (search initial-state
-            timeout 
-            (random-specialization-transition initial-state) 
-            score-func
-            #:samples samples))
+      (with-timeout timeout 
+                    (lambda () 
+                      (compute-pmf after-assignments)
+                      (for/sum ([var+asgn state])
+                              (match-define (cons var asgn) var+asgn)
+                              (if (unknown? asgn) 1 0)))
+                    (lambda () (displayln "timed out") -inf.0)))) 
+                    ; assign a negative score if computing the pmf times out
+  (search initial-state
+          timeout 
+          (random-specialization-transition initial-state) 
+          score-func
+          #:samples samples))
 
 
 (define (compute-pmf flattened-map)
