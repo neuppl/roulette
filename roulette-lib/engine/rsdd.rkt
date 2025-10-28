@@ -313,7 +313,7 @@
     ;; Use `in-ddict-reverse` for "program order" as the variable order.
     (for ([(var measure) (in-ddict-reverse measures)]
           #:when (set-member? vars var))
-      (displayln var)
+      ;(displayln var)
       (define temp (const->label var))
       ;(displayln "after const->label")
       (var-set! temp (measure (set #f)) (measure (set #t))))
