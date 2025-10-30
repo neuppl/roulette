@@ -10,7 +10,7 @@
 
  query
  flip
- test
+ srcloc
 
  observe!
  with-observe
@@ -43,6 +43,8 @@
 
 (define-syntax top-interaction
   (make-wrapping-top-interaction #'wrap))
+
+(define variable-contexts (make-weak-hash))
 
 (define (wrap e)
   (if (symbolic? e) (query e) e))
@@ -126,7 +128,8 @@
 
   normalized)
 
-
+(define (srcloc e)
+  (hash-ref variable-contexts (first (symbolics e))))
 
 (define (query e #:samples [samples #f])
   (define ⊥ (unreachable))
@@ -156,25 +159,18 @@
       (lambda () (printf "timed out, sampling for heuristics\n\n")
                  (sampling-search DEFAULT-SAMPLES)))))
 
-
-(define (test e)
-  (define symbolic-map 
-    (hash->list (flatten-symbolic e)))
-  (displayln symbolic-map)
-  (define var (first (symbolics e)))
-
-  (printf "\n\n\n~v\n\n\n" (set-symbolic-vars symbolic-map (hash var #t)))
-  42)
-
 (define (flip pr)
   (cond
     [(= pr 0) #f]
     [(= pr 1) #t]
     [else
-     (for/all ([pr pr])
-       (define-measurable* x (bernoulli-measure (- 1 pr) pr))
-       x)]))
-
+     (let ([out (for/all ([pr pr])
+                  (define-measurable* x (bernoulli-measure (- 1 pr) pr))
+                  x)])
+          (hash-set! variable-contexts 
+                     out 
+                     (continuation-mark-set->context (current-continuation-marks)))
+          out)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
 
