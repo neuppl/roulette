@@ -10,11 +10,10 @@
 
  query
  flip
- srcloc
+ src
 
  observe!
  with-observe
-
  ;; `pmf.rkt`
  pmf
  pmf?
@@ -27,10 +26,10 @@
 
 (require (for-syntax racket/base)
          (for-syntax syntax/parse)
+         (for-syntax racket/syntax-srcloc)
          roulette/engine/rsdd
          roulette/private/util
          rosette/base/core/bool
-         roulette/example/interrupt/private/search
          "pmf.rkt"
          "var-utils.rkt")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -47,11 +46,11 @@
 (define variable-contexts (make-weak-hash))
 
 (define (wrap e)
-  (if (symbolic? e) (query e) e))
+  e) ;(if (symbolic? e) (query e) e)
 (define (choose-ignored map)
   (values (first map) (rest map)))
  
-(define (find-costly-variable-assignment timeout flattened-map vars #:samples [samples #f])
+#;(define (find-costly-variable-assignment timeout flattened-map vars #:samples [samples #f])
   (define initial-state (for/list ([v vars])
                           (cons v UNKNOWN)))
   (define score-func
@@ -128,10 +127,10 @@
 
   normalized)
 
-(define (srcloc e)
+(define (src e)
   (hash-ref variable-contexts (first (symbolics e))))
 
-(define (query e #:samples [samples #f])
+#;(define (query e #:samples [samples #f])
   (define ⊥ (unreachable))
       
   (define symbolic-map 
@@ -155,11 +154,44 @@
     (sampling-search samples)
     (with-timeout 
       INITIAL-TIMEOUT
-      (lambda () (compute-pmf symbolic-map))
+      '(compute-pmf symbolic-map)
       (lambda () (printf "timed out, sampling for heuristics\n\n")
                  (sampling-search DEFAULT-SAMPLES)))))
 
-(define (flip pr)
+(define (with-timeout timeout-duration thnk default)
+  (let* ([ch (make-channel)]
+         [th (thread (lambda () 
+                       (channel-put ch (thnk))))]
+         [out (sync/timeout timeout-duration ch)])
+    (if out 
+        out
+        (begin
+          (kill-thread th)  ; Kill the thread if timeout occurred
+          (default)))))
+
+
+(define (query e pch)
+  (define variables (symbolics e))
+  (place-channel-put pch (length variables))
+  
+  (define timeout (place-channel-get pch))
+  (define assignments (place-channel-get pch))
+  (define ⊥ (unreachable))
+  (define symbolic-map 
+    (hash->list (flatten-symbolic (if evidence e ⊥))))
+  (define subst-map (for/hash ([idx+asgn assignments])
+                              (match-define (cons idx asgn) idx+asgn)
+                              (values (list-ref variables idx) asgn)))
+  (define result (with-timeout
+                timeout
+                (lambda () (begin 
+                              (compute-pmf (set-symbolic-vars symbolic-map subst-map))
+                              "done"))
+                (lambda () "timed-out")))
+  (place-channel-put pch result)
+  pmf)
+
+(define (flip-fn pr)
   (cond
     [(= pr 0) #f]
     [(= pr 1) #t]
@@ -170,6 +202,15 @@
           (hash-set! variable-contexts 
                      out 
                      (continuation-mark-set->context (current-continuation-marks)))
+          out)]))
+          
+(define-syntax flip
+  (syntax-parser 
+    [(_ pr)
+     #:do [(define src (syntax-srcloc this-syntax))]
+     #:with source #`#,src
+     #'(let ([out (flip-fn pr)])
+          (hash-update! variable-contexts out (lambda (x) (cons x source)))
           out)]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
