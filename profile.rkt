@@ -48,8 +48,8 @@
             (unless timed-out?
 							(for/list ([idx+asgn state])
 								(match-define (cons idx asgn) idx+asgn)
-								(hash-update freq-map idx add1 0))
-							(hash-update freq-map 'Total-runs add1 0)))
+								(hash-update! freq-map idx add1 0))
+							(hash-update! freq-map 'Total-runs add1 0)))
           freq-map))))
 
 
@@ -91,7 +91,11 @@
 				(define result (place-channel-get pch))
 				(define timed-out? (equal? result "timed-out"))
 				(channel-put ch (cons new-state timed-out?))
-				(subsample (- remaining-samples 1) ch timed-out?))))
+				(place-kill pch)
+				(define new-samples (if (not timed-out?) 
+																(- remaining-samples 1) 
+																remaining-samples))
+				(subsample/acc new-samples ch timed-out?))))
 		
 
 		; First pass, with no assignments, to see if it runs without any subsampling
@@ -101,11 +105,12 @@
 		(place-channel-put pch initial-state)
 		(define result (place-channel-get pch))
 		(define timed-out? (equal? result "timed-out"))
-
+		(place-kill pch)
 		(if timed-out?
 				(subsample/acc (- samples 1) ch #t)
 				(begin 
 					(displayln "No subsampling needed, program executed within time limit. No heuristics collected.")
+					(channel-put ch 'done)
 					#t)))
 					
 	(define producer->consumer-ch (make-channel))
@@ -123,11 +128,8 @@
 
 
 
-(define pch (dynamic-place file-path 'place-main))
-(define num-vars (place-channel-get pch))
-(place-channel-put pch 1) ; timeout duration of 2 seconds
-(place-channel-put pch (list))
-(define result (place-channel-get pch))
-(define timed-out? (equal? result "timed-out"))
 
-(displayln result)
+
+(define pch (dynamic-place file-path 'generate-json))
+(place-channel-put pch program-text)
+(displayln (place-channel-get pch))

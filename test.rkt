@@ -1,11 +1,11 @@
 #lang roulette/example/interrupt
 (provide place-main)
-
+(provide generate-json)
 
 
 
 (define (make-bayesian-node dep1 dep2)
-  (define node (if (and dep1 dep2) (flip 0.4) (flip 0.5)))
+  (define node (if (and dep1 dep2) (flip 0.5) (flip 0.4)))
   node)
 
 
@@ -30,6 +30,11 @@
                       )))
               cur-row)))))
 
-
 (define (place-main pch)
-  (query (last (last (n-grid-bayesian 10))) pch))
+  (query (last (last (n-grid-bayesian 12))) #:place pch))
+
+
+
+(define (generate-json pch)
+  (n-grid-bayesian 12)
+  (make-json-visualization pch))

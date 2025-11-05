@@ -11,7 +11,7 @@
  query
  flip
  src
-
+ make-json-visualization
  observe!
  with-observe
  ;; `pmf.rkt`
@@ -30,6 +30,7 @@
          roulette/engine/rsdd
          roulette/private/util
          rosette/base/core/bool
+         json
          "pmf.rkt"
          "var-utils.rkt")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -170,26 +171,34 @@
           (default)))))
 
 
-(define (query e pch)
-  (define variables (symbolics e))
-  (place-channel-put pch (length variables))
-  
-  (define timeout (place-channel-get pch))
-  (define assignments (place-channel-get pch))
-  (define ⊥ (unreachable))
-  (define symbolic-map 
-    (hash->list (flatten-symbolic (if evidence e ⊥))))
-  (define subst-map (for/hash ([idx+asgn assignments])
-                              (match-define (cons idx asgn) idx+asgn)
-                              (values (list-ref variables idx) asgn)))
-  (define result (with-timeout
-                timeout
-                (lambda () (begin 
-                              (compute-pmf (set-symbolic-vars symbolic-map subst-map))
-                              "done"))
-                (lambda () "timed-out")))
-  (place-channel-put pch result)
-  pmf)
+(define (query e #:place [pch #f])
+  (if pch
+    (begin
+      (define variables (symbolics e))
+      (place-channel-put pch (length variables))
+      
+      (define timeout (place-channel-get pch))
+      (define assignments (place-channel-get pch))
+      (define ⊥ (unreachable))
+      (define symbolic-map 
+        (hash->list (flatten-symbolic (if evidence e ⊥))))
+      (define subst-map (for/hash ([idx+asgn assignments])
+                                  (match-define (cons idx asgn) idx+asgn)
+                                  (values (list-ref variables idx) asgn)))
+      (define result (with-timeout
+                    timeout
+                    (lambda () (begin 
+                                  (compute-pmf (set-symbolic-vars symbolic-map subst-map))
+                                  "done"))
+                    (lambda () "timed-out")))
+      (place-channel-put pch result)
+      pmf)
+    (begin
+      (displayln "here")
+      (define ⊥ (unreachable))
+      (define symbolic-map 
+        (hash->list (flatten-symbolic (if evidence e ⊥))))
+      (compute-pmf symbolic-map))))
 
 (define (flip-fn pr)
   (cond
@@ -212,6 +221,20 @@
      #'(let ([out (flip-fn pr)])
           (hash-update! variable-contexts out (lambda (x) (cons x source)))
           out)]))
+
+
+
+(define (make-json-visualization pch)
+  (define source-code (place-channel-get pch))
+  (call-with-output-file "profiling-results.json"
+    (lambda (out)
+      (write-json 
+        (hash
+          'source-code source-code
+          'stack-contexts variable-contexts)
+        out))
+    #:exists 'replace)
+  (place-channel-put pch "Done"))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
 
