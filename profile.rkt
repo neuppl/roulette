@@ -7,21 +7,9 @@
 ;; assigned a particular boolean value. 
 ;; An empty list means no assignments (all variables are unknown, we start at this state)
 
-(define file-path (vector-ref (current-command-line-arguments) 0))
-
-(define program-text
-	(call-with-input-file file-path
-		(lambda (in) (port->string in))))
-
 (define (die msg)
   (eprintf "Error: ~a\n" msg)
   (exit 1))
-
-
-;; A State is a (List (Pair Number Boolean)) representing that the n-indexed symbolic variable should be
-;; assigned a particular boolean value. 
-;; An empty list means no assignments (all variables are unknown, we start at this state)
-
 
 (define (random-specialize state num-vars)
 	(define current-assignments (map (lambda (asgn) (car asgn)) state))
@@ -49,7 +37,7 @@
 							(for/list ([idx+asgn state])
 								(match-define (cons idx asgn) idx+asgn)
 								(hash-update! freq-map idx add1 0))
-							(hash-update! freq-map 'Total-runs add1 0)))
+							(hash-update! freq-map "Total-runs" add1 0)))
           freq-map))))
 
 
@@ -127,9 +115,26 @@
 	(channel-get out-ch))
 
 
+(define (make-profiling-json-results file-path)
+	(define program-text
+		(call-with-input-file file-path
+			(lambda (in) (port->string in))))
+
+
+	(define results (search file-path 20 5 (list) 2))
+
+	(define pch (dynamic-place file-path 'generate-json))
+
+
+	(place-channel-put pch file-path)
+	(place-channel-put pch program-text)
+	(place-channel-put pch results)
+	
+	(displayln (place-channel-get pch)))
 
 
 
-(define pch (dynamic-place file-path 'generate-json))
-(place-channel-put pch program-text)
-(displayln (place-channel-get pch))
+(define file-path (vector-ref (current-command-line-arguments) 0))
+
+
+(make-profiling-json-results file-path)

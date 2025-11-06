@@ -36,5 +36,4 @@
 
 
 (define (generate-json pch)
-  (n-grid-bayesian 12)
-  (make-json-visualization pch))
+  (make-json-visualization (n-grid-bayesian 12) pch))

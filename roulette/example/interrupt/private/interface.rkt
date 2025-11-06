@@ -224,14 +224,23 @@
 
 
 
-(define (make-json-visualization pch)
+(define (make-json-visualization e pch)
+  (define variables (symbolics e))
+  (define file-name (place-channel-get pch))
   (define source-code (place-channel-get pch))
+  (define profiling-results (for/list ([(key value) (in-hash (place-channel-get pch))])
+                              (list key value)))
+  (define variable-contexts-with-indices 
+    (for/hash ([(key value) (in-hash variable-contexts)])
+      (values (index-of variables key) value)))
+
   (call-with-output-file "profiling-results.json"
     (lambda (out)
       (write-json 
         (hash
           'source-code source-code
-          'stack-contexts variable-contexts)
+          'stack-contexts (hash->list variable-contexts-with-indices)
+          'heuristics profiling-results)
         out))
     #:exists 'replace)
   (place-channel-put pch "Done"))
