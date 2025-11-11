@@ -49,41 +49,12 @@
 
 (define variable-contexts (make-weak-hash))
 
-(define expr-to-profile #f)
-
 (define (wrap e)
   e) ;(if (symbolic? e) (query e) e)
+
+
 (define (choose-ignored map)
   (values (first map) (rest map)))
- 
-#;(define (find-costly-variable-assignment timeout flattened-map vars #:samples [samples #f])
-  (define initial-state (for/list ([v vars])
-                          (cons v UNKNOWN)))
-  (define score-func
-    (lambda (state)
-      (define assignments (for/hash ([var+asgn state]
-                                      #:unless (unknown? (cdr var+asgn)))
-                              (match-define (cons var asgn) var+asgn)
-                              (values var asgn)))
-      (define after-assignments 
-        (if (empty? assignments)
-            flattened-map
-            (begin
-              (set-symbolic-vars flattened-map assignments))))
-
-      (with-timeout timeout 
-                    (lambda () 
-                      (compute-pmf after-assignments)
-                      (for/sum ([var+asgn state])
-                              (match-define (cons var asgn) var+asgn)
-                              (if (unknown? asgn) 1 0)))
-                    (lambda () (displayln "timed out") -inf.0)))) 
-                    ; assign a negative score if computing the pmf times out
-  (search initial-state
-          timeout 
-          (random-specialization-transition initial-state) 
-          score-func
-          #:samples samples))
 
 
 (define (compute-pmf flattened-map)
@@ -136,34 +107,6 @@
 (define (src e)
   (hash-ref variable-contexts (first (symbolics e))))
 
-#;(define (query e #:samples [samples #f])
-  (define ⊥ (unreachable))
-      
-  (define symbolic-map 
-    (hash->list (flatten-symbolic (if evidence e ⊥))))
-
-  (define DEFAULT-SAMPLES 5)
-
-  (define INITIAL-TIMEOUT 5)
-  (define SAMPLING-TIMEOUT 5)
-
-
-  (define sampling-search 
-    (lambda (samples)
-      (find-costly-variable-assignment
-        SAMPLING-TIMEOUT
-        #:samples samples
-        symbolic-map  
-        (symbolics (if evidence e ⊥)))))
-
-  (if samples
-    (sampling-search samples)
-    (with-timeout 
-      INITIAL-TIMEOUT
-      '(compute-pmf symbolic-map)
-      (lambda () (printf "timed out, sampling for heuristics\n\n")
-                 (sampling-search DEFAULT-SAMPLES)))))
-
 (define (with-timeout timeout-duration thnk default)
   (let* ([ch (make-channel)]
          [th (thread (lambda () 
@@ -177,7 +120,6 @@
 
 
 (define (query e pch)
-(displayln expr-to-profile)
   (define variables (symbolics e))
   (place-channel-put pch (length variables))
   
@@ -262,16 +204,6 @@
     #:exists 'replace)
   (place-channel-put pch "Done"))
 
-
-(define (place-main pch)
-  (if expr-to-profile
-      (query pch)
-      (error "no expression registered to profile")))
-
-(define (generate-json pch)
-  (if expr-to-profile
-      (make-json-visualization pch)
-      (error "no expression registered to profile")))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
 
@@ -285,11 +217,3 @@
     (begin0
       (begin body0 body ...)
       (set! evidence old))))
-
-
-
-
-;(define m (list (cons #t #f) (cons #f #t)))
-
-;(with-timeout 1 (lambda () (compute-pmf m)) (lambda () (displayln "timed out")))
-
