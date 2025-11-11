@@ -8,12 +8,14 @@
   [module-begin #%module-begin]
   [top-interaction #%top-interaction])
 
- query
+ 
  flip
- src
- make-json-visualization
  observe!
  with-observe
+ query
+ make-json-visualization
+
+
  ;; `pmf.rkt`
  pmf
  pmf?
@@ -30,6 +32,7 @@
          roulette/engine/rsdd
          roulette/private/util
          rosette/base/core/bool
+         racket/format
          json
          "pmf.rkt"
          "var-utils.rkt")
@@ -45,6 +48,8 @@
   (make-wrapping-top-interaction #'wrap))
 
 (define variable-contexts (make-weak-hash))
+
+(define expr-to-profile #f)
 
 (define (wrap e)
   e) ;(if (symbolic? e) (query e) e)
@@ -171,34 +176,27 @@
           (default)))))
 
 
-(define (query e #:place [pch #f])
-  (if pch
-    (begin
-      (define variables (symbolics e))
-      (place-channel-put pch (length variables))
-      
-      (define timeout (place-channel-get pch))
-      (define assignments (place-channel-get pch))
-      (define ⊥ (unreachable))
-      (define symbolic-map 
-        (hash->list (flatten-symbolic (if evidence e ⊥))))
-      (define subst-map (for/hash ([idx+asgn assignments])
-                                  (match-define (cons idx asgn) idx+asgn)
-                                  (values (list-ref variables idx) asgn)))
-      (define result (with-timeout
-                    timeout
-                    (lambda () (begin 
-                                  (compute-pmf (set-symbolic-vars symbolic-map subst-map))
-                                  "done"))
-                    (lambda () "timed-out")))
-      (place-channel-put pch result)
-      pmf)
-    (begin
-      (displayln "here")
-      (define ⊥ (unreachable))
-      (define symbolic-map 
-        (hash->list (flatten-symbolic (if evidence e ⊥))))
-      (compute-pmf symbolic-map))))
+(define (query e pch)
+(displayln expr-to-profile)
+  (define variables (symbolics e))
+  (place-channel-put pch (length variables))
+  
+  (define timeout (place-channel-get pch))
+  (define assignments (place-channel-get pch))
+  (define ⊥ (unreachable))
+  (define symbolic-map 
+    (hash->list (flatten-symbolic (if evidence e ⊥))))
+  (define subst-map (for/hash ([idx+asgn assignments])
+                              (match-define (cons idx asgn) idx+asgn)
+                              (values (list-ref variables idx) asgn)))
+  (define result (with-timeout
+                timeout
+                (lambda () (begin 
+                              (compute-pmf (set-symbolic-vars symbolic-map subst-map))
+                              "done"))
+                (lambda () "timed-out")))
+  (place-channel-put pch result)
+  pmf)
 
 (define (flip-fn pr)
   (cond
@@ -219,31 +217,61 @@
      #:do [(define src (syntax-srcloc this-syntax))]
      #:with source #`#,src
      #'(let ([out (flip-fn pr)])
-          (hash-update! variable-contexts out (lambda (x) (cons x source)))
+          (hash-update! variable-contexts out (lambda (x) (cons source x)))
           out)]))
 
 
 
 (define (make-json-visualization e pch)
   (define variables (symbolics e))
-  (define file-name (place-channel-get pch))
+  (define file-path (place-channel-get pch))
+  (define out-file-path (path->string (path-replace-extension file-path ".json")))
   (define source-code (place-channel-get pch))
-  (define profiling-results (for/list ([(key value) (in-hash (place-channel-get pch))])
-                              (list key value)))
-  (define variable-contexts-with-indices 
-    (for/hash ([(key value) (in-hash variable-contexts)])
-      (values (index-of variables key) value)))
+  (define profiling-results (place-channel-get pch))
+  (define profiling-results-js
+    (if (hash? profiling-results)
+        (for/hash ([(key value) (in-hash profiling-results)])
+          (values (string->symbol (number->string key)) value))
+          profiling-results))
 
-  (call-with-output-file "profiling-results.json"
+  (define (srcloc->js-hash loc)
+    (match-define (srcloc source line column position span) loc)
+    (hash
+      `source (~a source)
+      `line line
+      `column column
+      `position position
+      `span span))
+  (define variable-contexts-js 
+    (for/hash ([(key value) (in-hash variable-contexts)])
+      (values (string->symbol (number->string (index-of variables key))) 
+              (hash 'syntactic-source (srcloc->js-hash (car value))
+                    'context (map (lambda (ctx-pair)
+                                    (list (~a (car ctx-pair)) 
+                                          (srcloc->js-hash (cdr ctx-pair)))) 
+                                  (cdr value))))))
+  (call-with-output-file out-file-path
     (lambda (out)
       (write-json 
         (hash
           'source-code source-code
-          'stack-contexts (hash->list variable-contexts-with-indices)
-          'heuristics profiling-results)
-        out))
+          'stack-contexts variable-contexts-js
+          'heuristics profiling-results-js)
+        out
+        #:indent #\tab))
     #:exists 'replace)
   (place-channel-put pch "Done"))
+
+
+(define (place-main pch)
+  (if expr-to-profile
+      (query pch)
+      (error "no expression registered to profile")))
+
+(define (generate-json pch)
+  (if expr-to-profile
+      (make-json-visualization pch)
+      (error "no expression registered to profile")))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
 

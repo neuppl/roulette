@@ -31,9 +31,8 @@
               cur-row)))))
 
 (define (place-main pch)
-  (query (last (last (n-grid-bayesian 12))) #:place pch))
-
+  (query (last (last (n-grid-bayesian 10))) pch))
 
 
 (define (generate-json pch)
-  (make-json-visualization (n-grid-bayesian 12) pch))
+  (make-json-visualization (last (last (n-grid-bayesian 10))) pch))

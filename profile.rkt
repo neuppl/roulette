@@ -38,7 +38,9 @@
 								(match-define (cons idx asgn) idx+asgn)
 								(hash-update! freq-map idx add1 0))
 							(hash-update! freq-map "Total-runs" add1 0)))
-          freq-map))))
+          (if (empty? (hash->list freq-map))
+							"No heuristics collected, file runs within time limit"
+							freq-map)))))
 
 
 ;; Given the file path, runs subsampling search algorithm and provides heuristics. file-path is 
@@ -89,6 +91,7 @@
 		; First pass, with no assignments, to see if it runs without any subsampling
 		(define pch (dynamic-place file-path 'place-main))
 		(define num-vars (place-channel-get pch))
+		(displayln num-vars)
 		(place-channel-put pch timeout-duration)
 		(place-channel-put pch initial-state)
 		(define result (place-channel-get pch))
@@ -121,11 +124,12 @@
 			(lambda (in) (port->string in))))
 
 
-	(define results (search file-path 20 5 (list) 2))
+	(define results (search file-path 3 10 (list) 2))
 
 	(define pch (dynamic-place file-path 'generate-json))
 
 
+	(displayln results)
 	(place-channel-put pch file-path)
 	(place-channel-put pch program-text)
 	(place-channel-put pch results)
@@ -134,7 +138,16 @@
 
 
 
-(define file-path (vector-ref (current-command-line-arguments) 0))
+
+(define (get-file-path-argument)
+	(define args (current-command-line-arguments))
+	(when (< (vector-length args) 1)
+		(error "Expected atleast one argument with path of file to profile, got none."))
+		(define file-path (vector-ref args 0))
+		file-path)
 
 
-(make-profiling-json-results file-path)
+
+(make-profiling-json-results (get-file-path-argument))
+
+
