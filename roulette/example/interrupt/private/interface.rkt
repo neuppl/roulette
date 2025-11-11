@@ -174,7 +174,7 @@
     (if (hash? profiling-results)
         (for/hash ([(key value) (in-hash profiling-results)])
           (values (string->symbol (number->string key)) value))
-          profiling-results))
+        profiling-results))
 
   (define (srcloc->js-hash loc)
     (match-define (srcloc source line column position span) loc)
@@ -196,13 +196,14 @@
     (lambda (out)
       (write-json 
         (hash
+          'file-path file-path
           'source-code source-code
           'stack-contexts variable-contexts-js
           'heuristics profiling-results-js)
         out
         #:indent #\tab))
     #:exists 'replace)
-  (place-channel-put pch "Done"))
+  (place-channel-put pch out-file-path))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation

@@ -30,6 +30,8 @@
                       )))
               cur-row)))))
 
+
+
 (define (place-main pch)
   (query (last (last (n-grid-bayesian 10))) pch))
 

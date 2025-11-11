@@ -1,4 +1,4 @@
-#lang errortrace racket
+#lang racket
 
 ;; this file is run with an argument "file_name.rkt" that contains an interrupt program that is to be profiled.
 
@@ -118,6 +118,7 @@
 	(channel-get out-ch))
 
 
+;; Returns the file path of the json file with profiling results
 (define (make-profiling-json-results file-path)
 	(define program-text
 		(call-with-input-file file-path
@@ -129,12 +130,11 @@
 	(define pch (dynamic-place file-path 'generate-json))
 
 
-	(displayln results)
 	(place-channel-put pch file-path)
 	(place-channel-put pch program-text)
 	(place-channel-put pch results)
 	
-	(displayln (place-channel-get pch)))
+	(place-channel-get pch))
 
 
 
@@ -148,6 +148,15 @@
 
 
 
-(make-profiling-json-results (get-file-path-argument))
+(define (run-profiler file-path)
+	(define json-path (make-profiling-json-results file-path))
+	(printf "JSON results produced at: ~a\n" json-path)
 
 
+	(displayln "Running visualize.py to generate html ...")
+	(system (string-append "python3 visualize.py " json-path)))
+
+
+
+
+(run-profiler (get-file-path-argument))

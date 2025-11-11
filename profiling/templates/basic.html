@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profiling results for {{ file | default('Code Example') }}</title>
+  <style>
+    pre {
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 12px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    code {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h2>Source code for {{ file | default('Code Example') }}</h2>
+  <pre><code>{{ code | e }}</code></pre>
+  <h2>Collected heuristics</h2>
+  <pre><code>{{heuristics | e}}</code></pre>
+</body>
+</html>

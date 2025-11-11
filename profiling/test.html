@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profiling results for test.rkt</title>
+  <style>
+    pre {
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 12px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    code {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h2>Source code for test.rkt</h2>
+  <pre><code>#lang roulette/example/interrupt
+(provide place-main)
+(provide generate-json)
+
+
+
+(define (make-bayesian-node dep1 dep2)
+  (define node (if (and dep1 dep2) (flip 0.5) (flip 0.4)))
+  node)
+
+
+(define (n-grid-bayesian n)
+  (for*/fold ([grid (list)])
+             ([row (in-range 1 n 1)]
+              [col (in-range 1 n 1)])
+    (if (&lt; (length grid) row)
+        (append grid (list (list (make-bayesian-node
+                                  #t 
+                                  (if (= row 1)
+                                      #t (first (list-ref grid (- row 2))))))))
+        (for/list ([cur-row grid])
+          (if (&lt; (length cur-row) col)
+              (append
+               cur-row
+               (list (make-bayesian-node
+                      (list-ref     (list-ref grid (- row 1)) (- col 2))
+                      (if (= row 1)
+                          #t
+                          (list-ref (list-ref grid (- row 2)) (- col 1)))
+                      )))
+              cur-row)))))
+
+
+
+(define (place-main pch)
+  (query (last (last (n-grid-bayesian 10))) pch))
+
+
+(define (generate-json pch)
+  (make-json-visualization (last (last (n-grid-bayesian 10))) pch))
+</code></pre>
+  <h2>Collected heuristics</h2>
+  <pre><code>No heuristics collected, file runs within time limit</code></pre>
+</body>
+</html>
