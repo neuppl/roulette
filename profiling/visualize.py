@@ -7,7 +7,7 @@ from pathlib import Path
 env = Environment(loader=FileSystemLoader('templates'))
 
 # Load the template
-template = env.get_template('basic.html')
+template = env.get_template('results.html')
 
 
 

@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profiling results for {{ file | default('Code Example') }}</title>
+<style>
+/* ============================================================================
+   TYPOGRAPHY & BASE STYLES
+   ============================================================================ */
+
+h2 {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-weight: 600;
+    color: #2c3e50;
+    letter-spacing: -0.5px;
+}
+
+pre {
+    background: #f4f4f4;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    position: relative;
+}
+
+code {
+    display: block;
+    position: relative;
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+#close-all-dialogs {
+    transition: background-color 0.2s ease;
+}
+
+#close-all-dialogs:hover {
+    background: #5ca77a !important;
+}
+
+.dialog-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #666;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.dialog-close:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* ============================================================================
+   CODE HIGHLIGHTING & INTERACTION
+   ============================================================================ */
+
+.hoverable-code {
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 2px 3px;
+    margin: 0 -3px;
+    transition: all 0.15s ease;
+    position: relative;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+}
+
+.hoverable-code:hover {
+    background-color: var(--hover-bg-color, rgba(168, 213, 186, 0.4));
+    padding: 3px 5px;
+    margin: 0 -5px;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-decoration-thickness: 3px;
+}
+
+/* ============================================================================
+   DIALOG WINDOWS
+   ============================================================================ */
+
+.source-dialog {
+    position: absolute;
+    background: white;
+    border: 2px solid #7cb798;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 300px;
+    min-height: 150px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    display: none;
+    animation: fadeIn 0.2s ease-in-out;
+    resize: both;
+    user-select: none;
+}
+
+.source-dialog * {
+    user-select: text;
+}
+
+.source-dialog .dialog-header,
+.source-dialog .resize-handle {
+    user-select: none;
+}
+
+.source-dialog.show {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Dialog Header */
+.dialog-header {
+    cursor: move;
+    user-select: none;
+    margin: -12px -12px 8px -12px;
+    padding: 12px;
+    background: #f0f7ff;
+    border-radius: 6px 6px 0 0;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.source-info-item {
+    display: inline-block;
+    margin-right: 12px;
+    color: #333;
+    font-weight: 500;
+}
+
+/* Dialog Content Area */
+.dialog-content {
+    height: calc(100% - 40px);
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Resize Handle */
+.resize-handle {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 30px;
+    height: 30px;
+    cursor: nwse-resize;
+    z-index: 10;
+    background: transparent;
+}
+
+.resize-handle::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, transparent 30%, #7cb798 30%, #7cb798 40%, transparent 40%, transparent 55%, #7cb798 55%, #7cb798 65%, transparent 65%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.resize-handle:hover::after {
+    opacity: 1;
+    background: linear-gradient(135deg, transparent 30%, #5ca77a 30%, #5ca77a 40%, transparent 40%, transparent 55%, #5ca77a 55%, #5ca77a 65%, transparent 65%);
+}
+
+/* ============================================================================
+   CONTEXT SECTIONS & DETAILS
+   ============================================================================ */
+
+.contexts-section {
+    padding-top: 12px;
+}
+
+.contexts-container {
+    padding-left: 8px;
+}
+
+.contexts-list {
+    margin-left: 12px;
+    padding-left: 0;
+    list-style: none;
+}
+
+.contexts-list > li {
+    margin-bottom: 6px;
+    list-style-type: none;
+}
+
+/* Details/Summary Elements */
+details {
+    margin-top: 8px;
+}
+
+details summary {
+    cursor: pointer;
+    color: #0066cc;
+    font-weight: 500;
+    padding: 6px 10px;
+    background: #e8f0fe;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    user-select: none;
+}
+
+details summary:hover {
+    background: #d2e3fc;
+}
+
+details[open] > summary {
+    background: #c8ddf6;
+    margin-bottom: 12px;
+}
+
+details summary::before {
+    content: '▶ ';
+    display: inline-block;
+    transition: transform 0.2s;
+    margin-right: 4px;
+}
+
+details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+/* Context Items */
+.context-item {
+    margin: 4px 0;
+}
+
+.context-item summary {
+    background: #f0f7ff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: #1a73e8;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 8px;
+    transition: filter 0.2s ease;
+}
+
+.context-item summary:hover {
+    background: #e1f0fe;
+    filter: brightness(0.95);
+}
+
+.context-item[open] summary {
+    background: #d2e3fc;
+    margin-bottom: 12px;
+}
+
+.context-value {
+    color: #333;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: block;
+    margin-left: 12px;
+    padding: 8px 12px;
+    background: #f9f9f9;
+    border-left: 3px solid #1a73e8;
+    border-radius: 0 4px 4px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* ============================================================================
+   SCROLLBARS
+   ============================================================================ */
+
+.dialog-content::-webkit-scrollbar,
+.context-value::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dialog-content::-webkit-scrollbar-track,
+.context-value::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb,
+.context-value::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.dialog-content::-webkit-scrollbar-thumb:hover,
+.context-value::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================================
+     MAIN CONTENT
+     ============================================================================ -->
+
+<h2>Source code for {{ file | default('Code Example') }}</h2>
+<div style="position: relative;">
+    <button id="close-all-dialogs" style="position: absolute; top: -35px; right: 0; padding: 6px 12px; background: #7cb798; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 13px; display: none;">Close All Dialogs</button>
+    <pre id="code-container"><code id="source-code">{{ code | e }}</code></pre>
+</div>
+
+<h2>Collected Heuristics</h2>
+<div id="heuristics-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 2px solid #dee2e6; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);">
+    <div id="heuristics-content"></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    'use strict';
+
+    // ========================================================================
+    // GLOBAL STATE & CONFIGURATION
+    // ========================================================================
+
+    const codeElement = document.getElementById('source-code');
+    const codeText = codeElement.textContent;
+    const closeAllButton = document.getElementById('close-all-dialogs');
+
+    // Dialog management
+    let openDialogs = [];
+    let dialogPositions = {}; // Store positions by span index
+    let dialogIdCounter = 0;
+    const minTopMargin = 10; // Keep away from browser UI
+
+    // Parse heuristics data from Jinja2
+    const heuristicsRaw = {{ heuristics | tojson }};
+    let heuristicsData = null;
+    let totalRuns = 0;
+
+    if (typeof heuristicsRaw === 'object' && heuristicsRaw !== null && !Array.isArray(heuristicsRaw)) {
+        heuristicsData = heuristicsRaw;
+        totalRuns = heuristicsData['Total-runs'] || 0;
+    }
+
+    // Parse sources data from Jinja2
+    const sources = [{% for source in sources -%}
+        {
+            line: {{ source.get('line', 0) }},
+            column: {{ source.get('column', 0) }},
+            position: {{ source.get('position', 0) }},
+            span: {{ source.get('span', 0) }},
+            contexts: {% if source.get('contexts') %}{ {% for key, value in source['contexts'].items() %}"{{ key | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}": "{{ value | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}"{% if not loop.last %}, {% endif %}{% endfor %} }{% else %}{}{% endif %}
+        }{% if not loop.last %},{% endif %}
+    {%- endfor %}];
+
+    // ========================================================================
+    // COLOR UTILITIES
+    // ========================================================================
+
+    /**
+     * Calculate color on a green-to-red gradient based on value
+     * @param {number} value - The value to calculate color for
+     * @param {number} maxValue - The maximum value (scale)
+     * @returns {string} RGB color string
+     */
+    function getColorForValue(value, maxValue) {
+        if (maxValue === 0) return 'rgb(100, 220, 100)'; // Default green if no scale
+
+        const normalized = Math.min(value / maxValue, 1);
+        const red = Math.round(100 + 80 * normalized);
+        const green = Math.round(220 * (1 - normalized));
+
+        return `rgb(${red}, ${green}, 0)`;
+    }
+
+    /**
+     * Create a darker version of an RGB color (70% brightness)
+     * @param {string} rgbColor - RGB color string like "rgb(100, 220, 100)"
+     * @returns {string} Darker RGB color string
+     */
+    function darkenColor(rgbColor) {
+        const rgb = rgbColor.match(/\d+/g).map(Number);
+        const darkerRgb = rgb.map(c => Math.max(0, Math.round(c * 0.7)));
+        return `rgb(${darkerRgb[0]}, ${darkerRgb[1]}, ${darkerRgb[2]})`;
+    }
+
+    // ========================================================================
+    // HTML UTILITIES
+    // ========================================================================
+
+    /**
+     * Escape HTML special characters
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped HTML
+     */
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * Pretty print context values (attempts JSON formatting)
+     * @param {string} value - Value to format
+     * @returns {string} Formatted and escaped HTML
+     */
+    function prettyPrintContext(value) {
+        try {
+            const parsed = JSON.parse(value);
+            return escapeHtml(JSON.stringify(parsed, null, 2));
+        } catch (e) {
+            // Not JSON - check if it looks like structured data
+            let formatted = value;
+
+            if (/[\{\}\[\]\(\),]/.test(value) && value.trim().length > 0) {
+                formatted = value
+                    .replace(/,\s*/g, ',\n  ')
+                    .replace(/\{/g, '{\n  ')
+                    .replace(/\}/g, '\n}')
+                    .replace(/\[/g, '[\n  ')
+                    .replace(/\]/g, '\n]')
+                    .replace(/\(\s*/g, '(\n  ')
+                    .replace(/\s*\)/g, '\n)');
+
+                formatted = formatted.replace(/\n{3,}/g, '\n\n');
+            }
+
+            return escapeHtml(formatted);
+        }
+    }
+
+    // ========================================================================
+    // HEURISTICS DISPLAY
+    // ========================================================================
+
+    /**
+     * Populate the heuristics display section with tiles
+     */
+    function populateHeuristicsDisplay() {
+        const heuristicsContent = document.getElementById('heuristics-content');
+
+        if (!heuristicsData || typeof heuristicsData === 'string') {
+            heuristicsContent.innerHTML = '<div style="color: #6c757d; font-style: italic;">No heuristics data available</div>';
+            return;
+        }
+
+        let html = '';
+
+        // Display Total Runs prominently
+        if (totalRuns > 0) {
+            html += `
+                <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; margin-bottom: 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Total Runs:</span>
+                    <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
+                </div>
+            `;
+        }
+
+        // Create grid of heuristic tiles
+        const keys = Object.keys(heuristicsData).filter(k => k !== 'Total-runs');
+
+        if (keys.length > 0) {
+            html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">';
+
+            keys.forEach(key => {
+                const value = heuristicsData[key];
+                const color = getColorForValue(value, totalRuns);
+                const percentage = totalRuns > 0 ? ((value / totalRuns) * 100).toFixed(1) : '0.0';
+
+                html += `
+                    <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
+                         style="background: white; border-radius: 6px; padding: 10px 12px; border-left: 3px solid ${color};
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer;"
+                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.12)';"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.08)';">
+                        <div style="font-size: 12px; color: #6c757d; margin-bottom: 4px; font-weight: 500; overflow: hidden;
+                                    text-overflow: ellipsis; white-space: nowrap;" title="Flip: ${escapeHtml(key)}">
+                            Flip: ${escapeHtml(key)}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <span style="font-size: 16px; font-weight: 600; color: #212529; font-family: 'Monaco', monospace;">${value}</span>
+                            <span style="font-size: 11px; color: #868e96; font-weight: 500;">${percentage}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+        heuristicsContent.innerHTML = html;
+    }
+
+    /**
+     * Add click handlers to heuristic tiles for focusing contexts
+     */
+    function initializeHeuristicTileHandlers() {
+        setTimeout(() => {
+            const tiles = document.querySelectorAll('.heuristic-tile');
+            tiles.forEach(tile => {
+                tile.addEventListener('click', function() {
+                    const contextKey = this.dataset.contextKey;
+                    focusOnContext(contextKey);
+                });
+            });
+        }, 100);
+    }
+
+    // ========================================================================
+    // CONTEXT FOCUSING & NAVIGATION
+    // ========================================================================
+
+    /**
+     * Find and focus on a context - either in open dialogs or by opening new dialog
+     * @param {string} contextKey - The context key to find and focus
+     * @returns {boolean} True if context was found and focused
+     */
+    function focusOnContext(contextKey) {
+        // First, search through all open dialogs
+        if (focusContextInOpenDialogs(contextKey)) {
+            return true;
+        }
+
+        // If not found, find and open the dialog containing this context
+        return openDialogForContext(contextKey);
+    }
+
+    /**
+     * Focus on a context within already-open dialogs
+     * @param {string} contextKey - The context key to find
+     * @returns {boolean} True if found and focused
+     */
+    function focusContextInOpenDialogs(contextKey) {
+        for (const dialogInfo of openDialogs) {
+            const dialog = document.getElementById(dialogInfo.id);
+            if (!dialog) continue;
+
+            const contextItems = dialog.querySelectorAll('.context-item');
+            for (const item of contextItems) {
+                const summary = item.querySelector('summary');
+                if (summary && summary.textContent.trim() === contextKey) {
+                    // Bring dialog to front
+                    dialog.style.zIndex = 1000 + (++dialogIdCounter);
+
+                    // Reposition if off-screen
+                    repositionDialogIfOffScreen(dialog);
+
+                    // Open the context dropdown
+                    item.open = true;
+
+                    // Scroll within dialog
+                    scrollToContextInDialog(dialog, item);
+
+                    // Scroll page to show dialog
+                    scrollPageToDialog(dialog);
+
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Open a new dialog containing the specified context
+     * @param {string} contextKey - The context key to find
+     * @returns {boolean} True if dialog was opened
+     */
+    function openDialogForContext(contextKey) {
+        for (let i = 0; i < sources.length; i++) {
+            const source = sources[i];
+            if (source.contexts && source.contexts[contextKey] !== undefined) {
+                const span = codeElement.querySelector(`.hoverable-code[data-index="${i}"]`);
+                if (span) {
+                    showDialog(span, source, i);
+
+                    // Wait for dialog creation, then focus context
+                    setTimeout(() => {
+                        const newDialog = openDialogs[openDialogs.length - 1];
+                        if (newDialog) {
+                            const dialog = document.getElementById(newDialog.id);
+                            if (dialog) {
+                                focusContextInNewDialog(dialog, contextKey);
+                                scrollPageToDialog(dialog);
+                            }
+                        }
+                    }, 50);
+
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Focus on a specific context within a newly-opened dialog
+     * @param {HTMLElement} dialog - The dialog element
+     * @param {string} contextKey - The context key to focus
+     */
+    function focusContextInNewDialog(dialog, contextKey) {
+        const contextItems = dialog.querySelectorAll('.context-item');
+        for (const item of contextItems) {
+            const summary = item.querySelector('summary');
+            if (summary && summary.textContent.trim() === contextKey) {
+                item.open = true;
+                scrollToContextInDialog(dialog, item);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Reposition dialog to center if it's off-screen
+     * @param {HTMLElement} dialog - The dialog element
+     */
+    function repositionDialogIfOffScreen(dialog) {
+        const dialogRect = dialog.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        const isOffScreen = (
+            dialogRect.right < 50 ||
+            dialogRect.left > viewportWidth - 50 ||
+            dialogRect.bottom < 50 ||
+            dialogRect.top > viewportHeight - 50
+        );
+
+        if (isOffScreen) {
+            const centerX = (viewportWidth - dialog.offsetWidth) / 2;
+            const centerY = (viewportHeight - dialog.offsetHeight) / 2;
+
+            dialog.style.left = Math.max(20, centerX) + 'px';
+            dialog.style.top = Math.max(20, centerY) + 'px';
+        }
+    }
+
+    /**
+     * Scroll to a context item within a dialog
+     * @param {HTMLElement} dialog - The dialog element
+     * @param {HTMLElement} item - The context item element
+     */
+    function scrollToContextInDialog(dialog, item) {
+        const dialogContent = dialog.querySelector('.dialog-content');
+        if (dialogContent) {
+            const itemTop = item.offsetTop;
+            dialogContent.scrollTop = itemTop - 50;
+        }
+    }
+
+    /**
+     * Scroll the page to bring dialog into view
+     * @param {HTMLElement} dialog - The dialog element
+     */
+    function scrollPageToDialog(dialog) {
+        requestAnimationFrame(() => {
+            dialog.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'center'
+            });
+        });
+    }
+
+    // ========================================================================
+    // DIALOG MANAGEMENT
+    // ========================================================================
+
+    /**
+     * Update the "Close All" button visibility and text
+     */
+    function updateCloseAllButton() {
+        if (openDialogs.length > 0) {
+            closeAllButton.style.display = 'block';
+            closeAllButton.textContent = `Close All (${openDialogs.length} window(s) open)`;
+        } else {
+            closeAllButton.style.display = 'none';
+        }
+    }
+
+    /**
+     * Close dialog(s)
+     * @param {string} dialogId - Dialog ID to close, or undefined to close all
+     */
+    function closeDialog(dialogId) {
+        if (!dialogId || dialogId === '' || dialogId === 'all' || dialogId === undefined) {
+            closeAllDialogs();
+        } else {
+            closeSingleDialog(dialogId);
+        }
+        updateCloseAllButton();
+    }
+
+    /**
+     * Close all open dialogs
+     */
+    function closeAllDialogs() {
+        openDialogs.forEach(dialogInfo => {
+            const dialogEl = document.getElementById(dialogInfo.id);
+            if (dialogEl) {
+                rememberDialogPosition(dialogInfo, dialogEl);
+                cleanupDialogEventHandlers(dialogEl);
+                dialogEl.remove();
+            }
+            removeSpanHighlight(dialogInfo.spanElement);
+        });
+        openDialogs = [];
+    }
+
+    /**
+     * Close a single dialog
+     * @param {string} dialogId - Dialog ID to close
+     */
+    function closeSingleDialog(dialogId) {
+        const dialogInfo = openDialogs.find(d => d.id === dialogId);
+        if (dialogInfo) {
+            const dialog = document.getElementById(dialogId);
+            if (dialog) {
+                rememberDialogPosition(dialogInfo, dialog);
+                cleanupDialogEventHandlers(dialog);
+                dialog.remove();
+            }
+            removeSpanHighlight(dialogInfo.spanElement);
+            openDialogs = openDialogs.filter(d => d.id !== dialogId);
+        }
+    }
+
+    /**
+     * Remember dialog position for reopening
+     * @param {Object} dialogInfo - Dialog info object
+     * @param {HTMLElement} dialog - Dialog element
+     */
+    function rememberDialogPosition(dialogInfo, dialog) {
+        if (dialogInfo.spanIndex !== undefined) {
+            dialogPositions[dialogInfo.spanIndex] = {
+                top: parseInt(dialog.style.top),
+                left: parseInt(dialog.style.left),
+                width: dialog.offsetWidth,
+                height: dialog.offsetHeight
+            };
+        }
+    }
+
+    /**
+     * Clean up event handlers for a dialog
+     * @param {HTMLElement} dialog - Dialog element
+     */
+    function cleanupDialogEventHandlers(dialog) {
+        if (dialog._mouseMoveHandler) {
+            document.removeEventListener('mousemove', dialog._mouseMoveHandler);
+        }
+        if (dialog._mouseUpHandler) {
+            document.removeEventListener('mouseup', dialog._mouseUpHandler);
+        }
+    }
+
+    /**
+     * Remove highlight from code span
+     * @param {HTMLElement} span - Span element
+     */
+    function removeSpanHighlight(span) {
+        if (span) {
+            span.style.backgroundColor = '';
+            span.style.border = '';
+            span.style.padding = '';
+            span.style.margin = '';
+        }
+    }
+
+    // Make closeDialog available globally
+    window.closeDialog = closeDialog;
+
+    // ========================================================================
+    // DIALOG CREATION & DISPLAY
+    // ========================================================================
+
+    /**
+     * Create HTML for dialog content
+     * @param {Object} source - Source data
+     * @param {number} index - Source index
+     * @param {string} dialogId - Dialog ID
+     * @returns {string} HTML string
+     */
+    function createDialogHTML(source, index, dialogId) {
+        let html = `
+            <div class="dialog-header">
+                <div>
+                    <span class="source-info-item">line: ${source.line}</span>
+                    <span class="source-info-item">col: ${source.column}</span>
+                    <span class="source-info-item">pos: ${source.position}</span>
+                    <span class="source-info-item">span: ${source.span}</span>
+                </div>
+                <button class="dialog-close" onclick="closeDialog()">×</button>
+            </div>
+            <div class="dialog-content">
+        `;
+
+        if (source.contexts && Object.keys(source.contexts).length > 0) {
+            html += createContextsSection(source, dialogId);
+        } else {
+            html += '<p style="color: #666; margin: 20px;">No contexts available</p>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    /**
+     * Create HTML for contexts section
+     * @param {Object} source - Source data
+     * @param {string} dialogId - Dialog ID
+     * @returns {string} HTML string
+     */
+    function createContextsSection(source, dialogId) {
+        let html = `
+            <div class="contexts-section">
+                <details open>
+                    <summary>Contexts (${Object.keys(source.contexts).length} items)</summary>
+                    <div style="margin: 8px 0 12px 12px;">
+                        <button class="sort-button" data-dialog-id="${dialogId}" data-sort="asc"
+                                style="padding: 4px 8px; margin-right: 6px; border: 1px solid #ddd; border-radius: 3px; background: #f8f8f8; cursor: pointer; font-size: 12px;">
+                            Sort: Low → High
+                        </button>
+                        <button class="sort-button" data-dialog-id="${dialogId}" data-sort="desc"
+                                style="padding: 4px 8px; margin-right: 6px; border: 1px solid #ddd; border-radius: 3px; background: #f8f8f8; cursor: pointer; font-size: 12px;">
+                            Sort: High → Low
+                        </button>
+                        <button class="sort-button" data-dialog-id="${dialogId}" data-sort="original"
+                                style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px; background: #f8f8f8; cursor: pointer; font-size: 12px;">
+                            Original Order
+                        </button>
+                    </div>
+                    <div class="contexts-container">
+                        <ul class="contexts-list" data-dialog-id="${dialogId}">
+        `;
+
+        for (const [key, value] of Object.entries(source.contexts)) {
+            html += `
+                <li data-context-key="${escapeHtml(key)}">
+                    <details class="context-item">
+                        <summary>${escapeHtml(key)}</summary>
+                        <div class="context-value">${prettyPrintContext(value)}</div>
+                    </details>
+                </li>
+            `;
+        }
+
+        html += `
+                        </ul>
+                    </div>
+                </details>
+            </div>
+        `;
+
+        return html;
+    }
+
+    /**
+     * Calculate average heuristic color for a source's contexts
+     * @param {Object} source - Source data
+     * @returns {Object} Object with spanColor and spanBorderColor
+     */
+    function calculateSourceColors(source) {
+        let spanColor = '#a8d5ba'; // Default light green
+        let spanBorderColor = '#7cb798';
+
+        if (heuristicsData && totalRuns > 0 && source.contexts && Object.keys(source.contexts).length > 0) {
+            let totalValue = 0;
+            let count = 0;
+
+            for (const contextKey of Object.keys(source.contexts)) {
+                const value = heuristicsData[contextKey] !== undefined ? heuristicsData[contextKey] : 0;
+                totalValue += value;
+                count++;
+            }
+
+            if (count > 0) {
+                const averageValue = totalValue / count;
+                spanColor = getColorForValue(averageValue, totalRuns);
+                spanBorderColor = darkenColor(spanColor);
+            }
+        }
+
+        return { spanColor, spanBorderColor };
+    }
+
+    /**
+     * Show dialog for a code span
+     * @param {HTMLElement} span - Span element
+     * @param {Object} source - Source data
+     * @param {number} index - Source index
+     */
+    function showDialog(span, source, index) {
+        const { spanColor, spanBorderColor } = calculateSourceColors(source);
+
+        // Highlight the span
+        span.style.backgroundColor = spanColor;
+        span.style.border = `1px solid ${spanBorderColor}`;
+
+        // Create dialog
+        const dialogId = 'dialog-' + (++dialogIdCounter);
+        const dialog = document.createElement('div');
+        dialog.className = 'source-dialog show';
+        dialog.id = dialogId;
+        dialog.innerHTML = createDialogHTML(source, index, dialogId);
+        dialog.style.borderColor = spanBorderColor;
+
+        // Add resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'resize-handle';
+        dialog.appendChild(resizeHandle);
+
+        // Setup close button
+        setupDialogCloseButton(dialog, dialogId);
+
+        // Position and display dialog
+        document.body.appendChild(dialog);
+        positionDialog(dialog, span, index);
+
+        // Store dialog info
+        openDialogs.push({
+            id: dialogId,
+            element: dialog,
+            position: { top: parseInt(dialog.style.top), left: parseInt(dialog.style.left) },
+            spanElement: span,
+            spanIndex: index
+        });
+
+        // Setup dialog interactions
+        setupDialogDragging(dialog, dialogId);
+        setupDialogResizing(dialog, resizeHandle, dialogId);
+        setupDialogFocusing(dialog);
+
+        // Apply heuristic colors to context items
+        applyHeuristicColorsToContexts(dialog);
+
+        // Setup sort buttons
+        setupSortButtons(dialog);
+
+        updateCloseAllButton();
+    }
+
+    /**
+     * Setup close button for dialog
+     * @param {HTMLElement} dialog - Dialog element
+     * @param {string} dialogId - Dialog ID
+     */
+    function setupDialogCloseButton(dialog, dialogId) {
+        const closeButton = dialog.querySelector('.dialog-close');
+        if (closeButton) {
+            closeButton.onclick = null;
+            closeButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                closeDialog(dialogId);
+            }, false);
+        }
+    }
+
+    /**
+     * Position dialog based on span location and remembered position
+     * @param {HTMLElement} dialog - Dialog element
+     * @param {HTMLElement} span - Span element
+     * @param {number} index - Source index
+     */
+    function positionDialog(dialog, span, index) {
+        let top, left, width = 500, height = 400;
+
+        if (dialogPositions[index]) {
+            const remembered = dialogPositions[index];
+            top = remembered.top;
+            left = remembered.left;
+            width = remembered.width || 500;
+            height = remembered.height || 400;
+
+            // Ensure position is within bounds
+            top = Math.max(minTopMargin, Math.min(top, window.innerHeight - 50));
+            left = Math.max(0, Math.min(left, window.innerWidth - 100));
+        } else {
+            const spanRect = span.getBoundingClientRect();
+            const offset = openDialogs.length * 20;
+
+            top = spanRect.bottom + window.scrollY + 10 + offset;
+            left = spanRect.left + window.scrollX + offset;
+
+            // Check if dialog would go off bottom
+            if (top + height > window.innerHeight + window.scrollY) {
+                top = spanRect.top + window.scrollY - height - 10;
+            }
+
+            top = Math.max(minTopMargin, top - window.scrollY) + window.scrollY;
+
+            // Check if dialog would go off right edge
+            if (left + width > window.innerWidth + window.scrollX) {
+                left = window.innerWidth + window.scrollX - width - 20;
+            }
+        }
+
+        dialog.style.top = top + 'px';
+        dialog.style.left = left + 'px';
+        dialog.style.width = width + 'px';
+        dialog.style.height = height + 'px';
+        dialog.style.zIndex = 1000 + dialogIdCounter;
+    }
+
+    /**
+     * Setup dragging functionality for dialog
+     * @param {HTMLElement} dialog - Dialog element
+     * @param {string} dialogId - Dialog ID
+     */
+    function setupDialogDragging(dialog, dialogId) {
+        const header = dialog.querySelector('.dialog-header');
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+
+        header.addEventListener('mousedown', function(e) {
+            if (e.target.classList.contains('dialog-close')) return;
+
+            isDragging = true;
+            dragOffset.x = e.clientX - dialog.offsetLeft;
+            dragOffset.y = e.clientY - dialog.offsetTop;
+            dialog.style.cursor = 'grabbing';
+            dialog.style.zIndex = 1000 + (++dialogIdCounter);
+        });
+
+        const mouseMoveHandler = function(e) {
+            if (!document.getElementById(dialogId)) {
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+                return;
+            }
+
+            if (isDragging) {
+                let newX = e.clientX - dragOffset.x;
+                let newY = e.clientY - dragOffset.y;
+
+                const minVisibleHeight = 50;
+                const minSideMargin = 100;
+
+                newX = Math.max(-dialog.offsetWidth + minSideMargin,
+                               Math.min(newX, window.innerWidth - minSideMargin));
+                newY = Math.max(minTopMargin,
+                               Math.min(newY, window.innerHeight - minVisibleHeight));
+
+                dialog.style.left = newX + 'px';
+                dialog.style.top = newY + 'px';
+
+                updateDialogPosition(dialogId, newX, newY, dialog.offsetWidth, dialog.offsetHeight);
+            }
+        };
+
+        const mouseUpHandler = function() {
+            isDragging = false;
+            dialog.style.cursor = '';
+        };
+
+        document.addEventListener('mousemove', mouseMoveHandler);
+        document.addEventListener('mouseup', mouseUpHandler);
+
+        dialog._mouseMoveHandler = mouseMoveHandler;
+        dialog._mouseUpHandler = mouseUpHandler;
+    }
+
+    /**
+     * Setup resizing functionality for dialog
+     * @param {HTMLElement} dialog - Dialog element
+     * @param {HTMLElement} resizeHandle - Resize handle element
+     * @param {string} dialogId - Dialog ID
+     */
+    function setupDialogResizing(dialog, resizeHandle, dialogId) {
+        let isResizing = false;
+        let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
+
+        resizeHandle.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            isResizing = true;
+            resizeStart.x = e.clientX;
+            resizeStart.y = e.clientY;
+            resizeStart.width = dialog.offsetWidth;
+            resizeStart.height = dialog.offsetHeight;
+            dialog.style.resize = 'none';
+            dialog.style.zIndex = 1000 + (++dialogIdCounter);
+        });
+
+        const existingMoveHandler = dialog._mouseMoveHandler;
+        const resizeMoveHandler = function(e) {
+            existingMoveHandler(e);
+
+            if (isResizing) {
+                const newWidth = Math.max(300, resizeStart.width + (e.clientX - resizeStart.x));
+                const newHeight = Math.max(150, resizeStart.height + (e.clientY - resizeStart.y));
+
+                dialog.style.width = newWidth + 'px';
+                dialog.style.height = newHeight + 'px';
+
+                updateDialogPosition(dialogId, parseInt(dialog.style.left), parseInt(dialog.style.top), newWidth, newHeight);
+            }
+        };
+
+        const existingUpHandler = dialog._mouseUpHandler;
+        const resizeUpHandler = function() {
+            existingUpHandler();
+            isResizing = false;
+            dialog.style.resize = 'both';
+        };
+
+        // Replace handlers with combined versions
+        document.removeEventListener('mousemove', existingMoveHandler);
+        document.removeEventListener('mouseup', existingUpHandler);
+        document.addEventListener('mousemove', resizeMoveHandler);
+        document.addEventListener('mouseup', resizeUpHandler);
+
+        dialog._mouseMoveHandler = resizeMoveHandler;
+        dialog._mouseUpHandler = resizeUpHandler;
+    }
+
+    /**
+     * Setup dialog focusing on click
+     * @param {HTMLElement} dialog - Dialog element
+     */
+    function setupDialogFocusing(dialog) {
+        dialog.addEventListener('mousedown', function() {
+            dialog.style.zIndex = 1000 + (++dialogIdCounter);
+        });
+    }
+
+    /**
+     * Update stored dialog position
+     * @param {string} dialogId - Dialog ID
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {number} width - Width
+     * @param {number} height - Height
+     */
+    function updateDialogPosition(dialogId, x, y, width, height) {
+        const dialogInfo = openDialogs.find(d => d.id === dialogId);
+        if (dialogInfo) {
+            dialogInfo.position = { top: y, left: x };
+            if (dialogInfo.spanIndex !== undefined) {
+                dialogPositions[dialogInfo.spanIndex] = { top: y, left: x, width, height };
+            }
+        }
+    }
+
+    /**
+     * Apply heuristic colors to context summaries
+     * @param {HTMLElement} dialog - Dialog element
+     */
+    function applyHeuristicColorsToContexts(dialog) {
+        if (!heuristicsData || totalRuns === 0) return;
+
+        const contextSummaries = dialog.querySelectorAll('.context-item > summary');
+        contextSummaries.forEach(summary => {
+            const contextKey = summary.textContent.trim();
+            const value = heuristicsData[contextKey] !== undefined ? heuristicsData[contextKey] : 0;
+            const color = getColorForValue(value, totalRuns);
+
+            summary.style.backgroundColor = color;
+            summary.style.color = 'white';
+            summary.style.textShadow = '0 1px 2px rgba(0, 0, 0, 0.3)';
+        });
+    }
+
+    /**
+     * Setup sort button event listeners
+     * @param {HTMLElement} dialog - Dialog element
+     */
+    function setupSortButtons(dialog) {
+        const sortButtons = dialog.querySelectorAll('.sort-button');
+        sortButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const sortType = this.dataset.sort;
+                const targetDialogId = this.dataset.dialogId;
+                const contextsList = dialog.querySelector(`.contexts-list[data-dialog-id="${targetDialogId}"]`);
+
+                if (!contextsList) return;
+
+                const items = Array.from(contextsList.querySelectorAll('li'));
+
+                // Store original order
+                if (!contextsList.dataset.originalOrder) {
+                    contextsList.dataset.originalOrder = items.map(item => item.dataset.contextKey).join('|||');
+                }
+
+                if (sortType === 'original') {
+                    restoreOriginalOrder(items, contextsList);
+                } else {
+                    sortByHeuristic(items, sortType);
+                }
+
+                // Re-append in sorted order
+                items.forEach(item => contextsList.appendChild(item));
+
+                // Update button styles
+                updateSortButtonStyles(sortButtons, this);
+            });
+        });
+    }
+
+    /**
+     * Restore original order of context items
+     * @param {Array} items - Array of list items
+     * @param {HTMLElement} contextsList - Contexts list element
+     */
+    function restoreOriginalOrder(items, contextsList) {
+        const originalKeys = contextsList.dataset.originalOrder.split('|||');
+        items.sort((a, b) => {
+            return originalKeys.indexOf(a.dataset.contextKey) - originalKeys.indexOf(b.dataset.contextKey);
+        });
+    }
+
+    /**
+     * Sort items by heuristic value
+     * @param {Array} items - Array of list items
+     * @param {string} sortType - 'asc' or 'desc'
+     */
+    function sortByHeuristic(items, sortType) {
+        items.sort((a, b) => {
+            const keyA = a.dataset.contextKey;
+            const keyB = b.dataset.contextKey;
+            const valueA = heuristicsData && heuristicsData[keyA] !== undefined ? heuristicsData[keyA] : 0;
+            const valueB = heuristicsData && heuristicsData[keyB] !== undefined ? heuristicsData[keyB] : 0;
+
+            return sortType === 'asc' ? valueA - valueB : valueB - valueA;
+        });
+    }
+
+    /**
+     * Update sort button visual states
+     * @param {NodeList} sortButtons - All sort buttons
+     * @param {HTMLElement} activeButton - Currently active button
+     */
+    function updateSortButtonStyles(sortButtons, activeButton) {
+        sortButtons.forEach(btn => {
+            btn.style.background = '#f8f8f8';
+            btn.style.fontWeight = 'normal';
+        });
+        activeButton.style.background = '#e0e0e0';
+        activeButton.style.fontWeight = 'bold';
+    }
+
+    // ========================================================================
+    // CODE SPAN WRAPPING & HIGHLIGHTING
+    // ========================================================================
+
+    /**
+     * Wrap source code with hoverable spans
+     */
+    function wrapCodeWithSpans() {
+        const sortedSources = sources.map((source, index) => ({...source, index}))
+            .sort((a, b) => a.position - b.position);
+
+        let html = '';
+        let lastPos = 0;
+
+        sortedSources.forEach(source => {
+            const adjustedPosition = source.position - 1;
+
+            if (adjustedPosition > lastPos) {
+                html += escapeHtml(codeText.substring(lastPos, adjustedPosition));
+            }
+
+            const effectiveStart = Math.max(adjustedPosition, lastPos);
+            const effectiveEnd = adjustedPosition + source.span;
+
+            if (effectiveStart < effectiveEnd) {
+                html += '<span class="hoverable-code" data-index="' + source.index + '">' +
+                        escapeHtml(codeText.substring(effectiveStart, effectiveEnd)) +
+                        '</span>';
+                lastPos = effectiveEnd;
+            }
+        });
+
+        if (lastPos < codeText.length) {
+            html += escapeHtml(codeText.substring(lastPos));
+        }
+
+        codeElement.innerHTML = html;
+
+        setupCodeSpanInteractions();
+    }
+
+    /**
+     * Setup click listeners and color coding for code spans
+     */
+    function setupCodeSpanInteractions() {
+        const codeSpans = codeElement.querySelectorAll('.hoverable-code');
+        codeSpans.forEach(span => {
+            const index = parseInt(span.dataset.index);
+            const source = sources[index];
+
+            applyUnderlineColor(span, source);
+            setupCodeSpanClickHandler(span, source, index);
+        });
+    }
+
+    /**
+     * Apply underline color based on heuristics
+     * @param {HTMLElement} span - Span element
+     * @param {Object} source - Source data
+     */
+    function applyUnderlineColor(span, source) {
+        if (!heuristicsData || totalRuns === 0 || !source.contexts) return;
+
+        const contextKeys = Object.keys(source.contexts);
+        if (contextKeys.length === 0) return;
+
+        let totalValue = 0;
+        let count = 0;
+
+        contextKeys.forEach(contextKey => {
+            const value = heuristicsData[contextKey] !== undefined ? heuristicsData[contextKey] : 0;
+            totalValue += value;
+            count++;
+        });
+
+        if (count > 0) {
+            const averageValue = totalValue / count;
+            const avgColor = getColorForValue(averageValue, totalRuns);
+
+            span.style.textDecorationColor = avgColor;
+            span.dataset.avgColor = avgColor;
+
+            const rgb = avgColor.match(/\d+/g).map(Number);
+            const hoverColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.4)`;
+            span.style.setProperty('--hover-bg-color', hoverColor);
+        }
+    }
+
+    /**
+     * Setup click handler for code span
+     * @param {HTMLElement} span - Span element
+     * @param {Object} source - Source data
+     * @param {number} index - Source index
+     */
+    function setupCodeSpanClickHandler(span, source, index) {
+        span.addEventListener('click', function(e) {
+            e.stopPropagation();
+
+            // Check if dialog already open for this span
+            const existingDialog = openDialogs.find(d => d.spanElement === this);
+            if (existingDialog) {
+                const dialog = document.getElementById(existingDialog.id);
+                if (dialog) {
+                    dialog.style.zIndex = 1000 + (++dialogIdCounter);
+                }
+                return;
+            }
+
+            showDialog(this, source, index);
+        });
+    }
+
+    // ========================================================================
+    // INITIALIZATION
+    // ========================================================================
+
+    populateHeuristicsDisplay();
+    initializeHeuristicTileHandlers();
+    wrapCodeWithSpans();
+
+    // Close all button handler
+    closeAllButton.addEventListener('click', function() {
+        closeDialog();
+    });
+
+    // Escape key to close all dialogs
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDialog();
+        }
+    });
+});
+</script>
+
+</body>
+</html>

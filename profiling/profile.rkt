@@ -98,7 +98,7 @@
 		(define timed-out? (equal? result "timed-out"))
 		(place-kill pch)
 		(if timed-out?
-				(subsample/acc (- samples 1) ch #t)
+				(subsample/acc samples ch #t)
 				(begin 
 					(displayln "No subsampling needed, program executed within time limit. No heuristics collected.")
 					(channel-put ch 'done)
@@ -125,7 +125,7 @@
 			(lambda (in) (port->string in))))
 
 
-	(define results (search file-path 3 10 (list) 2))
+	(define results (search file-path 2 10 (list) 2))
 
 	(define pch (dynamic-place file-path 'generate-json))
 
