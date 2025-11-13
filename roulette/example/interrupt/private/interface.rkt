@@ -173,7 +173,9 @@
   (define profiling-results-js
     (if (hash? profiling-results)
         (for/hash ([(key value) (in-hash profiling-results)])
-          (values (string->symbol (number->string key)) value))
+          (values (string->symbol (if (number? key)
+                                      (number->string key)
+                                      key)) value))
         profiling-results))
 
   (define (srcloc->js-hash loc)
