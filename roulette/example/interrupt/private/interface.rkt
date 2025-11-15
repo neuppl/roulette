@@ -163,21 +163,33 @@
           out)]))
 
 
+;; Writes all arguments to a json file containing profiling results
+(define (write-json-visualization out-file-path
+                                  json-file-path 
+                                  json-source-code 
+                                  json-variable-contexts
+                                  json-profiling-results)
+  (call-with-output-file out-file-path
+    (lambda (out)
+      (write-json 
+        (hash
+          'file-path json-file-path
+          'source-code json-source-code
+          'stack-contexts json-variable-contexts
+          'heuristics json-profiling-results)
+        out
+        #:indent #\tab))
+    #:exists 'replace)
+    
+  (printf "JSON results produced at: ~a\n" out-file-path)
 
-(define (make-json-visualization e pch)
+
+	(displayln "Running visualize.py to generate html ...")
+	(system (string-append "python3 visualize.py " out-file-path)))
+
+;; Converts global variable contexts into a json serializable format
+(define (make-json-variable-contexts e)
   (define variables (symbolics e))
-  (define file-path (place-channel-get pch))
-  (define out-file-path (path->string (path-replace-extension file-path ".json")))
-  (define source-code (place-channel-get pch))
-  (define profiling-results (place-channel-get pch))
-  (define profiling-results-js
-    (if (hash? profiling-results)
-        (for/hash ([(key value) (in-hash profiling-results)])
-          (values (string->symbol (if (number? key)
-                                      (number->string key)
-                                      key)) value))
-        profiling-results))
-
   (define (srcloc->js-hash loc)
     (match-define (srcloc source line column position span) loc)
     (hash
@@ -186,26 +198,67 @@
       `column column
       `position position
       `span span))
-  (define variable-contexts-js 
-    (for/hash ([(key value) (in-hash variable-contexts)])
-      (values (string->symbol (number->string (index-of variables key))) 
-              (hash 'syntactic-source (srcloc->js-hash (car value))
-                    'context (map (lambda (ctx-pair)
-                                    (list (~a (car ctx-pair)) 
-                                          (srcloc->js-hash (cdr ctx-pair)))) 
-                                  (cdr value))))))
-  (call-with-output-file out-file-path
-    (lambda (out)
-      (write-json 
-        (hash
-          'file-path file-path
-          'source-code source-code
-          'stack-contexts variable-contexts-js
-          'heuristics profiling-results-js)
-        out
-        #:indent #\tab))
-    #:exists 'replace)
-  (place-channel-put pch out-file-path))
+
+  (for/hash ([(key value) (in-hash variable-contexts)])
+    (values (string->symbol (number->string (index-of variables key))) 
+            (hash 'syntactic-source (srcloc->js-hash (car value))
+                  'context (map (lambda (ctx-pair)
+                                  (list (~a (car ctx-pair)) 
+                                        (srcloc->js-hash (cdr ctx-pair)))) 
+                                (cdr value))))))
+
+;; Converts provided heuristcs/results into a json serializable format
+(define (make-json-profiling-results results)
+  (if (hash? results)
+      (for/hash ([(key value) (in-hash results)])
+        (values (string->symbol (if (number? key)
+                                    (number->string key)
+                                    key)) value))
+      results))
+
+
+;provided information through the given place channel, writes profiling results into a jsons
+(define (make-json-visualization e pch)
+  (define file-path (place-channel-get pch))
+  (define out-file-path (path->string (path-replace-extension file-path ".json")))
+
+  (define source-code (place-channel-get pch))
+  (define result-type (place-channel-get pch)) ; 'stream or 'single
+  
+
+  ;first time getting results (required regardless of stream/single)
+  (define results (place-channel-get pch))
+  (define json-profiling-results
+        (make-json-profiling-results results))
+  
+  
+  (define json-variable-contexts (make-json-variable-contexts e))
+  
+  (write-json-visualization 
+    out-file-path
+    file-path 
+    source-code 
+    json-variable-contexts
+    json-profiling-results)
+
+  (when (equal? result-type 'stream)
+    (let loop ()
+      (define results (place-channel-get pch))
+      (unless (equal? results 'stop)
+        (define json-profiling-results
+          (make-json-profiling-results results))
+
+        (write-json-visualization 
+          out-file-path
+          file-path 
+          source-code 
+          json-variable-contexts
+          json-profiling-results)
+
+        (loop))))
+    (printf "Completed running profiler, visualization of results can be found at ~v\n"
+      (path->string (path-replace-extension out-file-path ".html")))
+    (place-channel-put pch out-file-path))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation

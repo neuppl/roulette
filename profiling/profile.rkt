@@ -27,25 +27,34 @@
 
 
 ;; Produces a hash of number of variable assignments for each idx accumulated from the provided state+results
-(define (make-heuristics) 
+;; If provided a non-false stream (place channel), then provides the stream with freq-map on every update
+(define (make-heuristics stream?) 
   (let ([freq-map (make-hash)])
     (lambda (state+result)
       (if state+result 
-          (let ([state (car state+result)]
-                [timed-out? (cdr state+result)])
-            (unless timed-out?
-							(for/list ([idx+asgn state])
-								(match-define (cons idx asgn) idx+asgn)
-								(hash-update! freq-map idx add1 0))
-							(hash-update! freq-map "Total-runs" add1 0)))
-          (if (empty? (hash->list freq-map))
-							"No heuristics collected, file runs within time limit"
-							freq-map)))))
+				(let ([state (car state+result)]
+							[timed-out? (cdr state+result)])
+					(unless timed-out?
+						(for/list ([idx+asgn state])
+							(match-define (cons idx asgn) idx+asgn)
+							(hash-update! freq-map idx add1 0))
+						(hash-update! freq-map "Total-runs" add1 0)
+						(when stream? (place-channel-put stream? freq-map))))
+				(if (empty? (hash->list freq-map))
+						"No heuristics collected, file runs within time limit"
+						(begin 
+							(when stream? (place-channel-put stream? 'stop))
+							freq-map))))))
 
 
 ;; Given the file path, runs subsampling search algorithm and provides heuristics. file-path is 
 ;; expected to be a file in #lang roulette/example/interrupt
-(define (search file-path samples specialization-rate initial-state timeout-duration)
+(define (search file-path 
+								samples 
+								specialization-rate
+								initial-state
+								timeout-duration
+								#:stream-results [stream? #f])
 	(define random-specialization-transition 
 		(let ([current-state initial-state]
 					[attempts 1]
@@ -106,7 +115,7 @@
 					
 	(define producer->consumer-ch (make-channel))
 	(define out-ch (make-channel))
-	(define heuristics (make-heuristics))
+	(define heuristics (make-heuristics stream?))
 	(define producer (thread (lambda () (subsample samples producer->consumer-ch))))
 	(define consumer (thread (lambda () 
 										(let loop () 
@@ -119,21 +128,28 @@
 
 
 ;; Returns the file path of the json file with profiling results
-(define (make-profiling-json-results file-path)
+(define (make-profiling-json-results file-path stream-results?)
 	(define program-text
 		(call-with-input-file file-path
 			(lambda (in) (port->string in))))
 
-
-	(define results (search file-path 2 10 (list) 2))
-
+	
 	(define pch (dynamic-place file-path 'generate-json))
-
-
 	(place-channel-put pch file-path)
 	(place-channel-put pch program-text)
-	(place-channel-put pch results)
-	
+	(place-channel-put pch (if stream-results? 'stream 'single))
+
+	(define stream? (if stream-results? 
+											pch
+											#f))
+
+	(define results (search 
+										file-path
+										100 10 (list) 2 
+										#:stream-results stream?))
+
+
+	(place-channel-put pch results)	
 	(place-channel-get pch))
 
 
@@ -149,12 +165,7 @@
 
 
 (define (run-profiler file-path)
-	(define json-path (make-profiling-json-results file-path))
-	(printf "JSON results produced at: ~a\n" json-path)
-
-
-	(displayln "Running visualize.py to generate html ...")
-	(system (string-append "python3 visualize.py " json-path)))
+	(make-profiling-json-results file-path #t))
 
 
 
