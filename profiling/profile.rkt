@@ -167,7 +167,7 @@
 
 
 (define (run-profiler file-path)
-	(make-profiling-json-results file-path #f)
+	(make-profiling-json-results file-path #t)
 	(displayln "My work here is done"))
 
 
