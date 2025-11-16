@@ -37,8 +37,7 @@
 ;; data
 
 (define rsdd-ffi-lib
-  (ffi-lib "librsdd"
-           #:custodian 'place))
+  (ffi-lib "librsdd" #:custodian 'place))
 
 (define-ffi-definer define-rsdd rsdd-ffi-lib
   #:make-c-id convention:hyphen->underscore)

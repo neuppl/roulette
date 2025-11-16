@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================================================
 
     /**
-     * Populate the heuristics display section with tiles
+     * Populate the heuristics display section with tiles grouped by flip count
      */
     function populateHeuristicsDisplay() {
         const heuristicsContent = document.getElementById('heuristics-content');
@@ -469,40 +469,161 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let html = '';
 
-        // Display Total Runs prominently
-        if (totalRuns > 0) {
-            html += `
-                <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; margin-bottom: 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-                    <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Total Runs:</span>
-                    <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
-                </div>
-            `;
-        }
-
-        // Create grid of heuristic tiles
+        // Group keys by their flip count
         const keys = Object.keys(heuristicsData).filter(k => k !== 'Total-runs');
 
-        if (keys.length > 0) {
-            html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">';
+        // Display Samples and Flips prominently
+        if (totalRuns > 0 || keys.length > 0) {
+            html += '<div style="display: flex; gap: 12px; margin-bottom: 16px;">';
 
+            if (totalRuns > 0) {
+                html += `
+                    <div style="flex: 1; background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Samples:</span>
+                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
+                    </div>
+                `;
+            }
+
+            if (keys.length > 0) {
+                html += `
+                    <div style="flex: 1; background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Flips:</span>
+                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${keys.length}</span>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        }
+
+        if (keys.length > 0) {
+            // Create a map of value -> array of keys
+            const valueGroups = new Map();
             keys.forEach(key => {
                 const value = heuristicsData[key];
+                if (!valueGroups.has(value)) {
+                    valueGroups.set(value, []);
+                }
+                valueGroups.get(value).push(key);
+            });
+
+            // Sort groups by value (descending)
+            const sortedValues = Array.from(valueGroups.keys()).sort((a, b) => b - a);
+
+            // Create grouped tiles
+            sortedValues.forEach(value => {
+                const keysWithValue = valueGroups.get(value);
                 const color = getColorForValue(value, totalRuns);
                 const percentage = totalRuns > 0 ? ((value / totalRuns) * 100).toFixed(1) : '0.0';
+                const count = keysWithValue.length;
 
                 html += `
-                    <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
-                         style="background: white; border-radius: 6px; padding: 10px 12px; border-left: 3px solid ${color};
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer;"
+                    <div style="background: white; border-radius: 6px; padding: 12px; border-left: 4px solid ${color};
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <span style="font-size: 18px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</span>
+                                <span style="font-size: 12px; color: #868e96; font-weight: 500; margin-left: 8px;">${percentage}%</span>
+                            </div>
+                            <span style="font-size: 12px; color: #6c757d; font-weight: 600; background: #f8f9fa; padding: 4px 10px; border-radius: 12px;">
+                                ${count} flip${count !== 1 ? 's' : ''}
+                            </span>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                `;
+
+                // Add individual clickable flip badges
+                keysWithValue.forEach(key => {
+                    // Create semi-transparent version of the color for background
+                    const rgb = color.match(/\d+/g).map(Number);
+                    const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.2)`;
+                    const hoverBgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
+
+                    html += `
+                        <span class="heuristic-tile" data-context-key="${escapeHtml(key)}"
+                              style="display: inline-block; background: ${bgColor}; color: #212529; padding: 4px 10px;
+                                     border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
+                                     transition: all 0.15s ease; border: 1px solid ${color};"
+                              onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+                              onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
+                              title="Click to focus on ${escapeHtml(key)}">
+                            ${escapeHtml(key)}
+                        </span>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Add section for code span summaries
+        html += '<hr style="border: none; border-top: 2px solid #dee2e6; margin: 24px 0;">';
+        html += '<h3 style="font-family: Monaco, monospace; color: #2c3e50; font-size: 16px; font-weight: 700; margin-bottom: 16px;">Code Locations</h3>';
+
+        // Calculate average color for each source
+        const sourcesSummary = sources
+            .map((source, index) => {
+                if (!source.contexts || Object.keys(source.contexts).length === 0) {
+                    return null;
+                }
+
+                let totalValue = 0;
+                let count = 0;
+                const contextKeys = Object.keys(source.contexts);
+
+                // Only count contexts that exist in heuristicsData
+                contextKeys.forEach(contextKey => {
+                    if (heuristicsData && heuristicsData[contextKey] !== undefined) {
+                        const value = heuristicsData[contextKey];
+                        totalValue += value;
+                        count++;
+                    }
+                });
+
+                if (count === 0) return null;
+
+                const averageValue = totalValue / count;
+                const avgColor = getColorForValue(averageValue, totalRuns);
+                const percentage = totalRuns > 0 ? ((averageValue / totalRuns) * 100).toFixed(1) : '0.0';
+
+                return {
+                    index,
+                    source,
+                    averageValue,
+                    avgColor,
+                    percentage,
+                    contextCount: count
+                };
+            })
+            .filter(item => item !== null)
+            .sort((a, b) => b.averageValue - a.averageValue);
+
+        if (sourcesSummary.length > 0) {
+            html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">';
+
+            sourcesSummary.forEach(item => {
+                const rgb = item.avgColor.match(/\d+/g).map(Number);
+                const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.15)`;
+
+                html += `
+                    <div class="code-location-card" data-source-index="${item.index}"
+                         style="background: white; border-radius: 6px; padding: 10px 12px; border-left: 4px solid ${item.avgColor};
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); transition: all 0.15s ease; cursor: pointer;"
                          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.12)';"
                          onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.08)';">
-                        <div style="font-size: 12px; color: #6c757d; margin-bottom: 4px; font-weight: 500; overflow: hidden;
-                                    text-overflow: ellipsis; white-space: nowrap;" title="Flip: ${escapeHtml(key)}">
-                            Flip: ${escapeHtml(key)}
+                        <div style="font-size: 11px; color: #6c757d; margin-bottom: 6px; font-weight: 500;">
+                            Line ${item.source.line}:${item.source.column} • Span ${item.source.span}
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                            <span style="font-size: 16px; font-weight: 600; color: #212529; font-family: 'Monaco', monospace;">${value}</span>
-                            <span style="font-size: 11px; color: #868e96; font-weight: 500;">${percentage}%</span>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                            <span style="font-size: 16px; font-weight: 600; color: #212529; font-family: 'Monaco', monospace;">${item.averageValue.toFixed(2)}</span>
+                            <span style="font-size: 11px; color: #868e96; font-weight: 500;">${item.percentage}% avg</span>
+                        </div>
+                        <div style="font-size: 10px; color: #868e96; background: ${bgColor}; padding: 3px 6px; border-radius: 3px; text-align: center;">
+                            ${item.contextCount} context${item.contextCount !== 1 ? 's' : ''}
                         </div>
                     </div>
                 `;
@@ -515,10 +636,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Add click handlers to heuristic tiles for focusing contexts
+     * Add click handlers to heuristic tiles and code location cards
      */
     function initializeHeuristicTileHandlers() {
         setTimeout(() => {
+            // Handle flip badge clicks
             const tiles = document.querySelectorAll('.heuristic-tile');
             tiles.forEach(tile => {
                 tile.addEventListener('click', function() {
@@ -526,7 +648,63 @@ document.addEventListener('DOMContentLoaded', function() {
                     focusOnContext(contextKey);
                 });
             });
+
+            // Handle code location card clicks
+            const locationCards = document.querySelectorAll('.code-location-card');
+            locationCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const sourceIndex = parseInt(this.dataset.sourceIndex);
+                    focusOnCodeLocation(sourceIndex);
+                });
+            });
         }, 100);
+    }
+
+    /**
+     * Focus on a code location by opening/focusing its dialog
+     * @param {number} sourceIndex - Index of the source to focus on
+     */
+    function focusOnCodeLocation(sourceIndex) {
+        const source = sources[sourceIndex];
+        if (!source) return;
+
+        // Find the corresponding span
+        const span = codeElement.querySelector(`.hoverable-code[data-index="${sourceIndex}"]`);
+        if (!span) return;
+
+        // Check if dialog already exists for this span
+        const existingDialog = openDialogs.find(d => d.spanIndex === sourceIndex);
+
+        if (existingDialog) {
+            // Dialog exists, just focus it
+            const dialog = document.getElementById(existingDialog.id);
+            if (dialog) {
+                dialog.style.zIndex = 1000 + (++dialogIdCounter);
+                repositionDialogIfOffScreen(dialog);
+                scrollPageToDialog(dialog);
+            }
+        } else {
+            // Open new dialog
+            showDialog(span, source, sourceIndex);
+
+            // Scroll to show the dialog
+            setTimeout(() => {
+                const newDialog = openDialogs[openDialogs.length - 1];
+                if (newDialog) {
+                    const dialog = document.getElementById(newDialog.id);
+                    if (dialog) {
+                        scrollPageToDialog(dialog);
+                    }
+                }
+            }, 50);
+        }
+
+        // Also scroll the code into view
+        span.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+        });
     }
 
     // ========================================================================

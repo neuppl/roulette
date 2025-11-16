@@ -29,6 +29,7 @@
 (require (for-syntax racket/base)
          (for-syntax syntax/parse)
          (for-syntax racket/syntax-srcloc)
+         mischief/for
          roulette/engine/rsdd
          roulette/private/util
          rosette/base/core/bool
@@ -207,13 +208,24 @@
                                         (srcloc->js-hash (cdr ctx-pair)))) 
                                 (cdr value))))))
 
-;; Converts provided heuristcs/results into a json serializable format
-(define (make-json-profiling-results results)
+;; Converts provided heuristics/results into a json serializable format
+(define (make-json-profiling-results results num-vars)
   (if (hash? results)
-      (for/hash ([(key value) (in-hash results)])
-        (values (string->symbol (if (number? key)
-                                    (number->string key)
-                                    key)) value))
+      (begin
+        (define json-results 
+          (for/hash! ([(key value) (in-hash results)])
+            (values (string->symbol (if (number? key)
+                                        (number->string key)
+                                        key)) 
+                    value)))
+        (for ([key (in-range num-vars)])
+          (hash-update! json-results 
+                        (string->symbol (number->string key)) 
+                        (lambda (x) x) 
+                        0))
+
+        json-results)
+
       results))
 
 
@@ -229,7 +241,7 @@
   ;first time getting results (required regardless of stream/single)
   (define results (place-channel-get pch))
   (define json-profiling-results
-        (make-json-profiling-results results))
+        (make-json-profiling-results results (length (symbolics e))))
   
   
   (define json-variable-contexts (make-json-variable-contexts e))
@@ -246,7 +258,7 @@
       (define results (place-channel-get pch))
       (unless (equal? results 'stop)
         (define json-profiling-results
-          (make-json-profiling-results results))
+          (make-json-profiling-results results (length (symbolics e))))
 
         (write-json-visualization 
           out-file-path

@@ -144,13 +144,15 @@
 											#f))
 
 	(define results (search 
-										file-path
-										100 10 (list) 2 
+										file-path 
+										10 10 (list) 2 
 										#:stream-results stream?))
 
 
 	(place-channel-put pch results)	
-	(place-channel-get pch))
+	(define json-path (place-channel-get pch))
+	(place-kill pch)
+	json-path)
 
 
 
@@ -165,7 +167,8 @@
 
 
 (define (run-profiler file-path)
-	(make-profiling-json-results file-path #t))
+	(make-profiling-json-results file-path #f)
+	(displayln "My work here is done"))
 
 
 
