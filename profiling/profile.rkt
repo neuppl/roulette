@@ -145,7 +145,7 @@
 
 	(define results (search 
 										file-path 
-										10 10 (list) 2 
+										100 10 (list) 2 
 										#:stream-results stream?))
 
 
