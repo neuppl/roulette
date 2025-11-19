@@ -133,11 +133,12 @@
                               (match-define (cons idx asgn) idx+asgn)
                               (values (list-ref variables idx) asgn)))
   (define result (with-timeout
-                timeout
-                (lambda () (begin 
-                              (compute-pmf (set-symbolic-vars symbolic-map subst-map))
-                              "done"))
-                (lambda () "timed-out")))
+                  timeout
+                  (lambda () (begin 
+                                (compute-pmf (set-symbolic-vars symbolic-map subst-map))
+                                "done"))
+                  (lambda () "timed-out")))
+  (set! variable-contexts '())
   (place-channel-put pch result)
   pmf)
 
