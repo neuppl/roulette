@@ -1,15 +1,11 @@
 #lang racket
 
-;; This file is run with an argument "file_name.rkt" that contains an interrupt program that is to be profiled.
+;; this file is run with an argument "file_name.rkt" that contains an interrupt program that is to be profiled.
 
 
 ;;A State is a (List (Pair Number Boolean)) representing that the n-indexed symbolic variable should be
 ;; assigned a particular boolean value. 
 ;; An empty list means no assignments (all variables are unknown, we start at this state)
-
-;; Note: this strategy relies on the symbolics function in rosette returning the list of symbolic 
-;; variables in a deterministic order. otherwise the indexing is not consistent, and the search algorithm
-;; breaks down. 
 
 (define (die msg)
   (eprintf "Error: ~a\n" msg)
@@ -39,7 +35,7 @@
 				(let ([state (car state+result)]
 							[timed-out? (cdr state+result)])
 					(unless timed-out?
-						(for ([idx+asgn state])
+						(for/list ([idx+asgn state])
 							(match-define (cons idx asgn) idx+asgn)
 							(hash-update! freq-map idx add1 0))
 						(hash-update! freq-map "Total-runs" add1 0)
@@ -137,15 +133,23 @@
 		(call-with-input-file file-path
 			(lambda (in) (port->string in))))
 
-	(define results (search file-path 5 20 (list) 2))
-
+	
 	(define pch (dynamic-place file-path 'generate-json))
-
 	(place-channel-put pch file-path)
 	(place-channel-put pch program-text)
 	(place-channel-put pch (if stream-results? 'stream 'single))
-	(place-channel-put pch results)
 
+	(define stream? (if stream-results? 
+											pch
+											#f))
+
+	(define results (search 
+										file-path 
+										100 10 (list) 2 
+										#:stream-results stream?))
+
+
+	(place-channel-put pch results)	
 	(define json-path (place-channel-get pch))
 	(place-kill pch)
 	json-path)
@@ -154,14 +158,16 @@
 
 
 (define (get-file-path-argument)
-  (define args (current-command-line-arguments))
-  (when (< (vector-length args) 1)
-    (error "Expected atleast one argument with path of file to profile, got none."))
-  (define file-path (vector-ref args 0))
-  file-path)
+	(define args (current-command-line-arguments))
+	(when (< (vector-length args) 1)
+		(error "Expected atleast one argument with path of file to profile, got none."))
+		(define file-path (vector-ref args 0))
+		file-path)
+
+
 
 (define (run-profiler file-path)
-	(make-profiling-json-results file-path #f)
+	(make-profiling-json-results file-path #t)
 	(displayln "My work here is done"))
 
 
