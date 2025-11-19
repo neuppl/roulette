@@ -152,6 +152,7 @@
           (hash-set! variable-contexts 
                      out 
                      (continuation-mark-set->context (current-continuation-marks)))
+            
           out)]))
           
 (define-syntax flip

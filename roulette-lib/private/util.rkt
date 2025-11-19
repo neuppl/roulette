@@ -10,7 +10,8 @@
          lift-arity
          dict-first-key
          dict-first-value
-         in-ddict-reverse)
+         in-ddict-reverse
+         clear-cache)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -41,11 +42,20 @@
      #`(def (to (~? (~@ args ...)))
          (from (~? target) (~? (~@ args ...))))]))
 
+
+(define caches (box '()))
+
+(define (clear-cache) 
+  (for ([cache (unbox caches)])
+    (hash-clear! cache)))
+
+
 (define-syntax define/cache
   (syntax-parser
     [(_ (x:id a:id ...) body:expr ...)
      #'(define x
          (let ([cache (make-hash)])
+           (set-box! caches (cons cache (unbox caches)))
            (λ (a ...)
              (define args (list a ...))
              (cond

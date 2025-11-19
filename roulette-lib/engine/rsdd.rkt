@@ -14,7 +14,8 @@
   [real-semiring semiring?]
   [complex-semiring semiring?]
   [semiring? predicate/c])
-  const->label)
+  const->label
+  rsdd-free)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -47,6 +48,9 @@
 
 (define-cpointer-type _rsdd_bdd_builder)
 (define-cpointer-type _rsdd_bdd_ptr)
+
+(define-rsdd free-bdd-manager
+  (_fun _rsdd_bdd_builder -> _void))
 
 (define-rsdd mk-bdd-manager-default-order
   (_fun _int64 -> _rsdd_bdd_builder))
@@ -220,6 +224,10 @@
 
 (define (rsdd-engine #:semiring [s real-semiring])
   (engine (make-infer s) (immutable-set/c any/c)))
+
+(define (rsdd-free)
+  (free-bdd-manager BUILDER)
+  (set! BUILDER (mk-bdd-manager-default-order 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; semirings

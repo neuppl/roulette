@@ -3,7 +3,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
 
-(require (except-in racket/contract any/c))
+(require (except-in racket/contract any/c)
+         "util.rkt")
 (provide
  ;; `wrap-modbeg.rkt`
  (for-syntax
@@ -74,4 +75,7 @@
   (measurable-space-point (measure-domain m)))
 
 (define (infer val #:engine [eng default-engine] #:lazy? [lazy? #f])
-  ((engine-infer eng) val lazy?))
+  (let ([out ((engine-infer eng) val lazy?)])
+    (clear-cache)
+    (rsdd-free)
+    out))
