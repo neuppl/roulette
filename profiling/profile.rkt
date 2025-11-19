@@ -85,26 +85,20 @@
 	(define (subsample samples ch)
 		(define (subsample/acc remaining-samples ch timed-out?)
 			(if (= 0 remaining-samples)
-					(channel-put ch 'done)
-					(let ([cust (make-custodian)])
-						(let-values 
-							([(new-samples new-timed-out?)
-								(parameterize ([current-custodian cust])
-									(let*  ([pch       (dynamic-place file-path 'place-main)]
-													[num-vars (place-channel-get pch)]
-													[new-state (random-specialization-transition num-vars timed-out?)])
-										(place-channel-put pch timeout-duration)
-										(place-channel-put pch new-state)
-										(define result (place-channel-get pch))           
-										(place-kill pch)
-										(define timed-out? (equal? result "timed-out"))
-										(channel-put ch (cons new-state timed-out?))
-										(define new-samples (if (not timed-out?) 
-																						(- remaining-samples 1) 
-																						remaining-samples))
-										(custodian-shutdown-all cust)
-										(values new-samples timed-out?)))])
-							(subsample/acc new-samples ch new-timed-out?)))))
+			(channel-put ch 'done)
+			(let*  ([pch       (dynamic-place file-path 'place-main)]
+						  [num-vars (place-channel-get pch)]
+					    [new-state (random-specialization-transition num-vars timed-out?)])
+				(place-channel-put pch timeout-duration)
+				(place-channel-put pch new-state)
+				(define result (place-channel-get pch))
+				(define timed-out? (equal? result "timed-out"))
+				(channel-put ch (cons new-state timed-out?))
+				(place-kill pch)
+				(define new-samples (if (not timed-out?) 
+																(- remaining-samples 1) 
+																remaining-samples))
+				(subsample/acc new-samples ch timed-out?))))
 		
 
 		; First pass, with no assignments, to see if it runs without any subsampling
@@ -143,7 +137,7 @@
 		(call-with-input-file file-path
 			(lambda (in) (port->string in))))
 
-	(define results (search file-path 10 20 (list) 2))
+	(define results (search file-path 5 20 (list) 2))
 
 	(define pch (dynamic-place file-path 'generate-json))
 
