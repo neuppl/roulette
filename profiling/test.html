@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const minTopMargin = 10; // Keep away from browser UI
 
     // Parse heuristics data from Jinja2
-    const heuristicsRaw = {"0": 31, "1": 40, "10": 32, "100": 32, "101": 32, "102": 36, "103": 28, "104": 33, "105": 31, "106": 27, "107": 31, "108": 33, "109": 30, "11": 35, "110": 32, "111": 35, "112": 36, "113": 29, "114": 35, "115": 33, "116": 31, "117": 31, "118": 31, "119": 28, "12": 31, "120": 27, "121": 32, "122": 33, "123": 37, "124": 27, "125": 34, "126": 36, "127": 32, "128": 26, "129": 23, "13": 27, "130": 35, "131": 31, "132": 28, "133": 30, "134": 31, "135": 30, "136": 33, "137": 32, "138": 33, "139": 26, "14": 29, "140": 34, "141": 29, "142": 27, "143": 30, "144": 31, "145": 26, "146": 30, "147": 36, "148": 30, "149": 27, "15": 31, "150": 27, "151": 34, "152": 28, "153": 30, "154": 32, "155": 37, "156": 32, "157": 32, "158": 29, "159": 31, "16": 25, "160": 24, "161": 29, "162": 31, "163": 29, "164": 28, "165": 31, "166": 29, "167": 31, "168": 33, "169": 30, "17": 30, "170": 32, "171": 25, "172": 36, "173": 28, "174": 26, "175": 27, "176": 32, "177": 37, "178": 25, "179": 30, "18": 36, "180": 33, "181": 34, "182": 32, "183": 36, "184": 22, "185": 32, "186": 34, "187": 26, "188": 33, "189": 31, "19": 26, "190": 32, "191": 40, "192": 29, "193": 36, "194": 35, "195": 31, "196": 27, "197": 35, "198": 33, "199": 30, "2": 35, "20": 28, "200": 27, "201": 26, "202": 33, "203": 30, "204": 29, "205": 20, "206": 27, "207": 28, "208": 28, "209": 31, "21": 32, "210": 36, "211": 31, "212": 25, "213": 31, "214": 35, "215": 21, "216": 30, "217": 32, "218": 35, "219": 27, "22": 35, "220": 34, "221": 33, "222": 34, "223": 34, "224": 29, "225": 30, "226": 29, "227": 35, "228": 24, "229": 28, "23": 33, "230": 35, "231": 25, "232": 33, "233": 33, "234": 30, "235": 34, "236": 33, "237": 37, "238": 31, "239": 29, "24": 26, "240": 25, "25": 30, "26": 38, "27": 24, "28": 32, "29": 31, "3": 33, "30": 39, "31": 27, "32": 30, "33": 34, "34": 23, "35": 30, "36": 37, "37": 36, "38": 35, "39": 32, "4": 27, "40": 27, "41": 32, "42": 30, "43": 38, "44": 31, "45": 34, "46": 25, "47": 29, "48": 35, "49": 31, "5": 28, "50": 33, "51": 27, "52": 35, "53": 28, "54": 27, "55": 35, "56": 35, "57": 34, "58": 30, "59": 27, "6": 34, "60": 25, "61": 35, "62": 30, "63": 24, "64": 31, "65": 24, "66": 34, "67": 28, "68": 28, "69": 31, "7": 34, "70": 31, "71": 38, "72": 28, "73": 33, "74": 36, "75": 23, "76": 29, "77": 36, "78": 35, "79": 30, "8": 30, "80": 25, "81": 31, "82": 33, "83": 35, "84": 29, "85": 29, "86": 35, "87": 29, "88": 26, "89": 27, "9": 35, "90": 28, "91": 28, "92": 31, "93": 37, "94": 31, "95": 34, "96": 33, "97": 38, "98": 33, "99": 32, "Total-runs": 65};
+    const heuristicsRaw = {"0": 28, "1": 28, "10": 32, "100": 27, "101": 27, "102": 31, "103": 32, "104": 28, "105": 33, "106": 36, "107": 32, "108": 33, "109": 28, "11": 30, "110": 32, "111": 33, "112": 30, "113": 26, "114": 32, "115": 27, "116": 30, "117": 34, "118": 26, "119": 36, "12": 30, "120": 32, "121": 28, "122": 35, "123": 27, "124": 32, "125": 33, "126": 32, "127": 35, "128": 35, "129": 30, "13": 29, "130": 32, "131": 28, "132": 36, "133": 36, "134": 31, "135": 28, "136": 28, "137": 41, "138": 29, "139": 38, "14": 22, "140": 29, "141": 31, "142": 36, "143": 27, "144": 33, "145": 27, "146": 35, "147": 29, "148": 26, "149": 34, "15": 28, "150": 32, "151": 30, "152": 35, "153": 32, "154": 37, "155": 29, "156": 33, "157": 32, "158": 32, "159": 25, "16": 28, "160": 25, "161": 34, "162": 29, "163": 35, "164": 33, "165": 30, "166": 30, "167": 30, "168": 29, "169": 38, "17": 37, "170": 29, "171": 38, "172": 33, "173": 37, "174": 33, "175": 34, "176": 33, "177": 35, "178": 29, "179": 38, "18": 42, "180": 32, "181": 35, "182": 33, "183": 30, "184": 27, "185": 30, "186": 35, "187": 33, "188": 24, "189": 32, "19": 31, "190": 33, "191": 34, "192": 30, "193": 37, "194": 36, "195": 31, "196": 32, "197": 40, "198": 36, "199": 34, "2": 24, "20": 30, "200": 30, "201": 35, "202": 33, "203": 30, "204": 34, "205": 31, "206": 32, "207": 37, "208": 32, "209": 38, "21": 31, "210": 33, "211": 29, "212": 36, "213": 35, "214": 32, "215": 24, "216": 36, "217": 31, "218": 30, "219": 34, "22": 26, "220": 29, "221": 32, "222": 32, "223": 20, "224": 27, "225": 33, "226": 32, "227": 37, "228": 28, "229": 33, "23": 39, "230": 33, "231": 32, "232": 36, "233": 33, "234": 27, "235": 36, "236": 40, "237": 42, "238": 38, "239": 30, "24": 42, "240": 26, "25": 36, "26": 30, "27": 31, "28": 29, "29": 38, "3": 30, "30": 28, "31": 33, "32": 30, "33": 32, "34": 35, "35": 27, "36": 33, "37": 31, "38": 34, "39": 36, "4": 34, "40": 35, "41": 31, "42": 33, "43": 36, "44": 31, "45": 37, "46": 37, "47": 38, "48": 29, "49": 32, "5": 40, "50": 31, "51": 41, "52": 35, "53": 31, "54": 40, "55": 32, "56": 34, "57": 29, "58": 40, "59": 31, "6": 34, "60": 28, "61": 31, "62": 28, "63": 31, "64": 29, "65": 29, "66": 33, "67": 29, "68": 33, "69": 35, "7": 31, "70": 32, "71": 36, "72": 31, "73": 33, "74": 31, "75": 31, "76": 37, "77": 29, "78": 35, "79": 35, "8": 30, "80": 29, "81": 32, "82": 37, "83": 36, "84": 33, "85": 32, "86": 31, "87": 35, "88": 35, "89": 34, "9": 29, "90": 29, "91": 33, "92": 33, "93": 36, "94": 36, "95": 34, "96": 34, "97": 31, "98": 31, "99": 25, "Total-runs": 68};
     let heuristicsData = null;
     let totalRuns = 0;
 
@@ -514,29 +514,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // Group keys by their flip count
         const keys = Object.keys(heuristicsData).filter(k => k !== 'Total-runs');
 
-        // Display Samples and Flips prominently
-        if (totalRuns > 0 || keys.length > 0) {
-            html += '<div style="display: flex; gap: 12px; margin-bottom: 16px;">';
+        // Display Samples and Flips prominently in vertical layout
+        if (totalRuns > 0) {
+            html += `
+                <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Samples:</span>
+                    <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
+                </div>
+            `;
+        }
 
-            if (totalRuns > 0) {
-                html += `
-                    <div style="flex: 1; background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Samples:</span>
-                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
-                    </div>
-                `;
-            }
-
-            if (keys.length > 0) {
-                html += `
-                    <div style="flex: 1; background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Flips:</span>
-                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${keys.length}</span>
-                    </div>
-                `;
-            }
-
-            html += '</div>';
+        if (keys.length > 0) {
+            html += `
+                <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; margin-bottom: 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Flips:</span>
+                    <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${keys.length}</span>
+                </div>
+            `;
         }
 
         if (keys.length > 0) {
@@ -553,6 +547,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Sort groups by value (descending)
             const sortedValues = Array.from(valueGroups.keys()).sort((a, b) => b - a);
 
+            // Create grid container for grouped tiles - fit all groups horizontally
+            const numGroups = sortedValues.length;
+            html += `<div style="display: grid; grid-template-columns: repeat(${numGroups}, 1fr); gap: 8px; margin-bottom: 16px;">`;
+
             // Create grouped tiles
             sortedValues.forEach(value => {
                 const keysWithValue = valueGroups.get(value);
@@ -561,21 +559,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 const count = keysWithValue.length;
 
                 html += `
-                    <div style="background: white; border-radius: 6px; padding: 12px; border-left: 4px solid ${color};
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); margin-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <div>
-                                <span style="font-size: 18px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</span>
-                                <span style="font-size: 12px; color: #868e96; font-weight: 500; margin-left: 8px;">${percentage}%</span>
-                            </div>
-                            <span style="font-size: 12px; color: #6c757d; font-weight: 600; background: #f8f9fa; padding: 4px 10px; border-radius: 12px;">
-                                ${count} flip${count !== 1 ? 's' : ''}
-                            </span>
+                    <div style="background: white; border-radius: 6px; padding: 8px; border-left: 4px solid ${color};
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); min-width: 0;
+                                display: flex; flex-direction: column;">
+                        <div style="margin-bottom: 8px; text-align: center;">
+                            <div style="font-size: 16px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</div>
+                            <div style="font-size: 10px; color: #868e96; font-weight: 500;">${percentage}%</div>
                         </div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <div style="font-size: 9px; color: #6c757d; font-weight: 600; background: #f8f9fa; padding: 3px 6px; border-radius: 10px; text-align: center; margin-bottom: 8px;">
+                            ${count} flip${count !== 1 ? 's' : ''}
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 3px; margin-top: auto;">
                 `;
 
-                // Add individual clickable flip badges
+                // Add individual clickable flip badges stacked vertically
                 keysWithValue.forEach(key => {
                     // Create semi-transparent version of the color for background
                     const rgb = color.match(/\d+/g).map(Number);
@@ -583,15 +580,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const hoverBgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
 
                     html += `
-                        <span class="heuristic-tile" data-context-key="${escapeHtml(key)}"
-                              style="display: inline-block; background: ${bgColor}; color: #212529; padding: 4px 10px;
-                                     border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
-                                     transition: all 0.15s ease; border: 1px solid ${color};"
-                              onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                              onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
-                              title="Click to focus on ${escapeHtml(key)}">
+                        <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
+                             style="background: ${bgColor}; color: #212529; padding: 4px 6px;
+                                    border-radius: 3px; font-size: 10px; font-weight: 600; cursor: pointer;
+                                    transition: all 0.15s ease; border: 1px solid ${color}; text-align: center;
+                                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                             onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateX(2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+                             onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
+                             title="Click to focus on ${escapeHtml(key)}">
                             ${escapeHtml(key)}
-                        </span>
+                        </div>
                     `;
                 });
 
@@ -600,6 +598,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             });
+
+            html += '</div>';
         }
 
         // Add section for code span summaries
@@ -645,8 +645,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .sort((a, b) => b.averageValue - a.averageValue);
 
         if (sourcesSummary.length > 0) {
-            html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">';
-
             sourcesSummary.forEach(item => {
                 const rgb = item.avgColor.match(/\d+/g).map(Number);
                 const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.15)`;
@@ -654,9 +652,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += `
                     <div class="code-location-card" data-source-index="${item.index}"
                          style="background: white; border-radius: 6px; padding: 10px 12px; border-left: 4px solid ${item.avgColor};
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); transition: all 0.15s ease; cursor: pointer;"
-                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.12)';"
-                         onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.08)';">
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); transition: all 0.15s ease; cursor: pointer; margin-bottom: 8px;"
+                         onmouseover="this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.12)';"
+                         onmouseout="this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.08)';">
                         <div style="font-size: 11px; color: #6c757d; margin-bottom: 6px; font-weight: 500;">
                             Line ${item.source.line}:${item.source.column} • Span ${item.source.span}
                         </div>
@@ -670,8 +668,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             });
-
-            html += '</div>';
         }
 
         heuristicsContent.innerHTML = html;

@@ -472,29 +472,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // Group keys by their flip count
         const keys = Object.keys(heuristicsData).filter(k => k !== 'Total-runs');
 
-        // Display Samples and Flips prominently
-        if (totalRuns > 0 || keys.length > 0) {
-            html += '<div style="display: flex; gap: 12px; margin-bottom: 16px;">';
+        // Display Samples and Flips prominently in vertical layout
+        if (totalRuns > 0) {
+            html += `
+                <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Samples:</span>
+                    <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
+                </div>
+            `;
+        }
 
-            if (totalRuns > 0) {
-                html += `
-                    <div style="flex: 1; background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Samples:</span>
-                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
-                    </div>
-                `;
-            }
-
-            if (keys.length > 0) {
-                html += `
-                    <div style="flex: 1; background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Flips:</span>
-                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${keys.length}</span>
-                    </div>
-                `;
-            }
-
-            html += '</div>';
+        if (keys.length > 0) {
+            html += `
+                <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; margin-bottom: 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Flips:</span>
+                    <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${keys.length}</span>
+                </div>
+            `;
         }
 
         if (keys.length > 0) {
@@ -511,6 +505,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Sort groups by value (descending)
             const sortedValues = Array.from(valueGroups.keys()).sort((a, b) => b - a);
 
+            // Create grid container for grouped tiles - fit all groups horizontally
+            const numGroups = sortedValues.length;
+            html += `<div style="display: grid; grid-template-columns: repeat(${numGroups}, 1fr); gap: 8px; margin-bottom: 16px;">`;
+
             // Create grouped tiles
             sortedValues.forEach(value => {
                 const keysWithValue = valueGroups.get(value);
@@ -519,21 +517,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 const count = keysWithValue.length;
 
                 html += `
-                    <div style="background: white; border-radius: 6px; padding: 12px; border-left: 4px solid ${color};
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); margin-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <div>
-                                <span style="font-size: 18px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</span>
-                                <span style="font-size: 12px; color: #868e96; font-weight: 500; margin-left: 8px;">${percentage}%</span>
-                            </div>
-                            <span style="font-size: 12px; color: #6c757d; font-weight: 600; background: #f8f9fa; padding: 4px 10px; border-radius: 12px;">
-                                ${count} flip${count !== 1 ? 's' : ''}
-                            </span>
+                    <div style="background: white; border-radius: 6px; padding: 8px; border-left: 4px solid ${color};
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); min-width: 0;
+                                display: flex; flex-direction: column;">
+                        <div style="margin-bottom: 8px; text-align: center;">
+                            <div style="font-size: 16px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</div>
+                            <div style="font-size: 10px; color: #868e96; font-weight: 500;">${percentage}%</div>
                         </div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <div style="font-size: 9px; color: #6c757d; font-weight: 600; background: #f8f9fa; padding: 3px 6px; border-radius: 10px; text-align: center; margin-bottom: 8px;">
+                            ${count} flip${count !== 1 ? 's' : ''}
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 3px; margin-top: auto;">
                 `;
 
-                // Add individual clickable flip badges
+                // Add individual clickable flip badges stacked vertically
                 keysWithValue.forEach(key => {
                     // Create semi-transparent version of the color for background
                     const rgb = color.match(/\d+/g).map(Number);
@@ -541,15 +538,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     const hoverBgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
 
                     html += `
-                        <span class="heuristic-tile" data-context-key="${escapeHtml(key)}"
-                              style="display: inline-block; background: ${bgColor}; color: #212529; padding: 4px 10px;
-                                     border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
-                                     transition: all 0.15s ease; border: 1px solid ${color};"
-                              onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                              onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
-                              title="Click to focus on ${escapeHtml(key)}">
+                        <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
+                             style="background: ${bgColor}; color: #212529; padding: 4px 6px;
+                                    border-radius: 3px; font-size: 10px; font-weight: 600; cursor: pointer;
+                                    transition: all 0.15s ease; border: 1px solid ${color}; text-align: center;
+                                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                             onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateX(2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+                             onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
+                             title="Click to focus on ${escapeHtml(key)}">
                             ${escapeHtml(key)}
-                        </span>
+                        </div>
                     `;
                 });
 
@@ -558,6 +556,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             });
+
+            html += '</div>';
         }
 
         // Add section for code span summaries
@@ -603,8 +603,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .sort((a, b) => b.averageValue - a.averageValue);
 
         if (sourcesSummary.length > 0) {
-            html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">';
-
             sourcesSummary.forEach(item => {
                 const rgb = item.avgColor.match(/\d+/g).map(Number);
                 const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.15)`;
@@ -612,9 +610,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += `
                     <div class="code-location-card" data-source-index="${item.index}"
                          style="background: white; border-radius: 6px; padding: 10px 12px; border-left: 4px solid ${item.avgColor};
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); transition: all 0.15s ease; cursor: pointer;"
-                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.12)';"
-                         onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.08)';">
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); transition: all 0.15s ease; cursor: pointer; margin-bottom: 8px;"
+                         onmouseover="this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.12)';"
+                         onmouseout="this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.08)';">
                         <div style="font-size: 11px; color: #6c757d; margin-bottom: 6px; font-weight: 500;">
                             Line ${item.source.line}:${item.source.column} • Span ${item.source.span}
                         </div>
@@ -628,8 +626,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             });
-
-            html += '</div>';
         }
 
         heuristicsContent.innerHTML = html;
