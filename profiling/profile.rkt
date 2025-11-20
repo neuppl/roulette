@@ -37,7 +37,12 @@
 					(unless timed-out?
 						(for/list ([idx+asgn state])
 							(match-define (cons idx asgn) idx+asgn)
-							(hash-update! freq-map idx add1 0))
+							(hash-update! freq-map 
+														idx 
+														(lambda (x) (if asgn 
+															(list (add1 (first x)) (second x))
+															(list (first x) (add1 (second x))))) 
+														(list 0 0)))
 						(hash-update! freq-map "Total-runs" add1 0)
 						(when stream? (place-channel-put stream? freq-map))))
 				(if (empty? (hash->list freq-map))
@@ -91,6 +96,7 @@
 				(define timed-out? (equal? result "timed-out"))
 				(channel-put ch (cons new-state timed-out?))
 				(place-kill pch)
+				(collect-garbage 'major)  ;; Force a major GC
 				(define new-samples (if (not timed-out?) 
 																(- remaining-samples 1) 
 																remaining-samples))

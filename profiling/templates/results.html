@@ -365,6 +365,44 @@ document.addEventListener('DOMContentLoaded', function() {
         totalRuns = heuristicsData['Total-runs'] || 0;
     }
 
+    /**
+     * Get the total value for a heuristic entry (sum of true and false counts)
+     * @param {string} key - The context key
+     * @returns {number} Sum of true and false counts, or 0 if not found
+     */
+    function getHeuristicValue(key) {
+        if (!heuristicsData || !heuristicsData[key]) return 0;
+        const data = heuristicsData[key];
+        // Handle both old format (number) and new format ([true_count, false_count])
+        if (Array.isArray(data)) {
+            return data[0] + data[1];
+        }
+        return data;
+    }
+
+    /**
+     * Get the true and false counts for a heuristic entry
+     * @param {string} key - The context key
+     * @returns {Object} Object with trueCount and falseCount properties
+     */
+    function getHeuristicCounts(key) {
+        const result = {};
+        if (!heuristicsData || !heuristicsData[key]) {
+            result.trueCount = 0;
+            result.falseCount = 0;
+            return result;
+        }
+        const data = heuristicsData[key];
+        if (Array.isArray(data)) {
+            result.trueCount = data[0];
+            result.falseCount = data[1];
+        } else {
+            result.trueCount = data;
+            result.falseCount = 0;
+        }
+        return result;
+    }
+
     // Parse sources data from Jinja2
     const sources = [{% for source in sources -%}
         {
@@ -381,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================================================
 
     /**
-     * Calculate color on a green-to-red gradient based on value
+     * Calculate color on a green-to-yellow-to-red gradient based on value
      * @param {number} value - The value to calculate color for
      * @param {number} maxValue - The maximum value (scale)
      * @returns {string} RGB color string
@@ -390,10 +428,33 @@ document.addEventListener('DOMContentLoaded', function() {
         if (maxValue === 0) return 'rgb(100, 220, 100)'; // Default green if no scale
 
         const normalized = Math.min(value / maxValue, 1);
-        const red = Math.round(100 + 80 * normalized);
-        const green = Math.round(220 * (1 - normalized));
 
-        return `rgb(${red}, ${green}, 0)`;
+        let red, green, blue;
+
+        if (normalized < 0.4) {
+            // Green to Yellow-green (0.0 - 0.4)
+            // Green: rgb(100, 220, 100) -> Yellow-green: rgb(200, 230, 0)
+            const t = normalized / 0.4; // Normalize to 0-1 for this segment
+            red = Math.round(100 + (200 - 100) * t);
+            green = Math.round(220 + (230 - 220) * t);
+            blue = Math.round(100 * (1 - t));
+        } else if (normalized < 0.6) {
+            // Yellow-green to Orange (0.4 - 0.6)
+            // Yellow-green: rgb(200, 230, 0) -> Orange: rgb(240, 160, 0)
+            const t = (normalized - 0.4) / 0.2; // Normalize to 0-1 for this segment
+            red = Math.round(200 + (240 - 200) * t);
+            green = Math.round(230 - (230 - 160) * t);
+            blue = 0;
+        } else {
+            // Orange to Red (0.6 - 1.0)
+            // Orange: rgb(240, 160, 0) -> Red: rgb(220, 0, 0)
+            const t = (normalized - 0.6) / 0.4; // Normalize to 0-1 for this segment
+            red = Math.round(240 - (240 - 220) * t);
+            green = Math.round(160 * (1 - t));
+            blue = 0;
+        }
+
+        return `rgb(${red}, ${green}, ${blue})`;
     }
 
     /**
@@ -495,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Create a map of value -> array of keys
             const valueGroups = new Map();
             keys.forEach(key => {
-                const value = heuristicsData[key];
+                const value = getHeuristicValue(key);
                 if (!valueGroups.has(value)) {
                     valueGroups.set(value, []);
                 }
@@ -537,6 +598,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.2)`;
                     const hoverBgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
 
+                    // Get true/false counts for this flip
+                    const counts = getHeuristicCounts(key);
+                    const label = `${escapeHtml(key)} (T:${counts.trueCount} F:${counts.falseCount})`;
+
                     html += `
                         <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
                              style="background: ${bgColor}; color: #212529; padding: 4px 6px;
@@ -546,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function() {
                              onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateX(2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
                              onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
                              title="Click to focus on ${escapeHtml(key)}">
-                            ${escapeHtml(key)}
+                            ${label}
                         </div>
                     `;
                 });
@@ -578,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Only count contexts that exist in heuristicsData
                 contextKeys.forEach(contextKey => {
                     if (heuristicsData && heuristicsData[contextKey] !== undefined) {
-                        const value = heuristicsData[contextKey];
+                        const value = getHeuristicValue(contextKey);
                         totalValue += value;
                         count++;
                     }
@@ -1066,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let count = 0;
 
             for (const contextKey of Object.keys(source.contexts)) {
-                const value = heuristicsData[contextKey] !== undefined ? heuristicsData[contextKey] : 0;
+                const value = getHeuristicValue(contextKey);
                 totalValue += value;
                 count++;
             }
@@ -1351,8 +1416,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const contextSummaries = dialog.querySelectorAll('.context-item > summary');
         contextSummaries.forEach(summary => {
             const contextKey = summary.textContent.trim();
-            const value = heuristicsData[contextKey] !== undefined ? heuristicsData[contextKey] : 0;
+            const value = getHeuristicValue(contextKey);
+            const counts = getHeuristicCounts(contextKey);
             const color = getColorForValue(value, totalRuns);
+
+            // Update summary to show true/false counts
+            summary.innerHTML = `${escapeHtml(contextKey)} <span style="font-size: 10px; opacity: 0.9;">(T: ${counts.trueCount}, F: ${counts.falseCount})</span>`;
 
             summary.style.backgroundColor = color;
             summary.style.color = 'white';
@@ -1417,8 +1486,8 @@ document.addEventListener('DOMContentLoaded', function() {
         items.sort((a, b) => {
             const keyA = a.dataset.contextKey;
             const keyB = b.dataset.contextKey;
-            const valueA = heuristicsData && heuristicsData[keyA] !== undefined ? heuristicsData[keyA] : 0;
-            const valueB = heuristicsData && heuristicsData[keyB] !== undefined ? heuristicsData[keyB] : 0;
+            const valueA = getHeuristicValue(keyA);
+            const valueB = getHeuristicValue(keyB);
 
             return sortType === 'asc' ? valueA - valueB : valueB - valueA;
         });
@@ -1508,7 +1577,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let count = 0;
 
         contextKeys.forEach(contextKey => {
-            const value = heuristicsData[contextKey] !== undefined ? heuristicsData[contextKey] : 0;
+            const value = getHeuristicValue(contextKey);
             totalValue += value;
             count++;
         });

@@ -14,6 +14,7 @@
  with-observe
  query
  make-json-visualization
+ src
 
 
  ;; `pmf.rkt`
@@ -101,12 +102,12 @@
         (for/pmf ([(val prob) (in-pmf pmf-probs)]
                   #:unless (unreachable? val))
           (values val (/ prob total-prob)))))
-
-
   normalized)
 
+  
 (define (src e)
-  (hash-ref variable-contexts (first (symbolics e))))
+  (length (map (lambda (x) (hash-ref variable-contexts x))
+       (symbolics e))))
 
 (define (with-timeout timeout-duration thnk default)
   (let* ([ch (make-channel)]
@@ -146,22 +147,21 @@
     [(= pr 0) #f]
     [(= pr 1) #t]
     [else
-     (let ([out (for/all ([pr pr])
+     (for/all ([pr pr])
                   (define-measurable* x (bernoulli-measure (- 1 pr) pr))
-                  x)])
-          (hash-set! variable-contexts 
-                     out 
-                     (continuation-mark-set->context (current-continuation-marks)))
-            
-          out)]))
+                  x)]))
           
 (define-syntax flip
   (syntax-parser 
     [(_ pr)
-     #:do [(define src (syntax-srcloc this-syntax))]
-     #:with source #`#,src
-     #'(let ([out (flip-fn pr)])
-          (hash-update! variable-contexts out (lambda (x) (cons source x)))
+      #:do [(define src (syntax-srcloc this-syntax))]
+      #:with source #`#,src
+      #'(let ([out (flip-fn pr)])
+          (hash-set! variable-contexts 
+                      out 
+                      (cons
+                        source
+                        (continuation-mark-set->context (current-continuation-marks))))
           out)]))
 
 
@@ -193,13 +193,16 @@
 (define (make-json-variable-contexts e)
   (define variables (symbolics e))
   (define (srcloc->js-hash loc)
-    (match-define (srcloc source line column position span) loc)
-    (hash
-      `source (~a source)
-      `line line
-      `column column
-      `position position
-      `span span))
+    (if (srcloc? loc)
+      (begin 
+        (match-define (srcloc source line column position span) loc)
+        (hash
+          `source (~a source)
+          `line line
+          `column column
+          `position position
+          `span span))
+      #f))
 
   (for/hash ([(key value) (in-hash variable-contexts)])
     (values (string->symbol (number->string (index-of variables key))) 
@@ -223,7 +226,7 @@
           (hash-update! json-results 
                         (string->symbol (number->string key)) 
                         (lambda (x) x) 
-                        0))
+                        (list 0 0)))
 
         json-results)
 
