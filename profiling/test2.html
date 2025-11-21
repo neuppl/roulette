@@ -403,49 +403,55 @@ document.addEventListener('DOMContentLoaded', function() {
     const minTopMargin = 10; // Keep away from browser UI
 
     // Parse heuristics data from Jinja2
-    const heuristicsRaw = {"0": [21, 11], "1": [9, 19], "10": [14, 13], "100": [16, 20], "101": [15, 15], "102": [14, 8], "103": [12, 16], "104": [16, 9], "105": [14, 21], "106": [19, 14], "107": [12, 17], "108": [11, 14], "109": [13, 12], "11": [11, 21], "110": [16, 13], "111": [17, 16], "112": [13, 18], "113": [16, 15], "114": [16, 11], "115": [14, 16], "116": [14, 15], "117": [20, 12], "118": [13, 11], "119": [16, 15], "12": [22, 22], "120": [14, 12], "121": [10, 14], "122": [16, 16], "123": [10, 12], "124": [12, 17], "125": [17, 16], "126": [17, 14], "127": [20, 12], "128": [16, 12], "129": [17, 17], "13": [14, 12], "130": [13, 13], "131": [17, 18], "132": [14, 16], "133": [21, 8], "134": [14, 15], "135": [18, 16], "136": [11, 16], "137": [18, 15], "138": [12, 17], "139": [15, 5], "14": [16, 12], "140": [13, 14], "141": [14, 9], "142": [12, 18], "143": [17, 13], "144": [19, 16], "145": [21, 9], "146": [15, 18], "147": [12, 9], "148": [17, 13], "149": [18, 15], "15": [18, 20], "150": [13, 14], "151": [19, 16], "152": [17, 14], "153": [20, 16], "154": [8, 15], "155": [15, 19], "156": [12, 15], "157": [18, 16], "158": [10, 23], "159": [14, 11], "16": [16, 15], "160": [19, 14], "161": [15, 10], "162": [18, 16], "163": [12, 16], "164": [16, 14], "165": [16, 12], "166": [18, 16], "167": [5, 22], "168": [19, 19], "169": [13, 23], "17": [10, 21], "170": [13, 19], "171": [16, 13], "172": [15, 17], "173": [16, 14], "174": [16, 14], "175": [18, 17], "176": [11, 14], "177": [17, 15], "178": [14, 23], "179": [13, 18], "18": [12, 20], "180": [20, 17], "181": [14, 19], "182": [16, 16], "183": [20, 16], "184": [16, 16], "185": [15, 10], "186": [16, 22], "187": [12, 16], "188": [15, 11], "189": [18, 14], "19": [13, 18], "190": [16, 15], "191": [20, 12], "192": [15, 12], "193": [17, 23], "194": [20, 12], "195": [13, 9], "196": [13, 19], "197": [21, 18], "198": [18, 14], "199": [16, 16], "2": [16, 20], "20": [14, 16], "200": [20, 14], "201": [13, 12], "202": [11, 23], "203": [10, 19], "204": [18, 16], "205": [10, 23], "206": [18, 17], "207": [19, 13], "208": [19, 10], "209": [11, 25], "21": [14, 17], "210": [15, 17], "211": [13, 16], "212": [13, 23], "213": [15, 15], "214": [18, 22], "215": [7, 9], "216": [15, 14], "217": [15, 13], "218": [12, 11], "219": [14, 10], "22": [15, 15], "220": [14, 15], "221": [14, 10], "222": [15, 19], "223": [20, 18], "224": [19, 16], "225": [13, 13], "226": [15, 10], "227": [15, 19], "228": [14, 15], "229": [12, 16], "23": [16, 17], "230": [17, 18], "231": [12, 16], "232": [19, 15], "233": [19, 19], "234": [11, 18], "235": [20, 18], "236": [15, 14], "237": [21, 13], "238": [13, 10], "239": [14, 16], "24": [15, 13], "240": [17, 16], "241": [19, 22], "25": [7, 13], "26": [13, 16], "27": [12, 19], "28": [26, 10], "29": [12, 17], "3": [14, 10], "30": [14, 8], "31": [12, 26], "32": [21, 18], "33": [21, 16], "34": [11, 14], "35": [11, 13], "36": [19, 11], "37": [22, 11], "38": [20, 14], "39": [13, 19], "4": [18, 13], "40": [18, 14], "41": [12, 18], "42": [12, 14], "43": [14, 14], "44": [15, 21], "45": [19, 12], "46": [11, 16], "47": [14, 13], "48": [17, 18], "49": [12, 15], "5": [12, 17], "50": [16, 18], "51": [19, 15], "52": [22, 11], "53": [21, 11], "54": [15, 16], "55": [12, 12], "56": [11, 20], "57": [16, 12], "58": [19, 16], "59": [17, 17], "6": [14, 16], "60": [17, 11], "61": [16, 12], "62": [18, 15], "63": [17, 17], "64": [16, 20], "65": [15, 18], "66": [14, 15], "67": [17, 15], "68": [14, 20], "69": [14, 11], "7": [19, 15], "70": [22, 9], "71": [18, 19], "72": [12, 11], "73": [14, 15], "74": [13, 16], "75": [16, 14], "76": [16, 8], "77": [21, 17], "78": [15, 18], "79": [10, 23], "8": [19, 17], "80": [14, 15], "81": [23, 11], "82": [15, 13], "83": [18, 10], "84": [13, 14], "85": [15, 13], "86": [9, 15], "87": [13, 18], "88": [16, 7], "89": [11, 12], "9": [15, 14], "90": [12, 14], "91": [13, 9], "92": [9, 20], "93": [14, 20], "94": [15, 13], "95": [17, 19], "96": [14, 18], "97": [17, 17], "98": [23, 13], "99": [19, 14], "Total-runs": 73};
+    const heuristicsRaw = {"0": [8, 33], "1": [3, 11], "10": [4, 24], "100": [4, 31], "101": [3, 17], "102": [4, 30], "103": [8, 49], "104": [4, 28], "105": [7, 54], "106": [6, 29], "107": [5, 28], "108": [3, 16], "109": [5, 36], "11": [2, 14], "110": [4, 16], "111": [6, 32], "112": [2, 8], "113": [4, 13], "114": [5, 39], "115": [4, 38], "116": [3, 17], "117": [5, 31], "118": [5, 26], "119": [6, 42], "12": [4, 25], "120": [5, 26], "121": [3, 19], "122": [5, 33], "123": [4, 30], "124": [4, 28], "125": [2, 12], "126": [3, 10], "127": [6, 35], "128": [3, 16], "129": [5, 45], "13": [3, 20], "130": [5, 12], "131": [3, 21], "132": [4, 27], "133": [6, 37], "134": [4, 27], "135": [7, 41], "136": [6, 42], "137": [4, 14], "138": [3, 23], "139": [6, 45], "14": [3, 15], "140": [5, 42], "141": [4, 21], "142": [2, 12], "143": [4, 22], "144": [3, 13], "145": [4, 23], "146": [0, 0], "147": [4, 13], "148": [5, 26], "149": [4, 20], "15": [4, 31], "150": [5, 37], "151": [3, 18], "152": [4, 25], "153": [5, 32], "154": [5, 33], "155": [5, 30], "156": [6, 36], "157": [6, 40], "158": [3, 22], "159": [5, 30], "16": [3, 17], "160": [3, 27], "161": [7, 41], "162": [3, 15], "163": [4, 19], "164": [7, 40], "165": [5, 26], "166": [3, 11], "167": [3, 17], "168": [5, 33], "169": [5, 30], "17": [5, 32], "170": [6, 50], "171": [2, 15], "172": [5, 32], "173": [1, 6], "174": [1, 5], "175": [1, 2], "176": [5, 48], "177": [3, 23], "178": [2, 15], "179": [4, 22], "18": [4, 33], "180": [3, 24], "181": [5, 27], "182": [7, 39], "183": [3, 24], "184": [4, 39], "185": [4, 28], "186": [4, 38], "187": [5, 31], "188": [3, 15], "189": [5, 29], "19": [4, 36], "190": [2, 9], "191": [4, 27], "192": [4, 30], "193": [2, 11], "194": [3, 16], "195": [5, 27], "196": [4, 34], "197": [6, 27], "198": [6, 25], "199": [4, 24], "2": [4, 29], "20": [5, 20], "200": [5, 38], "201": [4, 17], "202": [2, 8], "203": [6, 38], "204": [4, 31], "205": [4, 20], "206": [6, 38], "207": [1, 11], "208": [3, 21], "209": [8, 51], "21": [3, 12], "210": [4, 11], "211": [3, 19], "212": [4, 28], "213": [3, 10], "214": [3, 8], "215": [5, 31], "216": [4, 14], "217": [4, 18], "218": [3, 17], "219": [2, 5], "22": [3, 16], "220": [4, 21], "221": [3, 16], "222": [3, 9], "223": [5, 30], "224": [5, 35], "225": [4, 27], "226": [7, 54], "227": [4, 36], "228": [4, 32], "229": [2, 11], "23": [2, 9], "230": [6, 39], "231": [2, 15], "232": [2, 17], "233": [6, 44], "234": [2, 3], "235": [5, 15], "236": [1, 8], "237": [4, 25], "238": [7, 52], "239": [5, 19], "24": [3, 9], "240": [2, 8], "241": [5, 35], "25": [4, 22], "26": [5, 22], "27": [6, 35], "28": [3, 15], "29": [6, 31], "3": [5, 33], "30": [4, 24], "31": [5, 40], "32": [4, 20], "33": [3, 25], "34": [3, 10], "35": [2, 14], "36": [4, 18], "37": [5, 22], "38": [3, 25], "39": [4, 15], "4": [6, 49], "40": [6, 30], "41": [5, 49], "42": [5, 21], "43": [5, 33], "44": [4, 40], "45": [4, 29], "46": [3, 16], "47": [3, 17], "48": [4, 13], "49": [5, 25], "5": [4, 26], "50": [4, 22], "51": [4, 25], "52": [5, 23], "53": [4, 22], "54": [4, 10], "55": [2, 16], "56": [4, 12], "57": [4, 19], "58": [7, 32], "59": [5, 20], "6": [4, 32], "60": [3, 25], "61": [1, 6], "62": [3, 16], "63": [3, 5], "64": [4, 19], "65": [4, 16], "66": [4, 25], "67": [4, 15], "68": [6, 39], "69": [3, 31], "7": [4, 13], "70": [1, 5], "71": [6, 40], "72": [4, 29], "73": [4, 23], "74": [5, 42], "75": [4, 27], "76": [2, 17], "77": [5, 40], "78": [4, 28], "79": [2, 8], "8": [4, 22], "80": [2, 12], "81": [6, 37], "82": [3, 14], "83": [4, 38], "84": [4, 33], "85": [4, 25], "86": [4, 30], "87": [2, 17], "88": [1, 1], "89": [2, 16], "9": [6, 40], "90": [3, 20], "91": [5, 32], "92": [5, 30], "93": [3, 22], "94": [5, 39], "95": [3, 26], "96": [5, 32], "97": [6, 41], "98": [3, 22], "99": [3, 20], "Total-runs": 107, "Total-samples": 10};
     let heuristicsData = null;
+    let totalSamples = 0;
     let totalRuns = 0;
 
     if (typeof heuristicsRaw === 'object' && heuristicsRaw !== null && !Array.isArray(heuristicsRaw)) {
         heuristicsData = heuristicsRaw;
+        totalSamples = heuristicsData['Total-samples'] || 0;
         totalRuns = heuristicsData['Total-runs'] || 0;
     }
 
     /**
-     * Get the total value for a heuristic entry (sum of true and false counts)
+     * Get the success ratio for a heuristic entry
      * @param {string} key - The context key
-     * @returns {number} Sum of true and false counts, or 0 if not found
+     * @returns {number} Success ratio (successful_samples / total_runs), or 0 if not found
      */
     function getHeuristicValue(key) {
         if (!heuristicsData || !heuristicsData[key]) return 0;
         const data = heuristicsData[key];
-        // Handle both old format (number) and new format ([true_count, false_count])
-        if (Array.isArray(data)) {
-            return data[0] + data[1];
+        // New format: [successful_samples, total_runs]
+        if (Array.isArray(data) && data.length >= 2) {
+            const totalRuns = data[1];
+            if (totalRuns === 0) return 0;
+            return data[0] / totalRuns; // Return ratio
         }
-        return data;
+        // Legacy format
+        return 0;
     }
 
     /**
-     * Get the true and false counts for a heuristic entry
+     * Get the successful and total counts for a heuristic entry
      * @param {string} key - The context key
-     * @returns {Object} Object with trueCount and falseCount properties
+     * @returns {Object} Object with successCount and totalCount properties
      */
     function getHeuristicCounts(key) {
         const result = {};
         if (!heuristicsData || !heuristicsData[key]) {
-            result.trueCount = 0;
-            result.falseCount = 0;
+            result.successCount = 0;
+            result.totalCount = 0;
             return result;
         }
         const data = heuristicsData[key];
-        if (Array.isArray(data)) {
-            result.trueCount = data[0];
-            result.falseCount = data[1];
+        // New format: [successful_samples, total_runs]
+        if (Array.isArray(data) && data.length >= 2) {
+            result.successCount = data[0];
+            result.totalCount = data[1];
         } else {
-            result.trueCount = data;
-            result.falseCount = 0;
+            result.successCount = 0;
+            result.totalCount = 0;
         }
         return result;
     }
@@ -489,15 +495,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================================================
 
     /**
-     * Calculate color on a green-to-yellow-to-red gradient based on value
-     * @param {number} value - The value to calculate color for
-     * @param {number} maxValue - The maximum value (scale)
+     * Calculate color on a green-to-yellow-to-red gradient based on success ratio
+     * @param {number} ratio - The success ratio (0.0 to 1.0)
      * @returns {string} RGB color string
      */
-    function getColorForValue(value, maxValue) {
-        if (maxValue === 0) return 'rgb(100, 220, 100)'; // Default green if no scale
-
-        const normalized = Math.min(value / maxValue, 1);
+    function getColorForRatio(ratio) {
+        // Clamp ratio between 0 and 1
+        const normalized = Math.max(0, Math.min(ratio, 1));
 
         let red, green, blue;
 
@@ -601,16 +605,31 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '';
 
         // Group keys by their flip count
-        const keys = Object.keys(heuristicsData).filter(k => k !== 'Total-runs');
+        const keys = Object.keys(heuristicsData).filter(k => k !== 'Total-runs' && k !== 'Total-samples');
 
-        // Display Samples and Flips prominently in vertical layout
-        if (totalRuns > 0) {
-            html += `
-                <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-                    <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Samples:</span>
-                    <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
-                </div>
-            `;
+        // Display totals prominently in horizontal layout
+        if (totalSamples > 0 || totalRuns > 0) {
+            html += `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">`;
+
+            if (totalSamples > 0) {
+                html += `
+                    <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Samples:</span>
+                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalSamples}</span>
+                    </div>
+                `;
+            }
+
+            if (totalRuns > 0) {
+                html += `
+                    <div style="background: white; border-left: 4px solid #2c3e50; padding: 12px 16px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                        <span style="font-weight: 700; color: #2c3e50; font-size: 14px;">Runs:</span>
+                        <span style="font-size: 18px; font-weight: 600; color: #495057; margin-left: 8px; font-family: 'Monaco', monospace;">${totalRuns}</span>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
         }
 
         if (keys.length > 0) {
@@ -623,80 +642,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (keys.length > 0) {
-            // Create a map of value -> array of keys
-            const valueGroups = new Map();
-            keys.forEach(key => {
-                const value = getHeuristicValue(key);
-                if (!valueGroups.has(value)) {
-                    valueGroups.set(value, []);
-                }
-                valueGroups.get(value).push(key);
-            });
+            // Sort keys by their ratio (descending)
+            const sortedKeys = keys.map(key => ({
+                key,
+                ratio: getHeuristicValue(key)
+            })).sort((a, b) => b.ratio - a.ratio);
 
-            // Sort groups by value (descending)
-            const sortedValues = Array.from(valueGroups.keys()).sort((a, b) => b - a);
+            // Create responsive grid container for flip tiles
+            html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px;">`;
 
-            // Create grid container for grouped tiles - fit all groups horizontally
-            const numGroups = sortedValues.length;
-            html += `<div style="display: grid; grid-template-columns: repeat(${numGroups}, 1fr); gap: 8px; margin-bottom: 16px;">`;
+            // Create individual flip tiles
+            sortedKeys.forEach(({ key, ratio }) => {
+                const color = getColorForRatio(ratio);
+                const percentage = (ratio * 100).toFixed(1);
+                const rgb = color.match(/\d+/g).map(Number);
+                const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.2)`;
+                const hoverBgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
 
-            // Create grouped tiles
-            sortedValues.forEach(value => {
-                const keysWithValue = valueGroups.get(value);
-                const color = getColorForValue(value, totalRuns);
-                const percentage = totalRuns > 0 ? ((value / totalRuns) * 100).toFixed(1) : '0.0';
-                const count = keysWithValue.length;
+                // Get success/total counts for this flip
+                const counts = getHeuristicCounts(key);
 
-                html += `
-                    <div style="background: white; border-radius: 6px; padding: 8px; border-bottom: 4px solid ${color};
-                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); min-width: 0;
-                                display: flex; flex-direction: column;">
-                        <div style="font-size: 9px; color: #6c757d; font-weight: 600; background: #f8f9fa; padding: 3px 6px; border-radius: 10px; text-align: center; margin-bottom: 8px;">
-                            ${count} flip${count !== 1 ? 's' : ''}
-                        </div>
-                        <div style="display: flex; flex-direction: column; gap: 3px; margin-top: auto;">
-                `;
+                // Get label for this context key
+                const contextLabel = contextLabels[key];
 
-                // Add individual clickable flip badges stacked vertically
-                keysWithValue.forEach(key => {
-                    // Create semi-transparent version of the color for background
-                    const rgb = color.match(/\d+/g).map(Number);
-                    const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.2)`;
-                    const hoverBgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
-
-                    // Get true/false counts for this flip
-                    const counts = getHeuristicCounts(key);
-
-                    // Get label for this context key
-                    const contextLabel = contextLabels[key];
-
-                    // Build compact multi-line display
-                    const titleText = `${key}${contextLabel ? ' [' + contextLabel + ']' : ''} - Click to focus`;
-
-                    html += `
-                        <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
-                             style="background: ${bgColor}; color: #212529; padding: 3px 4px;
-                                    border-radius: 3px; font-size: 9px; font-weight: 600; cursor: pointer;
-                                    transition: all 0.15s ease; border: 1px solid ${color};
-                                    display: flex; flex-direction: column; gap: 2px; min-height: 0;"
-                             onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateX(2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                             onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
-                             title="${escapeHtml(titleText)}">
-                            ${contextLabel ? `<div style="font-size: 9px; font-weight: 700; color: #212529; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">${escapeHtml(contextLabel)}</div>` : ''}
-                            <div style="font-size: 7px; font-weight: 400; color: #868e96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(key)}</div>
-                            <div style="font-size: 7px; white-space: nowrap; display: flex; align-items: center; gap: 4px; margin-top: 1px;">
-                                <span style="color: #28a745;">T:${counts.trueCount}</span>
-                                <span style="color: #dc3545;">F:${counts.falseCount}</span>
-                            </div>
-                        </div>
-                    `;
-                });
+                // Build compact multi-line display
+                const titleText = `${key}${contextLabel ? ' [' + contextLabel + ']' : ''} - ${counts.successCount}/${counts.totalCount} successful - Click to focus`;
 
                 html += `
-                        </div>
-                        <div style="margin-top: 8px; text-align: center;">
-                            <div style="font-size: 16px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</div>
-                            <div style="font-size: 10px; color: #868e96; font-weight: 500;">${percentage}%</div>
+                    <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
+                         style="background: ${bgColor}; color: #212529; padding: 6px 8px;
+                                border-radius: 6px; cursor: pointer;
+                                transition: all 0.15s ease; border-left: 4px solid ${color};
+                                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                                display: flex; flex-direction: column; gap: 4px; min-height: 0;"
+                         onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 3px 8px rgba(0,0,0,0.15)';"
+                         onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.08)';"
+                         title="${escapeHtml(titleText)}">
+                        ${contextLabel ? `<div style="font-size: 10px; font-weight: 700; color: #212529; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">${escapeHtml(contextLabel)}</div>` : ''}
+                        <div style="font-size: 8px; font-weight: 400; color: #868e96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(key)}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px;">
+                            <div style="font-size: 14px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${percentage}%</div>
+                            <div style="font-size: 8px; color: #6c757d; white-space: nowrap;">${counts.successCount}/${counts.totalCount}</div>
                         </div>
                     </div>
                 `;
@@ -716,36 +702,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     return null;
                 }
 
-                let totalValue = 0;
+                let totalRatio = 0;
                 let count = 0;
                 const contextKeys = Object.keys(source.contexts);
 
                 // Only count contexts that exist in heuristicsData
                 contextKeys.forEach(contextKey => {
                     if (heuristicsData && heuristicsData[contextKey] !== undefined) {
-                        const value = getHeuristicValue(contextKey);
-                        totalValue += value;
+                        const ratio = getHeuristicValue(contextKey);
+                        totalRatio += ratio;
                         count++;
                     }
                 });
 
                 if (count === 0) return null;
 
-                const averageValue = totalValue / count;
-                const avgColor = getColorForValue(averageValue, totalRuns);
-                const percentage = totalRuns > 0 ? ((averageValue / totalRuns) * 100).toFixed(1) : '0.0';
+                const averageRatio = totalRatio / count;
+                const avgColor = getColorForRatio(averageRatio);
+                const percentage = (averageRatio * 100).toFixed(1);
 
                 return {
                     index,
                     source,
-                    averageValue,
+                    averageRatio,
                     avgColor,
                     percentage,
                     contextCount: count
                 };
             })
             .filter(item => item !== null)
-            .sort((a, b) => b.averageValue - a.averageValue);
+            .sort((a, b) => b.averageRatio - a.averageRatio);
 
         if (sourcesSummary.length > 0) {
             sourcesSummary.forEach(item => {
@@ -762,8 +748,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             Line ${item.source.line}:${item.source.column} • Span ${item.source.span}
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                            <span style="font-size: 16px; font-weight: 600; color: #212529; font-family: 'Monaco', monospace;">${item.averageValue.toFixed(2)}</span>
-                            <span style="font-size: 11px; color: #868e96; font-weight: 500;">${item.percentage}% avg</span>
+                            <span style="font-size: 16px; font-weight: 600; color: #212529; font-family: 'Monaco', monospace;">${item.percentage}%</span>
+                            <span style="font-size: 11px; color: #868e96; font-weight: 500;">avg success</span>
                         </div>
                         <div style="font-size: 10px; color: #868e96; background: ${bgColor}; padding: 3px 6px; border-radius: 3px; text-align: center;">
                             ${item.contextCount} context${item.contextCount !== 1 ? 's' : ''}
@@ -1215,18 +1201,18 @@ document.addEventListener('DOMContentLoaded', function() {
         let spanBorderColor = '#7cb798';
 
         if (heuristicsData && totalRuns > 0 && source.contexts && Object.keys(source.contexts).length > 0) {
-            let totalValue = 0;
+            let totalRatio = 0;
             let count = 0;
 
             for (const contextKey of Object.keys(source.contexts)) {
-                const value = getHeuristicValue(contextKey);
-                totalValue += value;
+                const ratio = getHeuristicValue(contextKey);
+                totalRatio += ratio;
                 count++;
             }
 
             if (count > 0) {
-                const averageValue = totalValue / count;
-                spanColor = getColorForValue(averageValue, totalRuns);
+                const averageRatio = totalRatio / count;
+                spanColor = getColorForRatio(averageRatio);
                 spanBorderColor = darkenColor(spanColor);
             }
         }
@@ -1506,18 +1492,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const summary = item.querySelector('summary');
             const li = item.closest('li');
             const contextKey = li.dataset.contextKey;
-            const value = getHeuristicValue(contextKey);
+            const ratio = getHeuristicValue(contextKey);
             const counts = getHeuristicCounts(contextKey);
-            const color = getColorForValue(value, totalRuns);
+            const color = getColorForRatio(ratio);
 
             // Get the label from the current display text (extract from brackets if present)
             const currentText = summary.textContent.trim();
             const bracketMatch = currentText.match(/\[([^\]]+)\]$/);
             const label = bracketMatch ? bracketMatch[1] : '';
 
-            // Update summary to show true/false counts with label
+            // Update summary to show success/total counts with label
             const displayLabel = label ? `${escapeHtml(contextKey)} [${escapeHtml(label)}]` : escapeHtml(contextKey);
-            summary.innerHTML = `${displayLabel} <span style="font-size: 10px; opacity: 0.9;">(T: ${counts.trueCount}, F: ${counts.falseCount})</span>`;
+            summary.innerHTML = `${displayLabel} <span style="font-size: 10px; opacity: 0.9;">(${counts.successCount}/${counts.totalCount})</span>`;
 
             summary.style.backgroundColor = color;
             summary.style.color = 'white';
@@ -1669,18 +1655,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const contextKeys = Object.keys(source.contexts);
         if (contextKeys.length === 0) return;
 
-        let totalValue = 0;
+        let totalRatio = 0;
         let count = 0;
 
         contextKeys.forEach(contextKey => {
-            const value = getHeuristicValue(contextKey);
-            totalValue += value;
+            const ratio = getHeuristicValue(contextKey);
+            totalRatio += ratio;
             count++;
         });
 
         if (count > 0) {
-            const averageValue = totalValue / count;
-            const avgColor = getColorForValue(averageValue, totalRuns);
+            const averageRatio = totalRatio / count;
+            const avgColor = getColorForRatio(averageRatio);
 
             span.style.textDecorationColor = avgColor;
             span.dataset.avgColor = avgColor;

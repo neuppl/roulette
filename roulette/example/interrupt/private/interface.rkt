@@ -37,7 +37,8 @@
          racket/format
          json
          "pmf.rkt"
-         "var-utils.rkt")
+         "var-utils.rkt"
+         relation/type)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic features
 
@@ -222,9 +223,7 @@
       (begin
         (define json-results 
           (for/hash! ([(key value) (in-hash results)])
-            (values (string->symbol (if (number? key)
-                                        (number->string key)
-                                        key)) 
+            (values (->symbol key) 
                     value)))
         (for ([key (in-range num-vars)])
           (hash-update! json-results 

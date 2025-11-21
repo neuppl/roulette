@@ -1,5 +1,5 @@
 #lang racket
-
+(require racket/function)
 ;; this file is run with an argument "file_name.rkt" that contains an interrupt program that is to be profiled.
 
 
@@ -28,22 +28,42 @@
 
 ;; Produces a hash of number of variable assignments for each idx accumulated from the provided state+results
 ;; If provided a non-false stream (place channel), then provides the stream with freq-map on every update
-(define (make-heuristics stream?) 
-  (let ([freq-map (make-hash)])
+
+; Hash from each possible variable assignment to % of runs in which that assignment was included in a 
+; successful sample 
+(define (make-heuristics stream?)
+  (let ([freq-map (make-hash)]
+				[0-true 0]
+				[0-false 0])
     (lambda (state+result)
       (if state+result 
 				(let ([state (car state+result)]
 							[timed-out? (cdr state+result)])
-					(unless timed-out?
-						(for/list ([idx+asgn state])
-							(match-define (cons idx asgn) idx+asgn)
-							(hash-update! freq-map 
-														idx 
-														(lambda (x) (if asgn 
-															(list (add1 (first x)) (second x))
-															(list (first x) (add1 (second x))))) 
-														(list 0 0)))
-						(hash-update! freq-map "Total-runs" add1 0)
+					(for ([idx+asgn state])
+						(match-define (cons idx asgn) idx+asgn)
+						(when (equal? idx+asgn (cons 0 #t))
+							(displayln "hereherehereherehere") 
+							(set! 0-true (add1 0-true))
+							(displayln 0-true)
+							(displayln (+ 0-true 0-false)))
+
+						(when (equal? idx+asgn (cons 0 #f))
+							(displayln "hereherehereherehere")  
+							(set! 0-false (add1 0-false))
+							(displayln 0-true)
+							(displayln (+ 0-true 0-false)))
+
+						(hash-update! freq-map 
+													idx
+													(lambda (x)
+														(list (if timed-out?
+																			(first x)
+																			(add1 (first x))) 
+																	(add1 (second x))))  
+													(list 0 0))) ; list of number of samples, number of assignments
+					(hash-update! freq-map "Total-runs" add1 0)
+					(unless timed-out? 
+						(hash-update! freq-map "Total-samples" add1 0)
 						(when stream? (place-channel-put stream? freq-map))))
 				(if (empty? (hash->list freq-map))
 						"No heuristics collected, file runs within time limit"
