@@ -106,8 +106,8 @@
 
   
 (define (src e)
-  (length (map (lambda (x) (hash-ref variable-contexts x))
-       (symbolics e))))
+  (hash-ref variable-contexts (first (symbolics e))))
+
 
 (define (with-timeout timeout-duration thnk default)
   (let* ([ch (make-channel)]
@@ -153,15 +153,16 @@
           
 (define-syntax flip
   (syntax-parser 
-    [(_ pr)
-      #:do [(define src (syntax-srcloc this-syntax))]
-      #:with source #`#,src
-      #'(let ([out (flip-fn pr)])
+    [(_ pr (~optional (~seq #:label label) #:defaults ([label #'(gensym)])))
+     #:do [(define src (syntax-srcloc this-syntax))]
+     #:with source #`#,src
+     #'(let ([out (flip-fn pr)])
           (hash-set! variable-contexts 
                       out 
-                      (cons
+                      (list
                         source
-                        (continuation-mark-set->context (current-continuation-marks))))
+                        (continuation-mark-set->context (current-continuation-marks))
+                        label))
           out)]))
 
 
@@ -206,11 +207,14 @@
 
   (for/hash ([(key value) (in-hash variable-contexts)])
     (values (string->symbol (number->string (index-of variables key))) 
-            (hash 'syntactic-source (srcloc->js-hash (car value))
+            (hash 'syntactic-source (srcloc->js-hash (first value))
                   'context (map (lambda (ctx-pair)
                                   (list (~a (car ctx-pair)) 
                                         (srcloc->js-hash (cdr ctx-pair)))) 
-                                (cdr value))))))
+                                (second value))
+                  'label (if (symbol? (third value))
+                             (symbol->string (third value))
+                             (third value))))))
 
 ;; Converts provided heuristics/results into a json serializable format
 (define (make-json-profiling-results results num-vars)

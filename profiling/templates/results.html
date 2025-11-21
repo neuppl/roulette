@@ -404,15 +404,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Parse sources data from Jinja2
+    // Each context is now [dict, label] instead of just dict
     const sources = [{% for source in sources -%}
         {
             line: {{ source.get('line', 0) }},
             column: {{ source.get('column', 0) }},
             position: {{ source.get('position', 0) }},
             span: {{ source.get('span', 0) }},
-            contexts: {% if source.get('contexts') %}{ {% for key, value in source['contexts'].items() %}"{{ key | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}": "{{ value | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}"{% if not loop.last %}, {% endif %}{% endfor %} }{% else %}{}{% endif %}
+            contexts: {% if source.get('contexts') %}{ {% for key, value in source['contexts'].items() %}{% if value is sequence and value|length == 2 %}"{{ key | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}": { "value": "{{ value[0] | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}", "label": "{{ value[1] | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}" }{% else %}"{{ key | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}": { "value": "{{ value | replace('"', '\\"') | replace('\n', '\\n') | replace('\r', '\\r') }}", "label": "" }{% endif %}{% if not loop.last %}, {% endif %}{% endfor %} }{% else %}{}{% endif %}
         }{% if not loop.last %},{% endif %}
     {%- endfor %}];
+
+    // Build a map of context keys to labels for quick lookup
+    const contextLabels = {};
+    sources.forEach(source => {
+        if (source.contexts) {
+            Object.entries(source.contexts).forEach(([key, contextData]) => {
+                if (typeof contextData === 'object' && contextData.label) {
+                    contextLabels[key] = contextData.label;
+                }
+            });
+        }
+    });
 
     // ========================================================================
     // COLOR UTILITIES
@@ -578,13 +591,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const count = keysWithValue.length;
 
                 html += `
-                    <div style="background: white; border-radius: 6px; padding: 8px; border-left: 4px solid ${color};
+                    <div style="background: white; border-radius: 6px; padding: 8px; border-bottom: 4px solid ${color};
                                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); min-width: 0;
                                 display: flex; flex-direction: column;">
-                        <div style="margin-bottom: 8px; text-align: center;">
-                            <div style="font-size: 16px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</div>
-                            <div style="font-size: 10px; color: #868e96; font-weight: 500;">${percentage}%</div>
-                        </div>
                         <div style="font-size: 9px; color: #6c757d; font-weight: 600; background: #f8f9fa; padding: 3px 6px; border-radius: 10px; text-align: center; margin-bottom: 8px;">
                             ${count} flip${count !== 1 ? 's' : ''}
                         </div>
@@ -600,23 +609,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Get true/false counts for this flip
                     const counts = getHeuristicCounts(key);
-                    const label = `${escapeHtml(key)} (T:${counts.trueCount} F:${counts.falseCount})`;
+
+                    // Get label for this context key
+                    const contextLabel = contextLabels[key];
+
+                    // Build compact multi-line display
+                    const titleText = `${key}${contextLabel ? ' [' + contextLabel + ']' : ''} - Click to focus`;
 
                     html += `
                         <div class="heuristic-tile" data-context-key="${escapeHtml(key)}"
-                             style="background: ${bgColor}; color: #212529; padding: 4px 6px;
-                                    border-radius: 3px; font-size: 10px; font-weight: 600; cursor: pointer;
-                                    transition: all 0.15s ease; border: 1px solid ${color}; text-align: center;
-                                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                             style="background: ${bgColor}; color: #212529; padding: 3px 4px;
+                                    border-radius: 3px; font-size: 9px; font-weight: 600; cursor: pointer;
+                                    transition: all 0.15s ease; border: 1px solid ${color};
+                                    display: flex; flex-direction: column; gap: 2px; min-height: 0;"
                              onmouseover="this.style.background='${hoverBgColor}'; this.style.transform='translateX(2px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
                              onmouseout="this.style.background='${bgColor}'; this.style.transform=''; this.style.boxShadow='';"
-                             title="Click to focus on ${escapeHtml(key)}">
-                            ${label}
+                             title="${escapeHtml(titleText)}">
+                            ${contextLabel ? `<div style="font-size: 9px; font-weight: 700; color: #212529; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">${escapeHtml(contextLabel)}</div>` : ''}
+                            <div style="font-size: 7px; font-weight: 400; color: #868e96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(key)}</div>
+                            <div style="font-size: 7px; white-space: nowrap; display: flex; align-items: center; gap: 4px; margin-top: 1px;">
+                                <span style="color: #28a745;">T:${counts.trueCount}</span>
+                                <span style="color: #dc3545;">F:${counts.falseCount}</span>
+                            </div>
                         </div>
                     `;
                 });
 
                 html += `
+                        </div>
+                        <div style="margin-top: 8px; text-align: center;">
+                            <div style="font-size: 16px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${value}</div>
+                            <div style="font-size: 10px; color: #868e96; font-weight: 500;">${percentage}%</div>
                         </div>
                     </div>
                 `;
@@ -799,8 +822,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const contextItems = dialog.querySelectorAll('.context-item');
             for (const item of contextItems) {
-                const summary = item.querySelector('summary');
-                if (summary && summary.textContent.trim() === contextKey) {
+                const li = item.closest('li');
+                // Match by data-context-key attribute instead of text content
+                if (li && li.dataset.contextKey === contextKey) {
                     // Bring dialog to front
                     dialog.style.zIndex = 1000 + (++dialogIdCounter);
 
@@ -863,8 +887,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function focusContextInNewDialog(dialog, contextKey) {
         const contextItems = dialog.querySelectorAll('.context-item');
         for (const item of contextItems) {
-            const summary = item.querySelector('summary');
-            if (summary && summary.textContent.trim() === contextKey) {
+            const li = item.closest('li');
+            // Match by data-context-key attribute instead of text content
+            if (li && li.dataset.contextKey === contextKey) {
                 item.open = true;
                 scrollToContextInDialog(dialog, item);
                 break;
@@ -1096,11 +1121,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         <ul class="contexts-list" data-dialog-id="${dialogId}">
         `;
 
-        for (const [key, value] of Object.entries(source.contexts)) {
+        for (const [key, contextData] of Object.entries(source.contexts)) {
+            const value = typeof contextData === 'object' && contextData.value !== undefined ? contextData.value : contextData;
+            const label = typeof contextData === 'object' && contextData.label !== undefined ? contextData.label : '';
+
+            // Create display label: show both key and label if label exists
+            const displayLabel = label ? `${escapeHtml(key)} [${escapeHtml(label)}]` : escapeHtml(key);
+
             html += `
                 <li data-context-key="${escapeHtml(key)}">
                     <details class="context-item">
-                        <summary>${escapeHtml(key)}</summary>
+                        <summary>${displayLabel}</summary>
                         <div class="context-value">${prettyPrintContext(value)}</div>
                     </details>
                 </li>
@@ -1413,15 +1444,23 @@ document.addEventListener('DOMContentLoaded', function() {
     function applyHeuristicColorsToContexts(dialog) {
         if (!heuristicsData || totalRuns === 0) return;
 
-        const contextSummaries = dialog.querySelectorAll('.context-item > summary');
-        contextSummaries.forEach(summary => {
-            const contextKey = summary.textContent.trim();
+        const contextItems = dialog.querySelectorAll('.context-item');
+        contextItems.forEach(item => {
+            const summary = item.querySelector('summary');
+            const li = item.closest('li');
+            const contextKey = li.dataset.contextKey;
             const value = getHeuristicValue(contextKey);
             const counts = getHeuristicCounts(contextKey);
             const color = getColorForValue(value, totalRuns);
 
-            // Update summary to show true/false counts
-            summary.innerHTML = `${escapeHtml(contextKey)} <span style="font-size: 10px; opacity: 0.9;">(T: ${counts.trueCount}, F: ${counts.falseCount})</span>`;
+            // Get the label from the current display text (extract from brackets if present)
+            const currentText = summary.textContent.trim();
+            const bracketMatch = currentText.match(/\[([^\]]+)\]$/);
+            const label = bracketMatch ? bracketMatch[1] : '';
+
+            // Update summary to show true/false counts with label
+            const displayLabel = label ? `${escapeHtml(contextKey)} [${escapeHtml(label)}]` : escapeHtml(contextKey);
+            summary.innerHTML = `${displayLabel} <span style="font-size: 10px; opacity: 0.9;">(T: ${counts.trueCount}, F: ${counts.falseCount})</span>`;
 
             summary.style.backgroundColor = color;
             summary.style.color = 'white';

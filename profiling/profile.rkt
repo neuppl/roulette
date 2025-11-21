@@ -96,7 +96,6 @@
 				(define timed-out? (equal? result "timed-out"))
 				(channel-put ch (cons new-state timed-out?))
 				(place-kill pch)
-				(collect-garbage 'major)  ;; Force a major GC
 				(define new-samples (if (not timed-out?) 
 																(- remaining-samples 1) 
 																remaining-samples))

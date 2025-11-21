@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
 
     for src in unique_syntactic_sources:
-      temp = {k:v["context"]
+      temp = {k:[v["context"], v["label"]]
               for k,v in stack_contexts.items()
               if same_syntactic_source(v["syntactic-source"], src)}
       src["contexts"] = temp
@@ -65,6 +65,7 @@ if __name__ == "__main__":
        del src["source"]
       
       #del src['source'] # unnecessary file path, not used.
+
 
     # Render the template with data
     html_output = template.render(
