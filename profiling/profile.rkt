@@ -32,27 +32,13 @@
 ; Hash from each possible variable assignment to % of runs in which that assignment was included in a 
 ; successful sample 
 (define (make-heuristics stream?)
-  (let ([freq-map (make-hash)]
-				[0-true 0]
-				[0-false 0])
+  (let ([freq-map (make-hash)])
     (lambda (state+result)
       (if state+result 
 				(let ([state (car state+result)]
 							[timed-out? (cdr state+result)])
 					(for ([idx+asgn state])
 						(match-define (cons idx asgn) idx+asgn)
-						(when (equal? idx+asgn (cons 0 #t))
-							(displayln "hereherehereherehere") 
-							(set! 0-true (add1 0-true))
-							(displayln 0-true)
-							(displayln (+ 0-true 0-false)))
-
-						(when (equal? idx+asgn (cons 0 #f))
-							(displayln "hereherehereherehere")  
-							(set! 0-false (add1 0-false))
-							(displayln 0-true)
-							(displayln (+ 0-true 0-false)))
-
 						(hash-update! freq-map 
 													idx
 													(lambda (x)
@@ -81,27 +67,24 @@
 								timeout-duration
 								#:stream-results [stream? #f])
 	(define random-specialization-transition 
-		(let ([current-state initial-state]
-					[attempts 1]
-					[samples 1])
+		(let ([attempts 1]
+					[samples 1]
+					[transition-rate specialization-rate])
 			(lambda (num-vars timed-out?)
 				(if timed-out?
 						(begin
 							(printf "~v: Attempt ~v: failed\n\n\n" samples attempts)
 							(set! attempts (+ attempts 1))
-							
-							(let ([new-state 
-											(for/fold ([acc current-state])
-																([x (in-range specialization-rate)])
-												(random-specialize acc num-vars))])
-								(set! current-state new-state)
-								new-state))
+							(set! transition-rate (+ 10 transition-rate)))
 						(begin
 							(printf "~v: Found a working sample in ~v attempt(s)\n\n\n" samples attempts)
 							(set! attempts 1)
-							(set! samples (+ samples 1))
-							(set! current-state initial-state)
-							initial-state)))))
+							(set! transition-rate specialization-rate)
+							(set! samples (+ samples 1))))
+				(printf "Specializing ~v variables\n" transition-rate)
+				(for/fold ([acc initial-state])
+									([x (in-range transition-rate)])
+					(random-specialize acc num-vars)))))
 
 	(define (subsample samples ch)
 		(define (subsample/acc remaining-samples ch timed-out?)
@@ -170,7 +153,7 @@
 
 	(define results (search 
 										file-path 
-										100 10 (list) 2 
+										5000 20 (list) 7
 										#:stream-results stream?))
 
 
