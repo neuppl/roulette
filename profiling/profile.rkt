@@ -75,7 +75,7 @@
 						(begin
 							(printf "~v: Attempt ~v: failed\n\n\n" samples attempts)
 							(set! attempts (+ attempts 1))
-							(set! transition-rate (+ 10 transition-rate)))
+							(set! transition-rate (+ 0 transition-rate)))
 						(begin
 							(printf "~v: Found a working sample in ~v attempt(s)\n\n\n" samples attempts)
 							(set! attempts 1)
@@ -153,7 +153,10 @@
 
 	(define results (search 
 										file-path 
-										5000 20 (list) 7
+										5000 
+										100 
+										(list) 
+										5
 										#:stream-results stream?))
 
 
