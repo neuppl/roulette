@@ -33,12 +33,11 @@
                           #t
                           (list-ref (list-ref grid (- row 2)) (- col 1)))
                       row
-                      col
-                      )))
+                      col)))
               cur-row)))))
 
 
-(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 12)))))
+(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 11)))))
 
 (define (place-main pch)
   (query out pch))

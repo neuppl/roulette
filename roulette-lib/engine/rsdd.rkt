@@ -317,7 +317,7 @@
     (define vars (list->set (symbolics val)))
 
     ;(printf "before for. size: ~v\n" (dict-count measures))
-    (displayln "before for")
+    ;(displayln "before for")
     ;; Use `in-ddict-reverse` for "program order" as the variable order.
     (for ([(var measure) (in-ddict-reverse measures)]
           #:when (set-member? vars var))
@@ -326,21 +326,21 @@
       ;(displayln "after const->label")
       (var-set! temp (measure (set #f)) (measure (set #t))))
 
-    (displayln "after for")
+    ;(displayln "after for")
     ;; Compute measure
     (define ht (flatten-symbolic val))
-    (displayln "after flatten-symbolic")
+    ;(displayln "after flatten-symbolic")
     (define (procedure elems)
       (for/fold ([acc zero])
                 ([elem (in-set elems)])
         (plus acc (density elem))))
     (define (density val)
-      (displayln "before enc/log!")
+      ;(displayln "before enc/log!")
       (begin0 
         (if (hash-has-key? ht val)
             (wmc (enc/log! (hash-ref ht val)))
-            zero)
-        (displayln "after enc/log!")))
+            zero)))
+        ;(displayln "after enc/log!")))
     (define support
       (list->set
        (if lazy?
