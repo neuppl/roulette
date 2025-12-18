@@ -76,7 +76,10 @@
 											1)]
 				[samples (if resumption-data 
 											(hash-ref resumption-data 'samples)
-											1)])
+											1)]
+				[specialization-rate (if resumption-data 
+																(hash-ref resumption-data 'specialization-rate)
+																specialization-rate)])
 		(cons
 			(lambda (num-vars timed-out?)
 				(if timed-out?
@@ -93,22 +96,18 @@
 									([x (in-range specialization-rate)])
 					(random-specialize acc num-vars)))
 				(lambda () (hash 'attempts attempts
-												 'samples samples)))))
+												 'samples samples
+												 'specialization-rate specialization-rate)))))
 
 
 (define (pause file-path resumption-data)
+	(define resumption-path (string-append "temp-"
+																				 (path->string (path-replace-extension file-path ".json"))))
 	(call-with-output-file 
 		#:exists 'replace
-		(string-append (string-append
-										"temp-"
-										(path->string (path-replace-extension file-path ".json"))))
-		(curry write-json resumption-data #:indent #\tab)
-		#;(lambda (out)
-      (write-json 
-        resumption-data
-        out
-        #:indent #\tab)))
-	(displayln "Pausing program due to un-decipherable memory issues, will restart soon") 
+		resumption-path
+		(curry write-json resumption-data #:indent #\tab))
+	(displayln (string-append "Pausing program, resumption file can be found in " resumption-path)) 
   (exit 0))
 
 
@@ -125,8 +124,7 @@
 	(match-define (cons heuristics heuristics-pause) heuristics-pair)
 	(define (subsample samples ch)
 		(define (subsample/acc remaining-samples ch timed-out?)
-			(when pause?
-				(displayln pause?)
+			(when (and pause? (not timed-out?))
 				(set! pause? (- pause? 1))
 				(when (= pause? 0)
 					(pause file-path (hash 'transition (transition-pause)
@@ -206,11 +204,10 @@
 		(if resumption-data
 				(let* ([samples (hash-ref resumption-data 'samples)]
 							 [initial-state (hash-ref resumption-data 'initial-state)]
-							 [specialization-rate (hash-ref resumption-data 'specialization-rate)]
 							 [transition-resumption-data (hash-ref resumption-data 'transition)]
 							 [heuristics-resumption-data (hash-ref resumption-data 'heuristics)]
 							 [transition-fn (random-specialization-transition initial-state 
-							 																									specialization-rate
+							 																									#f
 																																#:resume transition-resumption-data)]
 							 [heuristics-fn (make-heuristics stream? #:resume heuristics-resumption-data)]
 							 [timeout (hash-ref resumption-data 'timeout-duration)])
@@ -222,7 +219,7 @@
 									timeout
 									#:stream-results stream?
 									#:resume #t
-									#:pause-in 5))
+									#:pause-in (get-pause-arg)))
 				(search (list)
 								(random-specialization-transition (list) 
 																									100)
@@ -231,7 +228,7 @@
 								file-path 
 								5
 								#:stream-results stream?
-								#:pause-in 5)))
+								#:pause-in (get-pause-arg))))
 
 	(place-channel-put pch results)	
 	(define json-path (place-channel-get pch))
@@ -240,22 +237,33 @@
 
 
 
+(define args (current-command-line-arguments))
+
 
 (define (get-file-path-argument)
-	(define args (current-command-line-arguments))
 	(when (< (vector-length args) 1)
 		(error "Expected atleast one argument with path of file to profile, got none."))
 	(define file-path (vector-ref args 0))
 	file-path)
 
 
-;returns second command line arg if it exists, else false
+; provides the json path for the file with information to resume a previously paused search
+; Argument should be provided as "--resume xyz.json"
 (define (get-resumption-json-path-argument)
-	(define args (current-command-line-arguments))
-	(if (> (vector-length args) 1)
-			(vector-ref args 1)
-			#f))
+	(let ([resume-index (index-of (vector->list args) "--resume")])
+    (if (and resume-index 
+             (< (add1 resume-index) (vector-length args)))
+        (vector-ref args (add1 resume-index))
+        #f)))
 
+;Provides the number of samples after which you pause the search algorithm
+; Argument should be provided as "--pause n"
+(define (get-pause-arg)
+  (let ([pause-index (index-of (vector->list args) "--pause")])
+    (if (and pause-index 
+             (< (add1 pause-index) (vector-length args)))
+        (string->number (vector-ref args (add1 pause-index)))
+        #f)))
 
 (define (run-profiler file-path #:resume [resumption-path #f])
 	(make-profiling-json-results file-path 
@@ -264,9 +272,6 @@
 															 							(call-with-input-file resumption-path read-json)
 																						#f))
 	(displayln "My work here is done"))
-
-
-(get-resumption-json-path-argument)
 
 (run-profiler (get-file-path-argument) 
 							#:resume (get-resumption-json-path-argument))
