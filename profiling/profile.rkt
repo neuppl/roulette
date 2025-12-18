@@ -1,6 +1,7 @@
 #lang racket
 (require racket/function)
 (require json)
+(require relation/type)
 ;; this file is run with an argument "file_name.rkt" that contains an interrupt program that is to be profiled.
 
 
@@ -33,7 +34,7 @@
 
 (define (make-heuristics stream? #:resume [resumption-data #f])
   (let ([freq-map (if resumption-data
-											(make-hash (hash->list resumption-data))
+											(make-hash (hash->list resumption-data)) ; This is to make the hash mutable 
 											(make-hash))])
     (cons 
 			(lambda (state+result)
@@ -50,10 +51,11 @@
 																				(add1 (first x))) 
 																		(add1 (second x))))  
 														(list 0 0))) ; list of number of samples, number of assignments
-						(hash-update! freq-map "Total-runs" add1 0)
+						(hash-update! freq-map 'Total-runs add1 0)
 						(unless timed-out? 
-							(hash-update! freq-map "Total-samples" add1 0)
-							(when stream? (place-channel-put stream? freq-map))))
+							(hash-update! freq-map 'Total-samples add1 0)
+							(when stream? (place-channel-put stream? freq-map)))
+						(displayln freq-map))
 					(if (empty? (hash->list freq-map))
 							"No heuristics collected, file runs within time limit"
 							(begin 
@@ -62,9 +64,7 @@
 			(lambda () 
 				(for/hash ([(key value) freq-map])
 					(values 
-						(string->symbol (if (number? key)
-																(number->string key)
-																key))
+						(->symbol key)
 						value))))))
 
 

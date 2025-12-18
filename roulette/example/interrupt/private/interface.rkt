@@ -207,7 +207,7 @@
       #f))
 
   (for/hash ([(key value) (in-hash variable-contexts)])
-    (values (string->symbol (number->string (index-of variables key))) 
+    (values (->symbol (index-of variables key)) 
             (hash 'syntactic-source (srcloc->js-hash (first value))
                   'context (map (lambda (ctx-pair)
                                   (list (~a (car ctx-pair)) 
@@ -227,7 +227,7 @@
                     value)))
         (for ([key (in-range num-vars)])
           (hash-update! json-results 
-                        (string->symbol (number->string key)) 
+                        (->symbol key) 
                         (lambda (x) x) 
                         (list 0 0)))
 
