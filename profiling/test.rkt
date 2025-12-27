@@ -39,8 +39,9 @@
 
 (define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 11)))))
 
-(define (place-main pch)
-  (query out pch))
 
-(define (generate-json pch)
-  (make-json-visualization out pch))
+(let ([entry (read)])
+  (cond
+    [(string-equal? entry "generate-json") (make-json-visualization out)]
+    [(string-equal? entry "profiler-run") (query out)]
+    [else (error "unrecognized entry point")]))

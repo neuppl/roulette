@@ -14,7 +14,6 @@
  with-observe
  query
  make-json-visualization
- src
 
 
  ;; `pmf.rkt`
@@ -54,6 +53,10 @@
 
 (define (wrap e)
   e) ;(if (symbolic? e) (query e) e)
+
+(define (write-now data [port (current-output-port)])
+	(write data port)
+	(flush-output port))
 
 
 (define (choose-ignored map)
@@ -105,10 +108,6 @@
           (values val (/ prob total-prob)))))
   normalized)
 
-  
-(define (src e)
-  (hash-ref variable-contexts (first (symbolics e))))
-
 
 (define (with-timeout timeout-duration thnk default)
   (let* ([ch (make-channel)]
@@ -122,12 +121,12 @@
           (default)))))
 
 
-(define (query e pch)
+(define (query e)
   (define variables (symbolics e))
-  (place-channel-put pch (length variables))
+  (write-now (length variables))
   
-  (define timeout (place-channel-get pch))
-  (define assignments (place-channel-get pch))
+  (define timeout (read))
+  (define assignments (read))
   (define ⊥ (unreachable))
   (define symbolic-map 
     (hash->list (flatten-symbolic (if evidence e ⊥))))
@@ -140,7 +139,7 @@
                               (compute-pmf (set-symbolic-vars symbolic-map subst-map))
                               "done"))
                 (lambda () "timed-out")))
-  (place-channel-put pch result)
+  (write-now result)
   pmf)
 
 (define (flip-fn pr)
@@ -236,48 +235,45 @@
       results))
 
 
-;provided information through the given place channel, writes profiling results into a jsons
-(define (make-json-visualization e pch)
-  (define file-path (place-channel-get pch))
+;provided information from the input port, writes profiling results into a json
+(define (make-json-visualization e)
+  (define file-path (read))
   (define out-file-path (path->string (path-replace-extension file-path ".json")))
 
-  (define source-code (place-channel-get pch))
-  (define result-type (place-channel-get pch)) ; 'stream or 'single
+  (define source-code (read))
+  (define result-type (read)) ; 'stream or 'single
   
 
   ;first time getting results (required regardless of stream/single)
-  (define results (place-channel-get pch))
+  (define results (read))
   (define json-profiling-results
         (make-json-profiling-results results (length (symbolics e))))
   
   
   (define json-variable-contexts (make-json-variable-contexts e))
   
-  (write-json-visualization 
-    out-file-path
-    file-path 
-    source-code 
-    json-variable-contexts
-    json-profiling-results)
+  (define write-js-viz
+    (lambda () (write-json-visualization 
+                  out-file-path
+                  file-path 
+                  source-code 
+                  json-variable-contexts
+                  json-profiling-results)))
+  
+  (write-js-viz)
 
   (when (equal? result-type 'stream)
     (let loop ()
-      (define results (place-channel-get pch))
+      (define results (read))
       (unless (equal? results 'stop)
         (define json-profiling-results
           (make-json-profiling-results results (length (symbolics e))))
 
-        (write-json-visualization 
-          out-file-path
-          file-path 
-          source-code 
-          json-variable-contexts
-          json-profiling-results)
-
+        (write-js-viz)
         (loop))))
     (printf "Completed running profiler, visualization of results can be found at ~v\n"
       (path->string (path-replace-extension out-file-path ".html")))
-    (place-channel-put pch out-file-path))
+    (write-now out-file-path))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation

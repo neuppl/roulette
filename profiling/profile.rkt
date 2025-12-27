@@ -13,6 +13,10 @@
   (eprintf "Error: ~a\n" msg)
   (exit 1))
 
+(define (write-now data [port (current-output-port)])
+	(write data port)
+	(flush-output port))
+
 (define (random-specialize state num-vars)
 	(define current-assignments (map (lambda (asgn) (car asgn)) state))
   (define unknown-positions
@@ -30,7 +34,7 @@
 
 
 ;; Produces a hash from each variable to (Listof number-of-successful-samples number-of-total-assignments)
-;; If provided a non-false stream (place channel), then provides the stream with freq-map on every update/sample collected
+;; If provided a non-false stream (in+out ports), then provides the stream with freq-map on every update/sample collected
 
 (define (make-heuristics stream? #:resume [resumption-data #f])
   (let ([freq-map (if resumption-data
@@ -54,12 +58,12 @@
 						(hash-update! freq-map 'Total-runs add1 0)
 						(unless timed-out? 
 							(hash-update! freq-map 'Total-samples add1 0)
-							(when stream? (place-channel-put stream? freq-map)))
+							(when stream? (write freq-map (car stream?))))
 						(displayln freq-map))
 					(if (empty? (hash->list freq-map))
 							"No heuristics collected, file runs within time limit"
 							(begin 
-								(when stream? (place-channel-put stream? 'stop))
+								(when stream? (write 'stop (car stream?)))
 								freq-map))))
 			(lambda () 
 				(for/hash ([(key value) freq-map])
@@ -135,15 +139,17 @@
 																 'stream-results? (if stream? #t #f)))))
 			(if (= 0 remaining-samples)
 					(channel-put ch 'done)
-					(let*  ([pch       (dynamic-place file-path 'place-main)]
-									[num-vars (place-channel-get pch)]
-									[new-state (transition num-vars timed-out?)])
-						(place-channel-put pch timeout-duration)
-						(place-channel-put pch new-state)
-						(define result (place-channel-get pch))
+					(let*-values  ([(proc stdout stdin stderr)
+  													(subprocess #f #f #f "/usr/local/bin/racket" file-path)]
+												 [(num-vars) (read stdout)]
+											   [(new-state) (transition num-vars timed-out?)])
+						(write-now "profiler-run" stdin)
+						(write-now timeout-duration stdin)
+						(write-now new-state stdin)
+						(define result (read stdout))
 						(define timed-out? (equal? result "timed-out"))
 						(channel-put ch (cons new-state timed-out?))
-						(place-kill pch)
+						(subprocess-kill proc)
 						(define new-samples (if (not timed-out?) 
 																		(- remaining-samples 1) 
 																		remaining-samples))
@@ -152,18 +158,21 @@
 		(if resume?
 			(subsample/acc samples ch #f) ; resume without first pass, assume no timeout, since resumptions should be at a successful sample
 			(begin ; First pass, with initial-state, to see if it runs without any subsampling
-				(let* ([pch (dynamic-place file-path 'place-main)]
-					 		 [num-vars (place-channel-get pch)])
+				(let*-values ([(proc stdout stdin stderr)
+												(subprocess #f #f #f "/usr/local/bin/racket" file-path)]
+					 		 				[(num-vars) (read stdout)])
+
 					(displayln num-vars)
-					(place-channel-put pch timeout-duration)
-					(place-channel-put pch initial-state)
-					(define result (place-channel-get pch))
+					(write-now "profiler-run" stdin)
+					(write-now timeout-duration stdin)
+					(write-now initial-state stdin)
+
+					(define result (read stdout))
 					(define timed-out? (equal? result "timed-out"))
-					(place-kill pch)
+					(subprocess-kill proc)
 					(if timed-out?
 						(subsample/acc samples ch #t)
-						(subsample/acc samples ch #t)
-						#;(begin 
+						(begin 
 							(displayln "No subsampling needed, program executed within time limit. No heuristics collected.")
 							(channel-put ch 'done)
 							#t))))))
@@ -188,17 +197,21 @@
 		(call-with-input-file file-path
 			(lambda (in) (port->string in))))
 
-	
-	(define pch (dynamic-place file-path 'generate-json))
-	(place-channel-put pch file-path)
-	(place-channel-put pch program-text)
+	(define-values (proc stdout stdin stderr)
+  	(subprocess #f #f #f "/usr/local/bin/racket" file-path))
+	(write-now "generate-json" stdin)
+
+	(write-now file-path stdin)
+	(write-now program-text stdin)
 	(define should-stream? (if resumption-data
 													 (hash-ref resumption-data 'stream-results?)
 													 stream-results?))
-	(place-channel-put pch (if should-stream? 'stream 'single))
+	(write-now (if should-stream? 'stream 'single) stdin)
+
+	(define ports (cons stdin stdout))
 
 	(define stream? (if should-stream? 
-											pch
+											ports
 											#f))
 	(define results 
 		(if resumption-data
@@ -230,9 +243,10 @@
 								#:stream-results stream?
 								#:pause-in (get-pause-arg))))
 
-	(place-channel-put pch results)	
-	(define json-path (place-channel-get pch))
-	(place-kill pch)
+	(write results stdin)	
+	(define json-path (read stdout))
+	(subprocess-kill proc)
+	;(subprocess-wait proc)
 	json-path)
 
 
