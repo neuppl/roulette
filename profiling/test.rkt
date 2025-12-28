@@ -1,6 +1,4 @@
 #lang roulette/example/interrupt
-(provide place-main)
-(provide generate-json)
 
 
 
@@ -42,6 +40,6 @@
 
 (let ([entry (read)])
   (cond
-    [(string-equal? entry "generate-json") (make-json-visualization out)]
-    [(string-equal? entry "profiler-run") (query out)]
+    [(equal? entry "generate-json") (make-json-visualization out)]
+    [(equal? entry "profiler-run") (query out)]
     [else (error "unrecognized entry point")]))
