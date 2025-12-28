@@ -55,7 +55,7 @@
   e) ;(if (symbolic? e) (query e) e)
 
 (define (write-now data [port (current-output-port)])
-	(write data port)
+	(displayln data port)
 	(flush-output port))
 
 
@@ -187,7 +187,7 @@
   (printf "JSON results produced at: ~a\n" out-file-path)
 
 
-	(displayln "Running visualize.py to generate html ...")
+	(displayln "Running visualize.py to generate html ..." (current-error-port))
 	(system (string-append "python3 visualize.py " out-file-path)))
 
 ;; Converts global variable contexts into a json serializable format

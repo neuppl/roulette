@@ -17,6 +17,14 @@
 	(write data port)
 	(flush-output port))
 
+
+(define (terminate-subprocess proc stdout stdin stderr)
+	(subprocess-kill proc #t)
+	(close-output-port stdin)
+  (close-input-port stdout)
+  (when (input-port? stderr) 
+		(close-input-port stderr)))
+
 (define (random-specialize state num-vars)
 	(define current-assignments (map (lambda (asgn) (car asgn)) state))
   (define unknown-positions
@@ -58,12 +66,12 @@
 						(hash-update! freq-map 'Total-runs add1 0)
 						(unless timed-out? 
 							(hash-update! freq-map 'Total-samples add1 0)
-							(when stream? (write freq-map (car stream?))))
+							(when stream? (write-now freq-map (car stream?))))
 						(displayln freq-map))
 					(if (empty? (hash->list freq-map))
 							"No heuristics collected, file runs within time limit"
 							(begin 
-								(when stream? (write 'stop (car stream?)))
+								(when stream? (write-now 'stop (car stream?)))
 								freq-map))))
 			(lambda () 
 				(for/hash ([(key value) freq-map])
@@ -140,16 +148,19 @@
 			(if (= 0 remaining-samples)
 					(channel-put ch 'done)
 					(let*-values  ([(proc stdout stdin stderr)
-  													(subprocess #f #f #f "/usr/local/bin/racket" file-path)]
-												 [(num-vars) (read stdout)]
-											   [(new-state) (transition num-vars timed-out?)])
+  													(subprocess #f #f (current-error-port) "/usr/local/bin/racket" file-path)])
 						(write-now "profiler-run" stdin)
+
+						(define num-vars (read stdout))
+						(define new-state (transition num-vars timed-out?))
+
 						(write-now timeout-duration stdin)
 						(write-now new-state stdin)
+
 						(define result (read stdout))
 						(define timed-out? (equal? result "timed-out"))
 						(channel-put ch (cons new-state timed-out?))
-						(subprocess-kill proc)
+						(terminate-subprocess proc stdout stdin stderr)
 						(define new-samples (if (not timed-out?) 
 																		(- remaining-samples 1) 
 																		remaining-samples))
@@ -159,17 +170,17 @@
 			(subsample/acc samples ch #f) ; resume without first pass, assume no timeout, since resumptions should be at a successful sample
 			(begin ; First pass, with initial-state, to see if it runs without any subsampling
 				(let*-values ([(proc stdout stdin stderr)
-												(subprocess #f #f #f "/usr/local/bin/racket" file-path)]
-					 		 				[(num-vars) (read stdout)])
-
-					(displayln num-vars)
+												(subprocess #f #f (current-error-port) "/usr/local/bin/racket" file-path)])
 					(write-now "profiler-run" stdin)
+
+					(define num-vars (read stdout))
+					(displayln num-vars)
+
 					(write-now timeout-duration stdin)
 					(write-now initial-state stdin)
-
 					(define result (read stdout))
 					(define timed-out? (equal? result "timed-out"))
-					(subprocess-kill proc)
+					(terminate-subprocess proc stdout stdin stderr)
 					(if timed-out?
 						(subsample/acc samples ch #t)
 						(begin 
@@ -198,7 +209,7 @@
 			(lambda (in) (port->string in))))
 
 	(define-values (proc stdout stdin stderr)
-  	(subprocess #f #f #f "/usr/local/bin/racket" file-path))
+  	(subprocess #f #f (current-error-port) "/usr/local/bin/racket" file-path))
 	(write-now "generate-json" stdin)
 
 	(write-now file-path stdin)
@@ -215,38 +226,38 @@
 											#f))
 	(define results 
 		(if resumption-data
-				(let* ([samples (hash-ref resumption-data 'samples)]
-							 [initial-state (hash-ref resumption-data 'initial-state)]
-							 [transition-resumption-data (hash-ref resumption-data 'transition)]
-							 [heuristics-resumption-data (hash-ref resumption-data 'heuristics)]
-							 [transition-fn (random-specialization-transition initial-state 
-							 																									#f
-																																#:resume transition-resumption-data)]
-							 [heuristics-fn (make-heuristics stream? #:resume heuristics-resumption-data)]
-							 [timeout (hash-ref resumption-data 'timeout-duration)])
-					(search initial-state
-									transition-fn
-									samples
-									heuristics-fn
-									file-path 
-									timeout
-									#:stream-results stream?
-									#:resume #t
-									#:pause-in (get-pause-arg)))
-				(search (list)
-								(random-specialization-transition (list) 
-																									100)
-								5000
-								(make-heuristics stream?)
+			(let* ([samples (hash-ref resumption-data 'samples)]
+							[initial-state (hash-ref resumption-data 'initial-state)]
+							[transition-resumption-data (hash-ref resumption-data 'transition)]
+							[heuristics-resumption-data (hash-ref resumption-data 'heuristics)]
+							[transition-fn (random-specialization-transition initial-state 
+																															#f
+																															#:resume transition-resumption-data)]
+							[heuristics-fn (make-heuristics stream? #:resume heuristics-resumption-data)]
+							[timeout (hash-ref resumption-data 'timeout-duration)])
+				(search initial-state
+								transition-fn
+								samples
+								heuristics-fn
 								file-path 
-								5
+								timeout
 								#:stream-results stream?
-								#:pause-in (get-pause-arg))))
+								#:resume #t
+								#:pause-in (get-pause-arg)))
+			(search (list)
+							(random-specialization-transition (list) 
+																								100)
+							5000
+							(make-heuristics stream?)
+							file-path 
+							5
+							#:stream-results stream?
+							#:pause-in (get-pause-arg))))
 
-	(write results stdin)	
+	(write-now results stdin)
 	(define json-path (read stdout))
-	(subprocess-kill proc)
-	;(subprocess-wait proc)
+
+	(terminate-subprocess proc stdout stdin stderr)
 	json-path)
 
 

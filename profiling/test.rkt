@@ -1,7 +1,5 @@
 #lang roulette/example/interrupt
 
-
-
 (define (make-bayesian-node dep1 dep2 row col)
   (define label (string-append "row: " (number->string row) ", column: " (number->string col)))
   (define node (if (and dep1 dep2) 
@@ -35,7 +33,7 @@
               cur-row)))))
 
 
-(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 11)))))
+(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 20)))))
 
 
 (let ([entry (read)])
