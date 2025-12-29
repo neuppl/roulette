@@ -2,6 +2,7 @@
 (require racket/function)
 (require json)
 (require relation/type)
+(require racket/serialize)
 ;; this file is run with an argument "file_name.rkt" that contains an interrupt program that is to be profiled.
 
 
@@ -63,11 +64,13 @@
 																				(add1 (first x))) 
 																		(add1 (second x))))  
 														(list 0 0))) ; list of number of samples, number of assignments
-						(hash-update! freq-map 'Total-runs add1 0)
+						(hash-update! freq-map "Total-runs" add1 1) ;starts with one, we assume there was an initial test 
+						                                            ; without any specialization which failed to execute in time
 						(unless timed-out? 
-							(hash-update! freq-map 'Total-samples add1 0)
-							(when stream? (write-now freq-map (car stream?))))
-						(displayln freq-map))
+							(hash-update! freq-map "Total-samples" add1 0)
+							(when stream? 
+								(displayln "here")
+								(write-now freq-map (car stream?)))))
 					(if (empty? (hash->list freq-map))
 							"No heuristics collected, file runs within time limit"
 							(begin 
@@ -158,14 +161,13 @@
 						(write-now new-state stdin)
 
 						(define result (read stdout))
-						(define timed-out? (equal? result "timed-out"))
-						(channel-put ch (cons new-state timed-out?))
+						(define new-timed-out? (equal? result 'timed-out))
+						(channel-put ch (cons new-state new-timed-out?))
 						(terminate-subprocess proc stdout stdin stderr)
-						(define new-samples (if (not timed-out?) 
+						(define new-samples (if (not new-timed-out?) 
 																		(- remaining-samples 1) 
 																		remaining-samples))
-						(when timed-out? (displayln "timed out"))
-						(subsample/acc new-samples ch timed-out?))))
+						(subsample/acc new-samples ch new-timed-out?))))
 		(if resume?
 			(subsample/acc samples ch #f) ; resume without first pass, assume no timeout, since resumptions should be at a successful sample
 			(begin ; First pass, with initial-state, to see if it runs without any subsampling
@@ -179,7 +181,7 @@
 					(write-now timeout-duration stdin)
 					(write-now initial-state stdin)
 					(define result (read stdout))
-					(define timed-out? (equal? result "timed-out"))
+					(define timed-out? (equal? result 'timed-out))
 					(terminate-subprocess proc stdout stdin stderr)
 					(if timed-out?
 						(subsample/acc samples ch #t)
@@ -197,8 +199,9 @@
 											(cond [(eq? item 'done) (channel-put out-ch (heuristics #f))]
 														[else (heuristics item) (loop)])))))
 
-	
-	(channel-get out-ch))
+	(define out (channel-get out-ch))
+	(displayln out)
+	out)
 
 
 ;; Returns the file path of the json file with profiling results
@@ -227,14 +230,14 @@
 	(define results 
 		(if resumption-data
 			(let* ([samples (hash-ref resumption-data 'samples)]
-							[initial-state (hash-ref resumption-data 'initial-state)]
-							[transition-resumption-data (hash-ref resumption-data 'transition)]
-							[heuristics-resumption-data (hash-ref resumption-data 'heuristics)]
-							[transition-fn (random-specialization-transition initial-state 
+						 [initial-state (hash-ref resumption-data 'initial-state)]
+					   [transition-resumption-data (hash-ref resumption-data 'transition)]
+				  	 [heuristics-resumption-data (hash-ref resumption-data 'heuristics)]
+						 [transition-fn (random-specialization-transition initial-state 
 																															#f
 																															#:resume transition-resumption-data)]
-							[heuristics-fn (make-heuristics stream? #:resume heuristics-resumption-data)]
-							[timeout (hash-ref resumption-data 'timeout-duration)])
+						 [heuristics-fn (make-heuristics stream? #:resume heuristics-resumption-data)]
+						 [timeout (hash-ref resumption-data 'timeout-duration)])
 				(search initial-state
 								transition-fn
 								samples
@@ -247,7 +250,7 @@
 			(search (list)
 							(random-specialization-transition (list) 
 																								100)
-							5000
+							20
 							(make-heuristics stream?)
 							file-path 
 							5
@@ -292,7 +295,7 @@
 
 (define (run-profiler file-path #:resume [resumption-path #f])
 	(make-profiling-json-results file-path 
-															 #t
+															 #f
 															 #:resume (if resumption-path
 															 							(call-with-input-file resumption-path read-json)
 																						#f))

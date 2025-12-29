@@ -44,7 +44,7 @@ code {
 
 #close-all-dialogs:hover {
     background: #5ca77a !important;
-}
+}c
 
 .dialog-close {
     background: none;
@@ -375,7 +375,13 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function getHeuristicValue(key) {
         if (!heuristicsData || !heuristicsData[key]) return 0;
-        const data = heuristicsData[key];
+        let data = heuristicsData[key];
+
+        // Handle double-wrapped arrays: [[successful, total]]
+        if (Array.isArray(data) && data.length === 1 && Array.isArray(data[0])) {
+            data = data[0];
+        }
+
         // New format: [successful_samples, total_runs]
         if (Array.isArray(data) && data.length >= 2) {
             const totalRuns = data[1];
@@ -398,7 +404,13 @@ document.addEventListener('DOMContentLoaded', function() {
             result.totalCount = 0;
             return result;
         }
-        const data = heuristicsData[key];
+        let data = heuristicsData[key];
+
+        // Handle double-wrapped arrays: [[successful, total]]
+        if (Array.isArray(data) && data.length === 1 && Array.isArray(data[0])) {
+            data = data[0];
+        }
+
         // New format: [successful_samples, total_runs]
         if (Array.isArray(data) && data.length >= 2) {
             result.successCount = data[0];

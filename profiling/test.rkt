@@ -33,11 +33,11 @@
               cur-row)))))
 
 
-(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 20)))))
+(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 12)))))
 
 
 (let ([entry (read)])
   (cond
     [(equal? entry "generate-json") (make-json-visualization out)]
     [(equal? entry "profiler-run") (query out)]
-    [else (error "unrecognized entry point")]))
+    [else (error "unrecognized entry point ~v" entry)]))

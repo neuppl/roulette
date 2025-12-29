@@ -29,6 +29,7 @@
 (require (for-syntax racket/base)
          (for-syntax syntax/parse)
          (for-syntax racket/syntax-srcloc)
+         racket/serialize
          mischief/for
          roulette/engine/rsdd
          roulette/private/util
@@ -64,7 +65,7 @@
 
 
 (define (compute-pmf flattened-map)
-  (printf "Symbolic variables: ~v\n" (length (symbolics flattened-map)))
+  (fprintf (current-error-port) "Symbolic variables: ~v\n" (length (symbolics flattened-map)))
 
   (define-values (ignored computed-contents)  
     (choose-ignored flattened-map))
@@ -72,7 +73,8 @@
   (define computed-probs
     (for/list ([v+g computed-contents])
       (match-define (cons v g) v+g)
-      (printf "Finding probability of value: ~v, with guard: ~v\n" 
+      (fprintf (current-error-port)
+              "Finding probability of value: ~v, with guard: ~v\n" 
               v 
               (if (<= (length (symbolics flattened-map)) 50)
                 g
@@ -133,12 +135,12 @@
   (define subst-map (for/hash ([idx+asgn assignments])
                               (match-define (cons idx asgn) idx+asgn)
                               (values (list-ref variables idx) asgn)))
-  (define result (with-timeout
-                timeout
-                (lambda () (begin 
-                              (compute-pmf (set-symbolic-vars symbolic-map subst-map))
-                              "done"))
-                (lambda () "timed-out")))
+  (define result (with-timeout 
+                   timeout
+                   (lambda () (begin 
+                                (compute-pmf (set-symbolic-vars symbolic-map subst-map))
+                                "done"))
+                   (lambda () "timed-out")))
   (write-now result)
   pmf)
 
@@ -184,7 +186,7 @@
         #:indent #\tab))
     #:exists 'replace)
     
-  (printf "JSON results produced at: ~a\n" out-file-path)
+  (fprintf (current-error-port) "JSON results produced at: ~a\n" out-file-path)
 
 
 	(displayln "Running visualize.py to generate html ..." (current-error-port))
@@ -216,6 +218,18 @@
                              (symbol->string (third value))
                              (third value))))))
 
+
+; Manual fix for broken serialization for hashes in port writing
+(define (deserialize-to-heuristics-hash results)
+  (if (list? results)
+      (make-hash (map (lambda (item) (if (and (list? item) (= (length item) 3))
+                                         (list (first item)
+                                           (list (second item)
+                                           (third item)))
+                                         item))
+                      results))
+      results))
+
 ;; Converts provided heuristics/results into a json serializable format
 (define (make-json-profiling-results results num-vars)
   (if (hash? results)
@@ -231,7 +245,6 @@
                         (list 0 0)))
 
         json-results)
-
       results))
 
 
@@ -247,31 +260,37 @@
   ;first time getting results (required regardless of stream/single)
   (define results (read))
   (define json-profiling-results
-        (make-json-profiling-results results (length (symbolics e))))
+        (make-json-profiling-results (deserialize-to-heuristics-hash results)
+                                     (length (symbolics e))))
   
-  
+  ;these remain the same across all runs of profiler.
   (define json-variable-contexts (make-json-variable-contexts e))
   
   (define write-js-viz
-    (lambda () (write-json-visualization 
-                  out-file-path
-                  file-path 
-                  source-code 
-                  json-variable-contexts
-                  json-profiling-results)))
+    (lambda (results) 
+      (write-json-visualization 
+        out-file-path
+        file-path 
+        source-code 
+        json-variable-contexts
+        results)))
   
-  (write-js-viz)
+  (write-js-viz json-profiling-results)
 
   (when (equal? result-type 'stream)
     (let loop ()
       (define results (read))
       (unless (equal? results 'stop)
         (define json-profiling-results
-          (make-json-profiling-results results (length (symbolics e))))
+          (make-json-profiling-results (deserialize-to-heuristics-hash results)
+                                       (length (symbolics e))))
 
-        (write-js-viz)
+        (write-js-viz json-profiling-results)
         (loop))))
-    (printf "Completed running profiler, visualization of results can be found at ~v\n"
+    
+    (fprintf 
+      (current-error-port)
+      "Completed running profiler, visualization of results can be found at ~v\n"
       (path->string (path-replace-extension out-file-path ".html")))
     (write-now out-file-path))
 
