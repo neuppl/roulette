@@ -313,34 +313,35 @@
 (define (make-infer s)
   (match-define (semiring _predicate zero plus var-set! wmc) s)
   (λ (val lazy?)
-    ;(displayln "inside make infer")
+    ;(displayln "inside make infer" (current-error-port))
     (define vars (list->set (symbolics val)))
 
     ;(printf "before for. size: ~v\n" (dict-count measures))
-    ;(displayln "before for")
+    ;(displayln "before for" (current-error-port))
     ;; Use `in-ddict-reverse` for "program order" as the variable order.
     (for ([(var measure) (in-ddict-reverse measures)]
           #:when (set-member? vars var))
       ;(displayln var)
       (define temp (const->label var))
-      ;(displayln "after const->label")
+      ;(displayln "after const->label" (current-error-port))
       (var-set! temp (measure (set #f)) (measure (set #t))))
 
-    ;(displayln "after for")
+    ;(displayln "after for" (current-error-port))
     ;; Compute measure
     (define ht (flatten-symbolic val))
-    ;(displayln "after flatten-symbolic")
+    (displayln ht (current-error-port))
+    ;(displayln "after flatten-symbolic" (current-error-port))
     (define (procedure elems)
       (for/fold ([acc zero])
                 ([elem (in-set elems)])
         (plus acc (density elem))))
     (define (density val)
-      ;(displayln "before enc/log!")
+      ;(displayln "before enc/log!" (current-error-port))
       (begin0 
         (if (hash-has-key? ht val)
             (wmc (enc/log! (hash-ref ht val)))
-            zero)))
-        ;(displayln "after enc/log!")))
+            zero)
+        #;(displayln "after enc/log!" (current-error-port))))
     (define support
       (list->set
        (if lazy?

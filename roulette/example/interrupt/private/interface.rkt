@@ -64,6 +64,8 @@
   (values (first map) (rest map)))
 
 
+
+
 (define (compute-pmf flattened-map)
   (fprintf (current-error-port) "Symbolic variables: ~v\n" (length (symbolics flattened-map)))
 
@@ -81,7 +83,8 @@
                 "[redacted]"))
       (define pr ((infer g) (set #t)))
       (cons v pr)))
-
+  
+  (displayln "after infer")
   (define mass
     (for/sum ([v+p (in-list computed-probs)])
       (cdr v+p)))
@@ -129,18 +132,30 @@
   
   (define timeout (read))
   (define assignments (read))
+  (set! assignments (list (cons 0 #f)
+                          (cons 1 #f)
+                          (cons 2 #f)))
+  (set! assignments (list))
   (define ⊥ (unreachable))
   (define symbolic-map 
     (hash->list (flatten-symbolic (if evidence e ⊥))))
   (define subst-map (for/hash ([idx+asgn assignments])
                               (match-define (cons idx asgn) idx+asgn)
                               (values (list-ref variables idx) asgn)))
-  (define result (with-timeout 
+  (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
+  ;(displayln "completed substitution" (current-error-port))
+  ;(displayln (size (cdr (second symbolic-map))) (current-error-port))
+  ;(displayln (size (cdr (second symbolic-map-substituted))) (current-error-port))
+  #;(define result (with-timeout 
                    timeout
                    (lambda () (begin 
-                                (compute-pmf (set-symbolic-vars symbolic-map subst-map))
+                                (compute-pmf symbolic-map-substituted)
                                 "done"))
                    (lambda () "timed-out")))
+  (define-values (res real cpu gc) (time-apply (lambda () (compute-pmf symbolic-map-substituted)) (list)))
+  (displayln "Finished running in: " (current-error-port))
+  (displayln real (current-error-port))
+  (define result (> real timeout))
   (write-now result)
   pmf)
 

@@ -185,6 +185,9 @@
 					(terminate-subprocess proc stdout stdin stderr)
 					(if timed-out?
 						(subsample/acc samples ch #t)
+						#;(begin
+							(displayln "ran within time limit")
+							(subsample/acc samples ch #t))
 						(begin 
 							(displayln "No subsampling needed, program executed within time limit. No heuristics collected.")
 							(channel-put ch 'done)
@@ -249,11 +252,11 @@
 								#:pause-in (get-pause-arg)))
 			(search (list)
 							(random-specialization-transition (list) 
-																								100)
-							20
+																								10)
+							200
 							(make-heuristics stream?)
 							file-path 
-							5
+							2
 							#:stream-results stream?
 							#:pause-in (get-pause-arg))))
 
