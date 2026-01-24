@@ -14,6 +14,7 @@
  with-observe
  query
  make-json-visualization
+ optimal
 
 
  ;; `pmf.rkt`
@@ -35,10 +36,13 @@
          roulette/private/util
          rosette/base/core/bool
          racket/format
+         roulette/private/log
+         make-log-interceptor
          json
          "pmf.rkt"
          "var-utils.rkt"
-         relation/type)
+         relation/type
+         racket/pretty)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic features
 
@@ -68,7 +72,7 @@
 
 (define (compute-pmf flattened-map)
   (fprintf (current-error-port) "Symbolic variables: ~v\n" (length (symbolics flattened-map)))
-
+  (displayln flattened-map (current-error-port))
   (define-values (ignored computed-contents)  
     (choose-ignored flattened-map))
 
@@ -84,7 +88,6 @@
       (define pr ((infer g) (set #t)))
       (cons v pr)))
   
-  (displayln "after infer")
   (define mass
     (for/sum ([v+p (in-list computed-probs)])
       (cdr v+p)))
@@ -124,7 +127,66 @@
         (begin
           (kill-thread th)  ; Kill the thread if timeout occurred
           (default)))))
+ 
 
+(define (optimal e)
+  (define variables (symbolics e))
+  (define num-calls (make-hash)); hash from variable assignments to number of recursive calls
+                                ; assignment: (cons sym-var bool)
+                                ; the value represents the number of recursive calls if the assignment is 
+                                ; substituted. lower means the variable is more important.
+  
+  (define ⊥ (unreachable))
+  (define symbolic-map 
+    (hash->list (flatten-symbolic (if evidence e ⊥))))
+
+  (define-values (rec-calls rem-vars rem-size)
+    (for*/fold ([num-calls (hash)]
+                [num-remaining-vars (hash)]
+                [total-remaining-size (hash)])
+               ([var variables]
+                [asgn (list #t #f)])
+      (define subst-map (hash var asgn)) ; single assignment in the hash
+      (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
+      (define roulette-interceptor
+        (make-log-interceptor roulette-logger))
+
+        (define-values (result logs)
+            (roulette-interceptor
+              (λ () (compute-pmf symbolic-map-substituted))))
+        (define logging-info (hash-ref logs 'info))
+        (define log-list (filter (lambda (x) (regexp-match? #rx"^roulette:" x))
+                            (hash-ref logs 'info)))
+        (define num-rec-calls (string->number
+                                (second 
+                                  (regexp-match
+                                    #rx"roulette: ([0-9]+) recursive calls" 
+                                    (last log-list)))))
+        (define total-size 
+          (foldr  +
+                  0
+                  (map 
+                    (lambda (s) 
+                      (define match (regexp-match 
+                        #rx"roulette: ([0-9]+) total size" s))
+                      (if match
+                          (string->number (second match))
+                          #f))
+                    (filter  
+                      (lambda (x) 
+                        (regexp-match? #rx"roulette: ([0-9]+) total size" x))
+                        log-list))))
+        (define key (cons (third (hash-ref variable-contexts var)) asgn))
+        (values 
+          (hash-set num-calls key num-rec-calls)
+          (hash-set num-remaining-vars key (length (symbolics symbolic-map-substituted)))
+          (hash-set total-remaining-size key total-size))))
+  (printf "\n\n\n\n Recursive calls: \n")
+  (pretty-print rec-calls)
+  (printf "\n\n\n\n Remaining number of variables after substitution: \n")
+  (pretty-print rem-vars)
+  (printf "\n\n\n\n Remaining total bdd size after substitution: \n")
+  (pretty-print rem-size))
 
 (define (query e)
   (define variables (symbolics e))
@@ -132,10 +194,18 @@
   
   (define timeout (read))
   (define assignments (read))
-  (set! assignments (list (cons 0 #f)
-                          (cons 1 #f)
-                          (cons 2 #f)))
-  (set! assignments (list))
+  (set! assignments (list (cons 2 #f)))
+  ;(set! assignments (list))
+  ;n-grid: 3
+  ;without substitution 
+  ; size: 8-8-8
+  ; number of recursive calls: 30-36-30
+
+  ;with substitution (list (cons 2 #f))
+  ; size: 6-6-9
+  ; number of recursive calls: 41-52-39
+
+  
   (define ⊥ (unreachable))
   (define symbolic-map 
     (hash->list (flatten-symbolic (if evidence e ⊥))))
@@ -153,8 +223,9 @@
                                 "done"))
                    (lambda () "timed-out")))
   (define-values (res real cpu gc) (time-apply (lambda () (compute-pmf symbolic-map-substituted)) (list)))
-  (displayln "Finished running in: " (current-error-port))
-  (displayln real (current-error-port))
+  (fprintf (current-error-port)
+            "Finished running in: ~v ms\n" 
+            real)
   (define result (> real timeout))
   (write-now result)
   pmf)

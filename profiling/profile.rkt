@@ -302,7 +302,7 @@
 															 #:resume (if resumption-path
 															 							(call-with-input-file resumption-path read-json)
 																						#f))
-	(displayln "My work here is done"))
-
+	(displayln "Profiler completed running"))
+ 
 (run-profiler (get-file-path-argument) 
 							#:resume (get-resumption-json-path-argument))

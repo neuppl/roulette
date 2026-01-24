@@ -329,7 +329,6 @@
     ;(displayln "after for" (current-error-port))
     ;; Compute measure
     (define ht (flatten-symbolic val))
-    (displayln ht (current-error-port))
     ;(displayln "after flatten-symbolic" (current-error-port))
     (define (procedure elems)
       (for/fold ([acc zero])

@@ -33,10 +33,11 @@
               cur-row)))))
 
 
-(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 5)))))
+(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 6)))))
 
 
-(let ([entry (read)])
+(optimal out)
+#;(let ([entry (read)])
   (cond
     [(equal? entry "generate-json") (make-json-visualization out)]
     [(equal? entry "profiler-run") (query out)]
