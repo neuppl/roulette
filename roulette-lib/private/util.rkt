@@ -43,18 +43,14 @@
 
 (define-syntax define/cache
   (syntax-parser
-    [(_ (x:id a:id ...) body:expr ...)
+    [(_ (x:id a:id ... an:id) body:expr ...)
+     #:with (b ...) (generate-temporaries #'(a ...))
+     #:with (c ... d) #'(cache b ...)
      #'(define x
-         (let ([cache (make-hash)])
-           (λ (a ...)
-             (define args (list a ...))
-             (cond
-               [(hash-has-key? cache args)
-                (hash-ref cache args)]
-               [else
-                (define result (let () body ...))
-                (hash-set! cache (list a ...) result)
-                result]))))]))
+         (let ([cache (make-weak-hash)])
+           (λ (a ... an)
+             (define b (hash-ref! c a make-weak-hash)) ...
+             (hash-ref! d an (λ () body ...)))))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; rosette
