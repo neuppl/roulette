@@ -36,7 +36,7 @@
 (define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 6)))))
 
 
-(optimal out)
+(query out)
 #;(let ([entry (read)])
   (cond
     [(equal? entry "generate-json") (make-json-visualization out)]
