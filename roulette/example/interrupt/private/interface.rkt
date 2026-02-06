@@ -150,7 +150,6 @@
       (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
       (define roulette-interceptor
         (make-log-interceptor roulette-logger))
-
         (define-values (result logs)
             (roulette-interceptor
               (λ () (compute-pmf symbolic-map-substituted))))
@@ -162,6 +161,8 @@
                                   (regexp-match
                                     #rx"roulette: ([0-9]+) recursive calls" 
                                     (last log-list)))))
+        (set! num-rec-calls (rsdd-num-recursive-calls))
+        (displayln num-rec-calls)
         (define total-size 
           (foldr  +
                   0
@@ -182,11 +183,17 @@
           (hash-set num-remaining-vars key (length (symbolics symbolic-map-substituted)))
           (hash-set total-remaining-size key total-size))))
   (printf "\n\n\n\n Recursive calls: \n")
-  (pretty-print rec-calls)
+  (pretty-print (sort (hash->list rec-calls)
+                      <
+                      #:key cdr))
   (printf "\n\n\n\n Remaining number of variables after substitution: \n")
-  (pretty-print rem-vars)
+  (pretty-print (sort (hash->list rem-vars)
+                      <
+                      #:key cdr))
   (printf "\n\n\n\n Remaining total bdd size after substitution: \n")
-  (pretty-print rem-size))
+  (pretty-print (sort (hash->list rem-size)
+                      <
+                      #:key cdr)))
 
 (define (query e)
   (define variables (symbolics e))
@@ -195,7 +202,7 @@
   (define timeout (read))
   (define assignments (read))
   (set! assignments (list (cons 2 #f)))
-  ;(set! assignments (list))
+  (set! assignments (list))
   ;n-grid: 3
   ;without substitution 
   ; size: 8-8-8
@@ -226,6 +233,9 @@
   (fprintf (current-error-port)
             "Finished running in: ~v ms\n" 
             real)
+  (fprintf (current-error-port)
+            "num-recursive-calls: ~v\n" 
+            (rsdd-num-recursive-calls))
   (define result (> real timeout))
   (write-now result)
   pmf)

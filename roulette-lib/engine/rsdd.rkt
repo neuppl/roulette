@@ -14,6 +14,7 @@
   [real-semiring semiring?]
   [complex-semiring semiring?]
   [semiring? predicate/c])
+  rsdd-num-recursive-calls
   const->label
   rsdd-free)
 
