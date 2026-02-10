@@ -17,12 +17,21 @@
                    compute-table     ; hash: bdd -> int (for uniqueness)
                    next-free         ; box containing next free index
                    num-vars          ; box containing number of allocated vars
-                   memo-table)       ; hash: (ptr . ptr) -> ptr (for AND)
+                   memo-table        ; hash: (ptr . ptr) -> ptr (for AND)
+                   recursive-calls)  ; box containing count of recursive calls
   #:transparent
   #:mutable)
 
 (define true-ptr 0)
 (define false-ptr 1)
+
+;; Get the number of recursive calls
+(define (bdd-get-recursive-calls tbl)
+  (unbox (bdd-table-recursive-calls tbl)))
+
+;; Reset the recursive call counter
+(define (bdd-reset-recursive-calls tbl)
+  (set-box! (bdd-table-recursive-calls tbl) 0))
 
 ;; Create a fresh BDD table
 (define (fresh-bdd-table)
@@ -33,7 +42,7 @@
     (hash-set! compute-tbl (bdd-false) false-ptr)
     (vector-set! arr 0 (bdd-true))
     (vector-set! arr 1 (bdd-false))
-    (bdd-table arr compute-tbl (box 2) (box 0) memo-tbl)))
+    (bdd-table arr compute-tbl (box 2) (box 0) memo-tbl (box 0))))
 
 ;; Dereference a BDD pointer
 (define (deref-bdd tbl ptr)
@@ -81,6 +90,9 @@
 (define (bdd-neg tbl f)
   (define memo (make-hash))
   (define (neg-h f)
+    ;; Increment recursive call counter
+    (set-box! (bdd-table-recursive-calls tbl)
+              (add1 (unbox (bdd-table-recursive-calls tbl))))
     (define cached (hash-ref memo f #f))
     (if cached
         cached
@@ -96,6 +108,9 @@
 
 ;; Conjoin two BDDs
 (define (bdd-and tbl f g)
+  ;; Increment recursive call counter
+  (set-box! (bdd-table-recursive-calls tbl)
+            (add1 (unbox (bdd-table-recursive-calls tbl))))
   ;; Check for cached BDD
   (define cached (hash-ref (bdd-table-memo-table tbl) (cons f g) #f))
   (if cached
@@ -190,7 +205,8 @@
                  [(bdd-true) (wmc-params-one w)]
                  [(bdd-false) (wmc-params-zero w)]
                  [(bdd-node topvar low high)
-                  (let* ([wt (hash-ref (wmc-params-weights w) topvar)]
+                  (let* ([wt (hash-ref (wmc-params-weights w) topvar
+                                       (λ () (error 'wmc "no weight found for variable ~a (ptr=~a)" topvar f)))]
                          [low-wmc (wmc-h low)]
                          [high-wmc (wmc-h high)])
                     (+ (* (weight-low-w wt) low-wmc)
