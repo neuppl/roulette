@@ -26,7 +26,7 @@
 (define false-ptr 1)
 
 ;; Get the number of recursive calls
-(define (bdd-get-recursive-calls tbl)
+(define (bdd-num-recursive-calls tbl)
   (unbox (bdd-table-recursive-calls tbl)))
 
 ;; Reset the recursive call counter
@@ -67,18 +67,21 @@
     [(bdd-node topvar low high)
      (format "(~a ~a ~a)" topvar (string-of-bdd tbl low) (string-of-bdd tbl high))]))
 
-;; Get a pointer to a fresh BDD variable that is true
-(define (fresh-var tbl)
+
+;; Get a pointer to a fresh BDD variable with the given value
+(define (fresh-var tbl value)
   (let ([fresh-var-num (unbox (bdd-table-num-vars tbl))])
     (set-box! (bdd-table-num-vars tbl) (add1 fresh-var-num))
-    (get-or-insert tbl (bdd-node fresh-var-num true-ptr false-ptr))))
+    (if value
+        (get-or-insert tbl (bdd-node fresh-var-num false-ptr true-ptr))
+        (get-or-insert tbl (bdd-node fresh-var-num true-ptr false-ptr)))))
 
 ;; Get a pointer to a BDD with topvariable `topvar`
 (define (bdd-var tbl topvar)
   ;; Assert that this variable has been allocated via fresh-var
   (unless (< topvar (unbox (bdd-table-num-vars tbl)))
     (error "Variable not allocated via fresh-var"))
-  (get-or-insert tbl (bdd-node topvar true-ptr false-ptr)))
+  (get-or-insert tbl (bdd-node topvar false-ptr true-ptr)))
 
 ;; Get the top variable of a BDD node
 (define (topvar tbl f)
@@ -87,7 +90,7 @@
     [_ (error "Tried to call topvar on non-node")]))
 
 ;; Negate a BDD
-(define (bdd-neg tbl f)
+(define (bdd-not tbl f)
   (define memo (make-hash))
   (define (neg-h f)
     ;; Increment recursive call counter
@@ -153,23 +156,41 @@
 
 ;; Disjoin two BDDs (via De Morgan's law)
 (define (bdd-or tbl f g)
-  (let ([negf (bdd-neg tbl f)]
-        [negg (bdd-neg tbl g)])
-    (bdd-neg tbl (bdd-and tbl negf negg))))
+  (let ([negf (bdd-not tbl f)]
+        [negg (bdd-not tbl g)])
+    (bdd-not tbl (bdd-and tbl negf negg))))
+
+;; Implication: f → g = ¬f ∨ g
+(define (bdd-implies tbl f g)
+  (bdd-or tbl (bdd-not tbl f) g))
+
+;; Biconditional (if and only if): f ↔ g = (f ∧ g) ∨ (¬f ∧ ¬g)
+(define (bdd-iff tbl f g)
+  (let ([f-and-g (bdd-and tbl f g)]
+        [neg-f (bdd-not tbl f)]
+        [neg-g (bdd-not tbl g)])
+    (bdd-or tbl f-and-g (bdd-and tbl neg-f neg-g))))
+
+;; If-then-else operation: ite(guard, then, else) = (guard ∧ then) ∨ (¬guard ∧ else)
+(define (bdd-ite tbl guard then else)
+  (let* ([guard-and-then (bdd-and tbl guard then)]
+         [neg-guard (bdd-not tbl guard)]
+         [neg-guard-and-else (bdd-and tbl neg-guard else)])
+    (bdd-or tbl guard-and-then neg-guard-and-else)))
 
 ;; Basic tests
 (define (test-canonicity-neg)
   (let ([tbl (fresh-bdd-table)])
-    (define b1 (fresh-var tbl))
-    (define b1n (bdd-neg tbl b1))
-    (define b2n (bdd-neg tbl b1))
+    (define b1 (fresh-var tbl #t))
+    (define b1n (bdd-not tbl b1))
+    (define b2n (bdd-not tbl b1))
     (unless (= b1n b2n)
       (error "Canonicity test for negation failed"))))
 
 (define (test-canonicity-and)
   (let ([tbl (fresh-bdd-table)])
-    (define a (fresh-var tbl))
-    (define b (fresh-var tbl))
+    (define a (fresh-var tbl #t))
+    (define b (fresh-var tbl #t))
     (define a2 (bdd-var tbl 0))
     (define b2 (bdd-var tbl 1))
     (unless (= (bdd-and tbl a b) (bdd-and tbl b2 a2))
@@ -177,14 +198,14 @@
 
 (define (test-unsat)
   (let ([tbl (fresh-bdd-table)])
-    (define a (fresh-var tbl))
-    (unless (= (bdd-and tbl a (bdd-neg tbl a)) false-ptr)
+    (define a (fresh-var tbl #t))
+    (unless (= (bdd-and tbl a (bdd-not tbl a)) false-ptr)
       (error "UNSAT test failed"))))
 
 (define (test-valid)
   (let ([tbl (fresh-bdd-table)])
-    (define a (fresh-var tbl))
-    (unless (= (bdd-or tbl a (bdd-neg tbl a)) true-ptr)
+    (define a (fresh-var tbl #t))
+    (unless (= (bdd-or tbl a (bdd-not tbl a)) true-ptr)
       (error "Valid test failed"))))
 
 ;; Weight structure for weighted model counting
@@ -192,6 +213,19 @@
 
 ;; WMC parameters
 (struct wmc-params (weights one zero) #:transparent #:mutable)
+
+;; Global WMC parameters
+(define global-wmc-params (wmc-params (make-hash) 1.0 0.0))
+
+;; Set the weight for a variable in the global wmc-params
+;; var-ptr: pointer to a BDD variable
+;; false-weight: weight when the variable is false (low branch)
+;; true-weight: weight when the variable is true (high branch)
+(define (set-var-weight! tbl var-ptr false-weight true-weight)
+  (let ([var-num (topvar tbl var-ptr)])
+    (hash-set! (wmc-params-weights global-wmc-params)
+               var-num
+               (weight false-weight true-weight))))
 
 ;; Perform unsmoothed weighted model counting
 (define (wmc tbl w f)
@@ -222,9 +256,9 @@
 ;; Test WMC
 (define (test-wmc)
   (let ([tbl (fresh-bdd-table)])
-    (define a (fresh-var tbl))
-    (define b (fresh-var tbl))
-    (define c (fresh-var tbl))
+    (define a (fresh-var tbl #t))
+    (define b (fresh-var tbl #t))
+    (define c (fresh-var tbl #t))
     (define disj (bdd-or tbl a (bdd-or tbl b c)))
     (define w (weight 0.5 0.5))
     (define weights (make-hash (list (cons 0 w) (cons 1 w) (cons 2 w))))
