@@ -35,7 +35,7 @@
 
 ;; Create a fresh BDD table
 (define (fresh-bdd-table)
-  (let ([arr (make-vector 10000 (bdd-true))]
+  (let ([arr (make-vector 10000000 (bdd-true))]
         [compute-tbl (make-hash)]
         [memo-tbl (make-hash)])
     (hash-set! compute-tbl (bdd-true) true-ptr)

@@ -35,4 +35,4 @@
 
 #;(define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 20)))))
 
-(last (last (n-grid-bayesian 5)))
+(last (last (n-grid-bayesian 11)))
