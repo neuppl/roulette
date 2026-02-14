@@ -18,6 +18,7 @@
          racket/match
          rosette/base/core/bool
          rosette/base/core/term
+         data/ddict
          "../private/engine.rkt"
          "../private/log.rkt"
          "../private/measure.rkt"
@@ -29,11 +30,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; constants
 
-(define BDD (fresh-bdd-table))
-(define WEIGHTS (make-hash)) ; map from rosette symbolic vars to probabilities.
-
-(define bdd-true (bdd-true))
-(define bdd-false (bdd-false))
+(define bdd-true true-ptr)
+(define bdd-false false-ptr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; engine
@@ -63,6 +61,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
 
+; Produces a BDD pointer. 
 (define (enc v)
   (match v
     [(? expression?) (enc-expr v)]
@@ -97,7 +96,12 @@
   (bdd-ite x y (bdd-not y)))
 
 (define/cache (enc-const v)
-  (fresh-var BDD #t))
+  (define ptr (fresh-var #t))
+  ;; Set weight immediately if this constant has a measure
+  (define measure (ddict-ref measures v #f))
+  (when measure
+    (set-var-weight! ptr (measure (set #f)) (measure (set #t))))
+  ptr)
 
 (define (enc-lit v)
   (match v
@@ -115,16 +119,22 @@
   (for ([(var measure) (in-ddict-reverse measures)]
         #:when (set-member? vars var))
     (define temp (enc-const var))
-    (set-var-weight! temp (measure (set #t)) (measure (set #f))))
+    (set-var-weight! temp (measure (set #f)) (measure (set #t))))
 
   ;; Compute measure
   (define ht (flatten-symbolic val))
+
+  ;; Encode all expressions up front to ensure all BDD variables are created
+  ;; and have their weights set before we call wmc
+  (for ([(_ expr) (in-hash ht)])
+    (enc expr))
+
   (define (procedure elems)
     (for/fold ([acc 0])
               ([elem (in-set elems)])
       (+ acc (density elem))))
   (define (density val)
-    (begin0 
+    (begin0
       (if (hash-has-key? ht val)
           (wmc (enc/log! (hash-ref ht val)))
           0)
@@ -144,7 +154,7 @@
   (begin0
     bdd
     (log-roulette-info "~a total size" (cached-size bdd))
-    (log-roulette-info "~a recursive calls" (bdd-num-recursive-calls bdd))))
+    (log-roulette-info "~a recursive calls" (bdd-num-recursive-calls))))
 
 (define (bdd-const? ptr) (or (equal? bdd-true ptr)
                              (equal? bdd-false ptr)))

@@ -26,7 +26,7 @@
 ;; require
 
 (require (for-syntax racket/base)
-         roulette/engine/rsdd
+         roulette/engine/rbdd
          "pmf.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

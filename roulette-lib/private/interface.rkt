@@ -44,7 +44,7 @@
                      syntax/parse)
          data/ddict
          rosette
-         "../engine/rsdd.rkt"
+         "../engine/rbdd.rkt"
          "engine.rkt"
          "wrap-modbeg.rkt"
          "measure.rkt"
@@ -53,7 +53,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; definitions
 
-(define default-engine (rsdd-engine))
+(define default-engine (bdd-engine))
 
 (define-syntax -define-measurable
   (syntax-parser
@@ -77,5 +77,4 @@
 (define (infer val #:engine [eng default-engine] #:lazy? [lazy? #f])
   (let ([out ((engine-infer eng) val lazy?)])
     (clear-cache)
-    (rsdd-free)
     out))
