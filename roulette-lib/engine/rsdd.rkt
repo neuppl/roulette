@@ -16,7 +16,7 @@
   [semiring? predicate/c])
   rsdd-num-recursive-calls
   const->label
-  rsdd-free)
+  #;rsdd-free)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -226,7 +226,7 @@
 (define (rsdd-engine #:semiring [s real-semiring])
   (engine (make-infer s) (immutable-set/c any/c)))
 
-(define (rsdd-free)
+#;(define (rsdd-free)
   (free-bdd-manager BUILDER)
   (set! BUILDER (mk-bdd-manager-default-order 0)))
 

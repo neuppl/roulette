@@ -32,7 +32,7 @@
          (for-syntax racket/syntax-srcloc)
          racket/serialize
          mischief/for
-         roulette/engine/rsdd
+         roulette/engine/rbdd
          roulette/private/util
          rosette/base/core/bool
          racket/format
@@ -161,7 +161,7 @@
                                   (regexp-match
                                     #rx"roulette: ([0-9]+) recursive calls" 
                                     (last log-list)))))
-        (set! num-rec-calls (rsdd-num-recursive-calls))
+        (set! num-rec-calls (bdd-num-recursive-calls))
         (displayln num-rec-calls)
         (define total-size 
           (foldr  +
@@ -195,14 +195,36 @@
                       <
                       #:key cdr)))
 
+
 (define (query e)
   (define variables (symbolics e))
   (write-now (length variables))
   
   (define timeout (read))
   (define assignments (read))
-  (set! assignments (list (cons 2 #f)))
-  (set! assignments (list))
+  (define ⊥ (unreachable))
+  (define symbolic-map 
+    (hash->list (flatten-symbolic (if evidence e ⊥))))
+  (define subst-map (for/hash ([idx+asgn assignments])
+                              (match-define (cons idx asgn) idx+asgn)
+                              (values (list-ref variables idx) asgn)))
+  (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
+  (define result (with-timeout 
+                   timeout
+                   (lambda () (begin 
+                                (compute-pmf symbolic-map-substituted)
+                                "done"))
+                   (lambda () "timed-out")))
+  (write-now result))
+
+#;(define (query e)
+  (define variables (symbolics e))
+  (write-now (length variables))
+  
+  (define timeout (read))
+  (define assignments (read))
+  ;(set! assignments (list (cons 2 #f)))
+  ;(set! assignments (list))
   ;n-grid: 3
   ;without substitution 
   ; size: 8-8-8
@@ -223,22 +245,15 @@
   ;(displayln "completed substitution" (current-error-port))
   ;(displayln (size (cdr (second symbolic-map))) (current-error-port))
   ;(displayln (size (cdr (second symbolic-map-substituted))) (current-error-port))
-  #;(define result (with-timeout 
-                   timeout
-                   (lambda () (begin 
-                                (compute-pmf symbolic-map-substituted)
-                                "done"))
-                   (lambda () "timed-out")))
   (define-values (res real cpu gc) (time-apply (lambda () (compute-pmf symbolic-map-substituted)) (list)))
-  (fprintf (current-error-port)
+  #;(fprintf (current-error-port)
             "Finished running in: ~v ms\n" 
             real)
-  (fprintf (current-error-port)
+  #;(fprintf (current-error-port)
             "num-recursive-calls: ~v\n" 
-            (rsdd-num-recursive-calls))
+            (bdd-num-recursive-calls))
   (define result (> real timeout))
-  (write-now result)
-  pmf)
+  (write-now result))
 
 (define (flip-fn pr)
   (cond

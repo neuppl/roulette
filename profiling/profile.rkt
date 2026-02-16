@@ -185,10 +185,10 @@
 					(terminate-subprocess proc stdout stdin stderr)
 					(if timed-out?
 						(subsample/acc samples ch #t)
-						#;(begin
+						(begin
 							(displayln "ran within time limit")
 							(subsample/acc samples ch #t))
-						(begin 
+						#;(begin 
 							(displayln "No subsampling needed, program executed within time limit. No heuristics collected.")
 							(channel-put ch 'done)
 							#t))))))
