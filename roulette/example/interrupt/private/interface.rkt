@@ -73,7 +73,6 @@
 
 (define (compute-pmf flattened-map)
   (fprintf (current-error-port) "Symbolic variables: ~v\n" (length (symbolics flattened-map)))
-  (displayln flattened-map (current-error-port))
   (define-values (ignored computed-contents)  
     (choose-ignored flattened-map))
 
@@ -128,7 +127,6 @@
         (begin
           (kill-thread th)  ; Kill the thread if timeout occurred
           (default)))))
- 
 
 (define (optimal e)
   (define variables (symbolics e))
@@ -147,6 +145,8 @@
                 [total-remaining-size (hash)])
                ([var variables]
                 [asgn (list #t #f)])
+      (reset-bdd!)
+      (clear-cache)
       (define subst-map (hash var asgn)) ; single assignment in the hash
       (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
       (define roulette-interceptor
@@ -197,6 +197,7 @@
                       #:key cdr)))
 
 (define (query e)
+  (set-limit! 40000000)
   (define variables (symbolics e))
   (write-now (length variables))
   
@@ -209,52 +210,10 @@
                               (match-define (cons idx asgn) idx+asgn)
                               (values (list-ref variables idx) asgn)))
   (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
-  (define result (with-timeout 
-                   timeout
-                   (lambda () (begin 
-                                (compute-pmf symbolic-map-substituted)
-                                "done"))
-                   (lambda () "timed-out")))
-  (write-now result))
-
-#;(define (query e)
-  (define variables (symbolics e))
-  (write-now (length variables))
-  
-  (define timeout (read))
-  (define assignments (read))
-  ;(set! assignments (list (cons 2 #f)))
-  ;(set! assignments (list))
-  ;n-grid: 3
-  ;without substitution 
-  ; size: 8-8-8
-  ; number of recursive calls: 30-36-30
-
-  ;with substitution (list (cons 2 #f))
-  ; size: 6-6-9
-  ; number of recursive calls: 41-52-39
-
-  
-  (define ⊥ (unreachable))
-  (define symbolic-map 
-    (hash->list (flatten-symbolic (if evidence e ⊥))))
-  (define subst-map (for/hash ([idx+asgn assignments])
-                              (match-define (cons idx asgn) idx+asgn)
-                              (values (list-ref variables idx) asgn)))
-  (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
-  ;(displayln "completed substitution" (current-error-port))
-  ;(displayln (size (cdr (second symbolic-map))) (current-error-port))
-  ;(displayln (size (cdr (second symbolic-map-substituted))) (current-error-port))
-  (define-values (res real cpu gc) (time-apply (lambda () (compute-pmf symbolic-map-substituted)) (list)))
-  #;(fprintf (current-error-port)
-            "Finished running in: ~v ms\n" 
-            real)
-  #;(fprintf (current-error-port)
-            "num-recursive-calls: ~v\n" 
-            (bdd-num-recursive-calls))
-  (define real-seconds (/ real 1000))
-  (define result (if (> real-seconds timeout) 'timed-out 'done))
-  (write-now result))
+  (write-now (with-handlers
+    ([exn:fail:out-of-rec-calls? (lambda (_) 'timed-out)])
+    (compute-pmf symbolic-map-substituted)
+    'done)))
 
 (define (flip-fn pr)
   (cond
@@ -302,7 +261,11 @@
 
 
 	(displayln "Running visualize.py to generate html ..." (current-error-port))
-	(system (string-append "python3 visualize.py " out-file-path)))
+  (define devnull-in (open-input-file "/dev/null"))
+  (define-values (viz-proc _out _in _err)
+    (subprocess (current-error-port) devnull-in (current-error-port) (find-executable-path "python3") "visualize.py" out-file-path))
+  (subprocess-wait viz-proc)
+  (close-input-port devnull-in))
 
 ;; Converts global variable contexts into a json serializable format
 (define (make-json-variable-contexts e)
@@ -369,42 +332,48 @@
   (define result-type (read)) ; 'stream or 'single
   
 
-  ;first time getting results (required regardless of stream/single)
-  (define results (read))
-  (define json-profiling-results
-        (make-json-profiling-results (deserialize-to-heuristics-hash results)
-                                     (length (symbolics e))))
-  
   ;these remain the same across all runs of profiler.
   (define json-variable-contexts (make-json-variable-contexts e))
-  
+
   (define write-js-viz
-    (lambda (results) 
-      (write-json-visualization 
+    (lambda (results)
+      (write-json-visualization
         out-file-path
-        file-path 
-        source-code 
+        file-path
+        source-code
         json-variable-contexts
         results)))
-  
-  (write-js-viz json-profiling-results)
 
-  (when (equal? result-type 'stream)
-    (let loop ()
+  (if (equal? result-type 'stream)
+    ; In stream mode: read intermediate updates until 'stop, then read final results
+    (begin
+      (let loop ()
+        (define results (read))
+        (unless (or (equal? results 'stop) (eof-object? results))
+          (define json-profiling-results
+            (make-json-profiling-results (deserialize-to-heuristics-hash results)
+                                         (length (symbolics e))))
+          (write-js-viz json-profiling-results)
+          (loop)))
+      ; After 'stop, read the final results sent by profile.rkt line 263
+      (define final-results (read))
+      (define json-profiling-results
+        (make-json-profiling-results (deserialize-to-heuristics-hash final-results)
+                                     (length (symbolics e))))
+      (write-js-viz json-profiling-results))
+    ; In single mode: read the one result sent by profile.rkt line 263
+    (begin
       (define results (read))
-      (unless (equal? results 'stop)
-        (define json-profiling-results
-          (make-json-profiling-results (deserialize-to-heuristics-hash results)
-                                       (length (symbolics e))))
+      (define json-profiling-results
+        (make-json-profiling-results (deserialize-to-heuristics-hash results)
+                                     (length (symbolics e))))
+      (write-js-viz json-profiling-results)))
 
-        (write-js-viz json-profiling-results)
-        (loop))))
-    
-    (fprintf 
-      (current-error-port)
-      "Completed running profiler, visualization of results can be found at ~v\n"
-      (path->string (path-replace-extension out-file-path ".html")))
-    (write-now out-file-path))
+  (fprintf
+    (current-error-port)
+    "Completed running profiler, visualization of results can be found at ~v\n"
+    (path->string (path-replace-extension out-file-path ".html")))
+  (write-now out-file-path))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation

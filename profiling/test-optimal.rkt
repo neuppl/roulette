@@ -34,10 +34,5 @@
 
 
 (define out (if (flip 0.5 #:label 'important-maybe) #t (last (last (n-grid-bayesian 5)))))
-(optimal out)
 
-#;(let ([entry (read)])
-  (cond
-    [(equal? entry "generate-json") (make-json-visualization out)]
-    [(equal? entry "profiler-run") (query out)]
-    [else (error "unrecognized entry point ~v" entry)]))
+(optimal out)

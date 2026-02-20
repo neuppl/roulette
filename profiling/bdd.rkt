@@ -4,6 +4,28 @@
 
 (provide (all-defined-out))
 
+
+(define rec-calls-limit #f)
+
+;; Error type raised when total number of recursive calls reaches an optional limit.
+(struct exn:fail:out-of-rec-calls exn:fail ())
+
+(define (set-limit! rec-calls)
+  (set! rec-calls-limit rec-calls))
+;; Raising
+(define (raise-exceeded-rec-calls-limit)
+  (raise 
+    (exn:fail:out-of-rec-calls
+      (format "Exceeded ~v recursive calls during computation" rec-calls-limit)
+      (current-continuation-marks))))
+
+;; Increment the recursive call counter and raise if the limit is exceeded
+(define (increment-rec-calls!)
+  (let ([count (add1 (unbox (bdd-table-recursive-calls global-bdd-table)))])
+    (set-box! (bdd-table-recursive-calls global-bdd-table) count)
+    (when (and rec-calls-limit (> count rec-calls-limit))
+      (raise-exceeded-rec-calls-limit))))
+
 ;; BDD pointer type (just an integer)
 (define bdd-ptr? exact-nonnegative-integer?)
 
@@ -22,16 +44,9 @@
   #:transparent
   #:mutable)
 
-(define true-ptr 0)
-(define false-ptr 1)
-
-;; Get the number of recursive calls
-(define (bdd-num-recursive-calls)
-  (unbox (bdd-table-recursive-calls global-bdd-table)))
-
-;; Reset the recursive call counter
-(define (bdd-reset-recursive-calls)
-  (set-box! (bdd-table-recursive-calls global-bdd-table) 0))
+; Canonical true/false pointers
+(define true-ptr 0) 
+(define false-ptr 1) 
 
 ;; Create a fresh BDD table
 (define (fresh-bdd-table)
@@ -46,6 +61,21 @@
 
 ;; Global BDD table
 (define global-bdd-table (fresh-bdd-table))
+
+;;Reset all global structures/data
+(define (reset-bdd!)
+  (set! rec-calls-limit #f)
+  (set! global-bdd-table (fresh-bdd-table))
+  (set! global-wmc-params (wmc-params (make-hash) 1.0 0.0)))
+
+;; Get the number of recursive calls
+(define (bdd-num-recursive-calls)
+  (unbox (bdd-table-recursive-calls global-bdd-table)))
+
+;; Reset the recursive call counter
+(define (bdd-reset-recursive-calls)
+  (set-box! (bdd-table-recursive-calls global-bdd-table) 0))
+
 
 ;; Reset the global BDD table to a fresh state
 (define (reset-bdd-table!)
@@ -101,9 +131,7 @@
 (define (bdd-not f)
   (define memo (make-hash))
   (define (neg-h f)
-    ;; Increment recursive call counter
-    (set-box! (bdd-table-recursive-calls global-bdd-table)
-              (add1 (unbox (bdd-table-recursive-calls global-bdd-table))))
+    (increment-rec-calls!)
     (define cached (hash-ref memo f #f))
     (if cached
         cached
@@ -119,9 +147,7 @@
 
 ;; Conjoin two BDDs
 (define (bdd-and f g)
-  ;; Increment recursive call counter
-  (set-box! (bdd-table-recursive-calls global-bdd-table)
-            (add1 (unbox (bdd-table-recursive-calls global-bdd-table))))
+  (increment-rec-calls!)
   ;; Check for cached BDD
   (define cached (hash-ref (bdd-table-memo-table global-bdd-table) (cons f g) #f))
   (if cached
@@ -186,35 +212,11 @@
          [neg-guard-and-else (bdd-and neg-guard else)])
     (bdd-or guard-and-then neg-guard-and-else)))
 
-;; Basic tests
-(define (test-canonicity-neg)
-  (reset-bdd-table!)
-  (define b1 (fresh-var #t))
-  (define b1n (bdd-not b1))
-  (define b2n (bdd-not b1))
-  (unless (= b1n b2n)
-    (error "Canonicity test for negation failed")))
 
-(define (test-canonicity-and)
-  (reset-bdd-table!)
-  (define a (fresh-var #t))
-  (define b (fresh-var #t))
-  (define a2 (bdd-var 0))
-  (define b2 (bdd-var 1))
-  (unless (= (bdd-and a b) (bdd-and b2 a2))
-    (error "Canonicity test for conjunction failed")))
 
-(define (test-unsat)
-  (reset-bdd-table!)
-  (define a (fresh-var #t))
-  (unless (= (bdd-and a (bdd-not a)) false-ptr)
-    (error "UNSAT test failed")))
 
-(define (test-valid)
-  (reset-bdd-table!)
-  (define a (fresh-var #t))
-  (unless (= (bdd-or a (bdd-not a)) true-ptr)
-    (error "Valid test failed")))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;  WMC
 
 ;; Weight structure for weighted model counting
 (struct weight (low-w high-w) #:transparent)
@@ -256,6 +258,42 @@
           (hash-set! memo f result)
           result)))
   (wmc-h f))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;  Tests
+
+
+;; Basic tests
+(define (test-canonicity-neg)
+  (reset-bdd-table!)
+  (define b1 (fresh-var #t))
+  (define b1n (bdd-not b1))
+  (define b2n (bdd-not b1))
+  (unless (= b1n b2n)
+    (error "Canonicity test for negation failed")))
+
+(define (test-canonicity-and)
+  (reset-bdd-table!)
+  (define a (fresh-var #t))
+  (define b (fresh-var #t))
+  (define a2 (bdd-var 0))
+  (define b2 (bdd-var 1))
+  (unless (= (bdd-and a b) (bdd-and b2 a2))
+    (error "Canonicity test for conjunction failed")))
+
+(define (test-unsat)
+  (reset-bdd-table!)
+  (define a (fresh-var #t))
+  (unless (= (bdd-and a (bdd-not a)) false-ptr)
+    (error "UNSAT test failed")))
+
+(define (test-valid)
+  (reset-bdd-table!)
+  (define a (fresh-var #t))
+  (unless (= (bdd-or a (bdd-not a)) true-ptr)
+    (error "Valid test failed")))
 
 
 ;; Helper for floating point comparison

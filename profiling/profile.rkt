@@ -16,6 +16,7 @@
 
 (define (write-now data [port (current-output-port)])
 	(write data port)
+	(newline port)
 	(flush-output port))
 
 
@@ -185,10 +186,7 @@
 					(terminate-subprocess proc stdout stdin stderr)
 					(if timed-out?
 						(subsample/acc samples ch #t)
-						(begin
-							(displayln "ran within time limit")
-							(subsample/acc samples ch #t))
-						#;(begin 
+						(begin 
 							(displayln "No subsampling needed, program executed within time limit. No heuristics collected.")
 							(channel-put ch 'done)
 							#t))))))
@@ -252,7 +250,7 @@
 								#:pause-in (get-pause-arg)))
 			(search (list)
 							(random-specialization-transition (list) 
-																								10)
+																								40)
 							200
 							(make-heuristics stream?)
 							file-path 
@@ -298,7 +296,7 @@
 
 (define (run-profiler file-path #:resume [resumption-path #f])
 	(make-profiling-json-results file-path 
-															 #f
+															 #t
 															 #:resume (if resumption-path
 															 							(call-with-input-file resumption-path read-json)
 																						#f))
