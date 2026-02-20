@@ -39,6 +39,7 @@
          roulette/private/log
          make-log-interceptor
          json
+         "../../../../profiling/bdd.rkt"
          "pmf.rkt"
          "var-utils.rkt"
          relation/type
@@ -195,7 +196,6 @@
                       <
                       #:key cdr)))
 
-
 (define (query e)
   (define variables (symbolics e))
   (write-now (length variables))
@@ -252,7 +252,11 @@
   #;(fprintf (current-error-port)
             "num-recursive-calls: ~v\n" 
             (bdd-num-recursive-calls))
-  (define result (> real timeout))
+  (define real-seconds (/ real 1000))
+  (define result (if (> real-seconds timeout) 'timed-out 'done))
+  (displayln real-seconds (current-error-port))
+  (displayln timeout (current-error-port))
+  (displayln result (current-error-port))
   (write-now result))
 
 (define (flip-fn pr)
