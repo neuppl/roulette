@@ -254,9 +254,6 @@
             (bdd-num-recursive-calls))
   (define real-seconds (/ real 1000))
   (define result (if (> real-seconds timeout) 'timed-out 'done))
-  (displayln real-seconds (current-error-port))
-  (displayln timeout (current-error-port))
-  (displayln result (current-error-port))
   (write-now result))
 
 (define (flip-fn pr)
