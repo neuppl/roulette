@@ -158,11 +158,3 @@
 
 (define (bdd-const? ptr) (or (equal? bdd-true ptr)
                              (equal? bdd-false ptr)))
-
-(define (cached-size bdd)
-  0
-  #;(cond
-    [(or (bdd-const? bdd) (= 1 (bdd-scratch bdd 0))) 0]
-    [else
-     (rsdd-set-scratch! bdd 1)
-     (+ 1 (cached-size (rsdd-low bdd)) (cached-size (rsdd-high bdd)))]))

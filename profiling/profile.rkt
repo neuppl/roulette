@@ -70,7 +70,6 @@
 						(unless timed-out? 
 							(hash-update! freq-map "Total-samples" add1 0)
 							(when stream? 
-								(displayln "here")
 								(write-now freq-map (car stream?)))))
 					(if (empty? (hash->list freq-map))
 							"No heuristics collected, file runs within time limit"
@@ -250,8 +249,8 @@
 								#:pause-in (get-pause-arg)))
 			(search (list)
 							(random-specialization-transition (list) 
-																								40)
-							200
+																								15)
+							1000
 							(make-heuristics stream?)
 							file-path 
 							2

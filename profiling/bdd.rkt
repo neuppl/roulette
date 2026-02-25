@@ -35,12 +35,13 @@
 (struct bdd-node (topvar low high) #:transparent)
 
 ;; BDD table structure
-(struct bdd-table (backing-table     ; vector of BDDs
-                   compute-table     ; hash: bdd -> int (for uniqueness)
-                   next-free         ; box containing next free index
-                   num-vars          ; box containing number of allocated vars
-                   memo-table        ; hash: (ptr . ptr) -> ptr (for AND)
-                   recursive-calls)  ; box containing count of recursive calls
+(struct bdd-table (backing-table     ; vector<bdd-node> indexed by ptr
+                   compute-table     ; hash<bdd-node, ptr> for hash-consing
+                   next-free         ; box<ptr> next free index
+                   num-vars          ; box<int> number of allocated variables
+                   and-memo          ; hash<(ptr . ptr), ptr> for bdd-and
+                   not-memo          ; hash<ptr, ptr> for bdd-not
+                   recursive-calls)  ; box<int> count of recursive calls
   #:transparent
   #:mutable)
 
@@ -52,12 +53,13 @@
 (define (fresh-bdd-table)
   (let ([arr (make-vector 10000000 (bdd-true))]
         [compute-tbl (make-hash)]
-        [memo-tbl (make-hash)])
+        [and-memo-tbl (make-hash)]
+        [not-memo-tbl (make-hash)])
     (hash-set! compute-tbl (bdd-true) true-ptr)
     (hash-set! compute-tbl (bdd-false) false-ptr)
     (vector-set! arr 0 (bdd-true))
     (vector-set! arr 1 (bdd-false))
-    (bdd-table arr compute-tbl (box 2) (box 0) memo-tbl (box 0))))
+    (bdd-table arr compute-tbl (box 2) (box 0) and-memo-tbl not-memo-tbl (box 0))))
 
 ;; Global BDD table
 (define global-bdd-table (fresh-bdd-table))
@@ -129,10 +131,10 @@
 
 ;; Negate a BDD
 (define (bdd-not f)
-  (define memo (make-hash))
+  (define not-memo (bdd-table-not-memo global-bdd-table))
   (define (neg-h f)
     (increment-rec-calls!)
-    (define cached (hash-ref memo f #f))
+    (define cached (hash-ref not-memo f #f))
     (if cached
         cached
         (let ([result
@@ -141,7 +143,7 @@
                  [(bdd-false) true-ptr]
                  [(bdd-node topvar low high)
                   (get-or-insert (bdd-node topvar (neg-h low) (neg-h high)))])])
-          (hash-set! memo f result)
+          (hash-set! not-memo f result)
           result)))
   (neg-h f))
 
@@ -149,7 +151,7 @@
 (define (bdd-and f g)
   (increment-rec-calls!)
   ;; Check for cached BDD
-  (define cached (hash-ref (bdd-table-memo-table global-bdd-table) (cons f g) #f))
+  (define cached (hash-ref (bdd-table-and-memo global-bdd-table) (cons f g) #f))
   (if cached
       cached
       ;; No cached BDD, compute conjunction
@@ -185,7 +187,7 @@
                       l
                       (get-or-insert (bdd-node g-topvar l h))))])])
         ;; Cache the conjunction
-        (hash-set! (bdd-table-memo-table global-bdd-table) (cons f g) result)
+        (hash-set! (bdd-table-and-memo global-bdd-table) (cons f g) result)
         result)))
 
 ;; Disjoin two BDDs (via De Morgan's law)
@@ -259,6 +261,26 @@
           result)))
   (wmc-h f))
 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;  Size
+
+;; Compute the number of unique nodes in a BDD rooted at ptr.
+;; Uses a visited set (keyed on pointer) so shared hash-consed nodes are counted once.
+(define (cached-size root)
+  (define visited (make-hash))
+  (define (size-h ptr)
+    (if (hash-ref visited ptr #f)
+        0
+        (begin
+          (hash-set! visited ptr #t)
+          (match (deref-bdd ptr)
+            [(bdd-true)  1]
+            [(bdd-false) 1]
+            [(bdd-node _ low high)
+             (+ 1 (size-h low) (size-h high))]))))
+  (size-h root))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

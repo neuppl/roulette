@@ -180,7 +180,7 @@
                         log-list))))
         (define key (cons (third (hash-ref variable-contexts var)) asgn))
         (values 
-          (hash-set num-calls key num-rec-calls)
+          (hash-update num-calls (car key) (lambda (x) (/ (+ num-rec-calls x) 2)) num-rec-calls)
           (hash-set num-remaining-vars key (length (symbolics symbolic-map-substituted)))
           (hash-set total-remaining-size key total-size))))
   (printf "\n\n\n\n Recursive calls: \n")
@@ -197,7 +197,7 @@
                       #:key cdr)))
 
 (define (query e)
-  (set-limit! 40000000)
+  (set-limit! 50000000)
   (define variables (symbolics e))
   (write-now (length variables))
   
@@ -210,10 +210,17 @@
                               (match-define (cons idx asgn) idx+asgn)
                               (values (list-ref variables idx) asgn)))
   (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
-  (write-now (with-handlers
-    ([exn:fail:out-of-rec-calls? (lambda (_) 'timed-out)])
-    (compute-pmf symbolic-map-substituted)
-    'done)))
+  (define result #;(with-timeout 
+                   timeout
+                   (lambda () (begin 
+                                (compute-pmf symbolic-map-substituted)
+                                "done"))
+                   (lambda () "timed-out"))
+                   (with-handlers
+                    ([exn:fail:out-of-rec-calls? (lambda (_) 'timed-out)])
+                    (compute-pmf symbolic-map-substituted)
+                    'done))
+  (write-now result))
 
 (define (flip-fn pr)
   (cond
