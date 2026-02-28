@@ -6,6 +6,9 @@
 (require (except-in racket/contract any/c)
          "util.rkt")
 (provide
+  infer-subst
+
+
  ;; `wrap-modbeg.rkt`
  (for-syntax
   make-wrapping-module-begin
@@ -75,6 +78,12 @@
   (measurable-space-point (measure-domain m)))
 
 (define (infer val #:engine [eng default-engine] #:lazy? [lazy? #f])
-  (let ([out ((engine-infer eng) val lazy?)])
+  (let ([out ((engine-infer eng) val lazy? (hash))])
+    (clear-cache)
+    out))
+
+
+(define (infer-subst val subst-map #:engine [eng default-engine] #:lazy? [lazy? #f])
+  (let ([out ((engine-infer eng) val lazy? subst-map)])
     (clear-cache)
     out))

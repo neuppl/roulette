@@ -33,6 +33,10 @@
 (define bdd-true true-ptr)
 (define bdd-false false-ptr)
 
+
+(define (bdd-const? ptr) (or (equal? bdd-true ptr)
+                             (equal? bdd-false ptr)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; engine
 
@@ -61,27 +65,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
 
-; Produces a BDD pointer. 
-(define (enc v)
-  (match v
-    [(? expression?) (enc-expr v)]
-    [(? constant?)   (enc-const v)]
-    [_               (enc-lit v)]))
-
-(define (enc-expr v)
-  (match v
-    ;; Recognize `ite` shape and use BDD `ite` operation
-    [(or (expression (== @||)
-                     (expression (== @&&) (expression (== @!) g) e1)
-                     (expression (== @&&) g e2))
-         (expression (== @||)
-                     (expression (== @&&) g e2)
-                     (expression (== @&&) (expression (== @!) g) e1)))
-     (bdd-ite (enc g) (enc e2) (enc e1))]
-    [(expression (app bdd-encoder (? procedure? $op)) es ...)
-     (apply $op (map enc es))]
-    [_ (error 'enc "cannot encode ~a" v)]))
-
 (define-encoder bdd-encoder
   [@! bdd-not]
   [@&& (lift-arity bdd-and)]
@@ -95,13 +78,25 @@
 (define (bdd-iff x y)
   (bdd-ite x y (bdd-not y)))
 
-(define/cache (enc-const v)
-  (define ptr (fresh-var #t))
-  ;; Set weight immediately if this constant has a measure
-  (define measure (ddict-ref measures v #f))
-  (when measure
-    (set-var-weight! ptr (measure (set #f)) (measure (set #t))))
-  ptr)
+
+(define make-enc-const
+  (lambda (subst-map)
+    (begin
+      (define/cache (enc-const v)
+        (define ptr (if (hash-has-key? subst-map v)
+                        (if (hash-ref subst-map v)
+                            true-ptr
+                            false-ptr)
+                        (fresh-var #t)))
+        ;; Set weight immediately if this constant has a measure
+        (unless (bdd-const? ptr)
+                (define measure (ddict-ref measures v #f))
+                (when measure
+                  (set-var-weight! ptr (measure (set #f)) (measure (set #t)))))
+
+        ptr)
+      enc-const)))
+
 
 (define (enc-lit v)
   (match v
@@ -112,14 +107,44 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; infer
-(define (make-infer) (λ (val lazy?)
+(define (make-infer) (λ (val lazy? subst-map)
   (define vars (list->set (symbolics val)))
+  (define enc-const (make-enc-const subst-map))
+
+  ; Produces a BDD pointer, using enc-const closed over subst-map.
+  (define (enc v)
+    (match v
+      [(? expression?) (enc-expr v)]
+      [(? constant?)   (enc-const v)]
+      [_               (enc-lit v)]))
+
+  (define (enc-expr v)
+    (match v
+      ;; Recognize `ite` shape and use BDD `ite` operation
+      [(or (expression (== @||)
+                       (expression (== @&&) (expression (== @!) g) e1)
+                       (expression (== @&&) g e2))
+           (expression (== @||)
+                       (expression (== @&&) g e2)
+                       (expression (== @&&) (expression (== @!) g) e1)))
+       (bdd-ite (enc g) (enc e2) (enc e1))]
+      [(expression (app bdd-encoder (? procedure? $op)) es ...)
+       (apply $op (map enc es))]
+      [_ (error 'enc "cannot encode ~a" v)]))
+
+  (define (enc/log! expr)
+    (define bdd (enc expr))
+    (begin0
+      bdd
+      (log-roulette-info "~a total size" (cached-size bdd))
+      (log-roulette-info "~a recursive calls" (bdd-num-recursive-calls))))
 
   ;; Use `in-ddict-reverse` for "program order" as the variable order.
   (for ([(var measure) (in-ddict-reverse measures)]
         #:when (set-member? vars var))
     (define temp (enc-const var))
-    (set-var-weight! temp (measure (set #f)) (measure (set #t))))
+    (unless (bdd-const? temp)
+      (set-var-weight! temp (measure (set #f)) (measure (set #t)))))
 
   ;; Compute measure
   (define ht (flatten-symbolic val))
@@ -145,16 +170,3 @@
           (hash-keys ht)
           (filter (compose not zero? density) (hash-keys ht)))))
   (measure procedure support density (immutable-set/c any/c))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; size
-
-(define (enc/log! expr)
-  (define bdd (enc expr))
-  (begin0
-    bdd
-    (log-roulette-info "~a total size" (cached-size bdd))
-    (log-roulette-info "~a recursive calls" (bdd-num-recursive-calls))))
-
-(define (bdd-const? ptr) (or (equal? bdd-true ptr)
-                             (equal? bdd-false ptr)))

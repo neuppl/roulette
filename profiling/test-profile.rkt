@@ -33,7 +33,7 @@
               cur-row)))))
 
 
-(define out (last (last (n-grid-bayesian 9))))
+(define out (last (last (n-grid-bayesian 10))))
 
 (let ([entry (read)])
   (cond

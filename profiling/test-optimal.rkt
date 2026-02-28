@@ -33,6 +33,6 @@
               cur-row)))))
 
 
-(define out (last (last (n-grid-bayesian 6))))
+(define out (last (last (n-grid-bayesian 7))))
  
 (optimal out)

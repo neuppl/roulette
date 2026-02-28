@@ -15,6 +15,7 @@
  query
  make-json-visualization
  optimal
+ infer-subst
 
 
  ;; `pmf.rkt`
@@ -71,7 +72,7 @@
 
 
 
-(define (compute-pmf flattened-map)
+(define (compute-pmf flattened-map subst-map)
   (fprintf (current-error-port) "Symbolic variables: ~v\n" (length (symbolics flattened-map)))
   (define-values (ignored computed-contents)  
     (choose-ignored flattened-map))
@@ -85,7 +86,7 @@
               (if (<= (length (symbolics flattened-map)) 50)
                 g
                 "[redacted]"))
-      (define pr ((infer g) (set #t)))
+      (define pr ((infer-subst g subst-map) (set #t)))
       (cons v pr)))
   
   (define mass
@@ -130,30 +131,23 @@
 
 (define (optimal e)
   (define variables (symbolics e))
-  (define num-calls (make-hash)); hash from variable assignments to number of recursive calls
-                                ; assignment: (cons sym-var bool)
-                                ; the value represents the number of recursive calls if the assignment is 
-                                ; substituted. lower means the variable is more important.
-  
   (define ⊥ (unreachable))
   (define symbolic-map 
     (hash->list (flatten-symbolic (if evidence e ⊥))))
 
-  (define-values (rec-calls rem-vars rem-size)
+  (define-values (rec-calls rem-size)
     (for*/fold ([num-calls (hash)]
-                [num-remaining-vars (hash)]
                 [total-remaining-size (hash)])
                ([var variables]
                 [asgn (list #t #f)])
       (reset-bdd!)
       (clear-cache)
       (define subst-map (hash var asgn)) ; single assignment in the hash
-      (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
       (define roulette-interceptor
         (make-log-interceptor roulette-logger))
         (define-values (result logs)
             (roulette-interceptor
-              (λ () (compute-pmf symbolic-map-substituted))))
+              (λ () (compute-pmf symbolic-map subst-map))))
         (define logging-info (hash-ref logs 'info))
         (define log-list (filter (lambda (x) (regexp-match? #rx"^roulette:" x))
                             (hash-ref logs 'info)))
@@ -181,24 +175,20 @@
         (define key (cons (third (hash-ref variable-contexts var)) asgn))
         (values 
           (hash-update num-calls (car key) (lambda (x) (/ (+ num-rec-calls x) 2)) num-rec-calls)
-          (hash-set num-remaining-vars key (length (symbolics symbolic-map-substituted)))
           (hash-set total-remaining-size key total-size))))
   (printf "\n\n\n\n Recursive calls: \n")
   (pretty-print (sort (hash->list rec-calls)
-                      <
-                      #:key cdr))
-  (printf "\n\n\n\n Remaining number of variables after substitution: \n")
-  (pretty-print (sort (hash->list rem-vars)
                       <
                       #:key cdr))
   (printf "\n\n\n\n Remaining total bdd size after substitution: \n")
   (pretty-print (sort (hash->list rem-size)
                       <
                       #:key cdr))
-  (compute-pmf symbolic-map))
+                      
+  (compute-pmf symbolic-map (hash)))
 
 (define (query e)
-  (set-limit! 50000000)
+  (set-limit! 2000000)
   (define variables (symbolics e))
   (write-now (length variables))
   
@@ -210,16 +200,15 @@
   (define subst-map (for/hash ([idx+asgn assignments])
                               (match-define (cons idx asgn) idx+asgn)
                               (values (list-ref variables idx) asgn)))
-  (define symbolic-map-substituted (set-symbolic-vars symbolic-map subst-map))
   (define result #;(with-timeout 
                    timeout
                    (lambda () (begin 
-                                (compute-pmf symbolic-map-substituted)
+                                (compute-pmf symbolic-map subst-map)
                                 "done"))
                    (lambda () "timed-out"))
                    (with-handlers
                     ([exn:fail:out-of-rec-calls? (lambda (_) 'timed-out)])
-                    (compute-pmf symbolic-map-substituted)
+                    (compute-pmf symbolic-map subst-map)
                     'done))
   (write-now result))
 
