@@ -194,7 +194,8 @@
   (printf "\n\n\n\n Remaining total bdd size after substitution: \n")
   (pretty-print (sort (hash->list rem-size)
                       <
-                      #:key cdr)))
+                      #:key cdr))
+  (compute-pmf symbolic-map))
 
 (define (query e)
   (set-limit! 50000000)
