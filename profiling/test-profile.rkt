@@ -38,5 +38,5 @@
 (let ([entry (read)])
   (cond
     [(equal? entry "generate-json") (make-json-visualization out)]
-    [(equal? entry "profiler-run") (query out)]
+    [(equal? entry "profiler-run") (profile out)]
     [else (error "unrecognized entry point ~v" entry)]))

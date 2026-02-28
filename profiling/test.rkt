@@ -33,6 +33,23 @@
               cur-row)))))
 
 
-(define out (last (last (n-grid-bayesian 7))))
- 
-(optimal out)
+(define args (vector->list (current-command-line-arguments)))
+
+(define n
+  (let loop ([remaining args])
+    (cond
+      [(null? remaining) 7]
+      [(and (equal? (car remaining) "-n") (pair? (cdr remaining)))
+       (string->number (cadr remaining))]
+      [else (loop (cdr remaining))])))
+
+(define optimal?
+  (member "-o" args))
+
+(define out (last (last (n-grid-bayesian n))))
+
+(if optimal?
+  (optimal out)
+  (query out))
+
+

@@ -12,10 +12,11 @@
  flip
  observe!
  with-observe
- query
+ profile
  make-json-visualization
  optimal
- infer-subst
+ query
+
 
 
  ;; `pmf.rkt`
@@ -117,6 +118,11 @@
           (values val (/ prob total-prob)))))
   normalized)
 
+(define (query e)
+  (define ⊥ (unreachable))
+  (define symbolic-map 
+    (hash->list (flatten-symbolic (if evidence e ⊥))))
+  (compute-pmf symbolic-map (hash)))
 
 (define (with-timeout timeout-duration thnk default)
   (let* ([ch (make-channel)]
@@ -183,12 +189,10 @@
   (printf "\n\n\n\n Remaining total bdd size after substitution: \n")
   (pretty-print (sort (hash->list rem-size)
                       <
-                      #:key cdr))
-                      
-  (compute-pmf symbolic-map (hash)))
+                      #:key cdr)))
 
-(define (query e)
-  (set-limit! 2000000)
+(define (profile e)
+  (set-limit! 5000000)
   (define variables (symbolics e))
   (write-now (length variables))
   
