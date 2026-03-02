@@ -33,7 +33,9 @@
               cur-row)))))
 
 
-(define out (last (last (n-grid-bayesian 10))))
+(define out (if (flip 0.5 #:label "important-maybe") 
+                (last (last (n-grid-bayesian 10)))
+                #t))
 
 (let ([entry (read)])
   (cond

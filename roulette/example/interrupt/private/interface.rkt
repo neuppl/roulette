@@ -191,30 +191,30 @@
                       <
                       #:key cdr)))
 
+(define (rem-vars symbolic-map substitutions)
+  (define subst-map (set-symbolic-vars symbolic-map substitutions))
+  (length (symbolics subst-map)))
 (define (profile e)
-  (set-limit! 5000000)
+  (set-limit! 4000000)
   (define variables (symbolics e))
-  (write-now (length variables))
-  
-  (define timeout (read))
-  (define assignments (read))
+  (define num-vars (length variables))
   (define ⊥ (unreachable))
-  (define symbolic-map 
+  (define symbolic-map
     (hash->list (flatten-symbolic (if evidence e ⊥))))
-  (define subst-map (for/hash ([idx+asgn assignments])
-                              (match-define (cons idx asgn) idx+asgn)
-                              (values (list-ref variables idx) asgn)))
-  (define result #;(with-timeout 
-                   timeout
-                   (lambda () (begin 
-                                (compute-pmf symbolic-map subst-map)
-                                "done"))
-                   (lambda () "timed-out"))
-                   (with-handlers
-                    ([exn:fail:out-of-rec-calls? (lambda (_) 'timed-out)])
-                    (compute-pmf symbolic-map subst-map)
-                    'done))
-  (write-now result))
+  (write-now num-vars)
+  ; Loop: read assignments (or 'done), compute result, write it back
+  (let loop ()
+    (define msg (read))
+    (unless (equal? msg 'done)
+      (define assignments msg)
+      (define subst-map (for/hash ([idx+asgn assignments])
+                                  (match-define (cons idx asgn) idx+asgn)
+                                  (values (list-ref variables idx) asgn)))
+      (define result
+        ; The number of vars that are _removed_ from formula after replacing vars
+        (- num-vars (rem-vars symbolic-map subst-map)))
+      (write-now result)
+      (loop))))
 
 (define (flip-fn pr)
   (cond
@@ -242,13 +242,13 @@
 
 ;; Writes all arguments to a json file containing profiling results
 (define (write-json-visualization out-file-path
-                                  json-file-path 
-                                  json-source-code 
+                                  json-file-path
+                                  json-source-code
                                   json-variable-contexts
                                   json-profiling-results)
   (call-with-output-file out-file-path
     (lambda (out)
-      (write-json 
+      (write-json
         (hash
           'file-path json-file-path
           'source-code json-source-code
@@ -257,11 +257,8 @@
         out
         #:indent #\tab))
     #:exists 'replace)
-    
-  (fprintf (current-error-port) "JSON results produced at: ~a\n" out-file-path)
 
-
-	(displayln "Running visualize.py to generate html ..." (current-error-port))
+  (displayln "Running visualize.py to generate html ..." (current-error-port))
   (define devnull-in (open-input-file "/dev/null"))
   (define-values (viz-proc _out _in _err)
     (subprocess (current-error-port) devnull-in (current-error-port) (find-executable-path "python3") "visualize.py" out-file-path))
@@ -296,85 +293,64 @@
 
 
 ; Manual fix for broken serialization for hashes in port writing
-(define (deserialize-to-heuristics-hash results)
-  (if (list? results)
+; Deserializes a single flat hash (freq-map or avg-map) from port representation
+(define (deserialize-single-hash raw)
+  (if (list? raw)
       (make-hash (map (lambda (item) (if (and (list? item) (= (length item) 3))
                                          (list (first item)
                                            (list (second item)
                                            (third item)))
                                          item))
-                      results))
-      results))
+                      raw))
+      raw))
 
 ;; Converts provided heuristics/results into a json serializable format
+;; results is either a string (no heuristics) or an avg-map hash
+;; avg-map maps variable index -> (list sum-of-eliminations total-assignments)
+;; Output is a flat hash from variable index -> average eliminations
 (define (make-json-profiling-results results num-vars)
   (if (hash? results)
       (begin
-        (define json-results 
+        (define json-avg
           (for/hash! ([(key value) (in-hash results)])
-            (values (->symbol key) 
-                    value)))
+            (values (->symbol key)
+                    (if (or (not (list? value)) (zero? (second value)))
+                        value ; pass through Total-runs and any non-pair values as-is
+                        (exact->inexact (/ (first value) (second value)))))))
         (for ([key (in-range num-vars)])
-          (hash-update! json-results 
-                        (->symbol key) 
-                        (lambda (x) x) 
-                        (list 0 0)))
-
-        json-results)
+          (hash-update! json-avg (->symbol key) (lambda (x) x) 0))
+        json-avg)
       results))
 
 
 ;provided information from the input port, writes profiling results into a json
 (define (make-json-visualization e)
   (define file-path (read))
-  (define out-file-path (path->string (path-replace-extension file-path ".json")))
+  (define temp-dir (build-path (or (path-only (string->path file-path)) (current-directory)) ".temp"))
+  (make-directory* temp-dir)
+  (define out-file-path (path->string (build-path temp-dir (path-replace-extension (file-name-from-path file-path) ".json"))))
 
   (define source-code (read))
-  (define result-type (read)) ; 'stream or 'single
-  
 
   ;these remain the same across all runs of profiler.
   (define json-variable-contexts (make-json-variable-contexts e))
 
-  (define write-js-viz
-    (lambda (results)
-      (write-json-visualization
-        out-file-path
-        file-path
-        source-code
-        json-variable-contexts
-        results)))
+  (define (write-js-viz results)
+    (write-json-visualization
+      out-file-path
+      file-path
+      source-code
+      json-variable-contexts
+      results))
 
-  (if (equal? result-type 'stream)
-    ; In stream mode: read intermediate updates until 'stop, then read final results
-    (begin
-      (let loop ()
-        (define results (read))
-        (unless (or (equal? results 'stop) (eof-object? results))
-          (define json-profiling-results
-            (make-json-profiling-results (deserialize-to-heuristics-hash results)
-                                         (length (symbolics e))))
-          (write-js-viz json-profiling-results)
-          (loop)))
-      ; After 'stop, read the final results sent by profile.rkt line 263
-      (define final-results (read))
-      (define json-profiling-results
-        (make-json-profiling-results (deserialize-to-heuristics-hash final-results)
-                                     (length (symbolics e))))
-      (write-js-viz json-profiling-results))
-    ; In single mode: read the one result sent by profile.rkt line 263
-    (begin
-      (define results (read))
-      (define json-profiling-results
-        (make-json-profiling-results (deserialize-to-heuristics-hash results)
-                                     (length (symbolics e))))
-      (write-js-viz json-profiling-results)))
+  (define results (read))
+  (unless (eof-object? results)
+    (define json-profiling-results
+      (make-json-profiling-results (deserialize-single-hash results)
+                                   (length (symbolics e))))
+    (write-js-viz json-profiling-results))
 
-  (fprintf
-    (current-error-port)
-    "Completed running profiler, visualization of results can be found at ~v\n"
-    (path->string (path-replace-extension out-file-path ".html")))
-  (write-now out-file-path))
+  (void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation

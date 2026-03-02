@@ -46,7 +46,9 @@
 (define optimal?
   (member "-o" args))
 
-(define out (last (last (n-grid-bayesian n))))
+(define out (if (flip 0.5 #:label "important-maybe") 
+                (last (last (n-grid-bayesian n)))
+                #t))
 
 (if optimal?
   (optimal out)
