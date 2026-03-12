@@ -14,9 +14,10 @@
 (define deps
   `(["roulette-x86_64-linux" #:platform #rx"^x86_64-linux(?:-natipkg)?$"
                              #:version ,version]
-    ["roulette-aarch64-macosx" #:platform "aarch64-macosx"
+    ;; HACK: Shouldn't need `darwin` but otherwise doesn't work with Nix on macOS.
+    ["roulette-aarch64-macosx" #:platform #rx"^aarch64-((macosx)|(darwin))$"
                                #:version ,version]
-    ["roulette-x86_64-macosx" #:platform "x86_64-macosx"
+    ["roulette-x86_64-macosx" #:platform #rx"^x86_64-((macosx)|(darwin))$"
                               #:version ,version]
     ["roulette-x86_64-win32" #:platform "win32\\x86_64"
                              #:version ,version]
