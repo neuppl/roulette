@@ -123,4 +123,9 @@
   (check-program
    (= (+ (if (flip 1/2) 0 1) (if (flip 1/2) 0 1)) 0)
    ([#t 0.25] [#f  0.75]))
+
+  (check-program
+   (let ([x (flip 1/2)])
+     (if x ((query x) #t) 'none))
+   ([1.0 1/2] ['none 1/2]))
   )

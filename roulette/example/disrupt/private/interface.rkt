@@ -46,7 +46,7 @@
 (define (query e)
   (define ⊥ (unreachable))
   (define unnormalized
-    (infer (if evidence e ⊥) #:lazy? #t))
+    (infer (if evidence e ⊥) #:path-aware? #t #:lazy? #t))
   (define prob (density unnormalized))
   (define normalizer
     (for/sum ([value (in-set (support unnormalized))]

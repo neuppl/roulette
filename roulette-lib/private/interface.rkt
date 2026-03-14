@@ -17,6 +17,7 @@
  (contract-out
   [infer (->i ([val (eng) (measurable-space-point (engine-domain (if (unsupplied-arg? eng) default-engine eng)))])
               (#:engine [eng engine?]
+               #:path-aware? [path-aware? boolean?]
                #:lazy? [lazy? boolean?])
               any)])
 
@@ -73,5 +74,5 @@
 (define (measure-point m)
   (measurable-space-point (measure-domain m)))
 
-(define (infer val #:engine [eng default-engine] #:lazy? [lazy? #f])
-  ((engine-infer eng) val lazy?))
+(define (infer val #:engine [eng default-engine] #:path-aware? [path-aware? #f] #:lazy? [lazy? #f])
+  ((engine-infer eng) val path-aware? lazy?))

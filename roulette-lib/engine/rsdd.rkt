@@ -303,7 +303,7 @@
 
 (define (make-infer s)
   (match-define (semiring _predicate zero plus var-set! wmc) s)
-  (λ (val lazy?)
+  (λ (val path-aware? lazy?)
     (define vars (list->set (symbolics val)))
 
     ;; Use `in-ddict-reverse` for "program order" as the variable order.
@@ -312,6 +312,7 @@
       (var-set! (const->label var) (measure (set #f)) (measure (set #t))))
 
     ;; Compute measure
+    (define pc (if path-aware? (vc-assumes (vc)) #t))
     (define ht (flatten-symbolic val))
     (define (procedure elems)
       (for/fold ([acc zero])
@@ -319,7 +320,7 @@
         (plus acc (density elem))))
     (define/cache (density val)
       (if (hash-has-key? ht val)
-          (wmc (enc/log! (hash-ref ht val)))
+          (wmc (enc/log! (&& pc (hash-ref ht val))))
           zero))
     (define support
       (list->set
