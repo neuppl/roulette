@@ -2,7 +2,6 @@
 (require racket/function)
 (require json)
 (require relation/type)
-(require racket/serialize)
 ;; this file is run with an argument "file_name.rkt" that contains an interrupt program that is to be profiled.
 
 
@@ -27,19 +26,20 @@
   (when (input-port? stderr) 
 		(close-input-port stderr)))
 
-(define (random-specialize state num-vars)
-	(define current-assignments (map (lambda (asgn) (car asgn)) state))
-  (define unknown-positions
-    (for/list ([pos (in-range num-vars)]
-               #:unless (member pos current-assignments))
-      pos))
+
+;; Randomly specializes a state by assigning a random unknown variable to a random boolean value.
+(define (random-specialize state labels)
+  (define current-assignments (map (lambda (asgn) (car asgn)) state)) ;; list of labels that have been assigned a value in the current state
+  (define unknown-labels ;; list of labels that have not been assigned a value in the current state
+    (for/list ([l labels]
+               #:unless (member l current-assignments))
+      l))
   
-  (if (empty? unknown-positions)
+  (if (empty? unknown-labels)
       (die "out of states to specialize")
-      (let* ([random-pos (list-ref unknown-positions (random (length unknown-positions)))]
+      (let* ([random-label (list-ref unknown-labels (random (length unknown-labels)))]
              [asgn (= 1 (random 2))])
-				(cons (cons random-pos asgn)
-							state))))
+			(cons (cons random-label asgn) state))))
 
 
 
@@ -84,19 +84,17 @@
 
 
 (define (random-specialization-transition initial-state
-																				  specialization-rate 
-																					#:resume [resumption-data #f])
-	(let ([attempts (if resumption-data 
-											(hash-ref resumption-data 'attempts)
-											1)]
-				[samples (if resumption-data 
-											(hash-ref resumption-data 'samples)
-											1)]
-				[specialization-rate (if resumption-data 
-																(hash-ref resumption-data 'specialization-rate)
-																specialization-rate)])
+										  specialization-rate 
+										  #:resume [resumption-data #f])
+	(let ([attempts (if resumption-data (hash-ref resumption-data 'attempts)
+										1)]
+		  [samples (if resumption-data (hash-ref resumption-data 'samples)
+									1)]
+		  [specialization-rate (if resumption-data 
+								   (hash-ref resumption-data 'specialization-rate)
+								   specialization-rate)])
 		(cons
-			(lambda (num-vars timed-out?)
+			(lambda (labels timed-out?)
 				(if timed-out?
 						(begin
 							(printf "~v: Attempt ~v: failed\n\n\n" samples attempts)
@@ -108,16 +106,15 @@
 
 				(printf "Specializing ~v variables\n" specialization-rate)
 				(for/fold ([acc initial-state])
-									([x (in-range specialization-rate)])
-					(random-specialize acc num-vars)))
+						  ([_ (in-range specialization-rate)])
+					(random-specialize acc labels))) 
 				(lambda () (hash 'attempts attempts
-												 'samples samples
-												 'specialization-rate specialization-rate)))))
+								 'samples samples
+								 'specialization-rate specialization-rate)))))
 
 
 (define (pause file-path resumption-data)
-	(define resumption-path (string-append "temp-"
-																				 (path->string (path-replace-extension file-path ".json"))))
+	(define resumption-path (string-append "temp-" (path->string (path-replace-extension file-path ".json"))))
 	(call-with-output-file 
 		#:exists 'replace
 		resumption-path
@@ -127,14 +124,15 @@
 
 
 (define (search initial-state
-								transition-pair
-								samples
-								heuristics-pair
-								file-path
-								timeout-duration
-								#:stream-results [stream? #f]
-								#:resume  [resume? #f]
-								#:pause-in [pause? #f]) ; pause? is the number of samples after which to save in-progress results, and restart the program.
+				transition-pair
+				samples
+				heuristics-pair
+				file-path
+				timeout-duration
+				#:stream-results [stream? #f]
+				#:resume  [resume? #f]
+				#:agreed-labels agreed-labels
+			#:pause-in [pause? #f]) ; pause? is the number of samples after which to save in-progress results, and restart the program.
 	(match-define (cons transition transition-pause) transition-pair)
 	(match-define (cons heuristics heuristics-pause) heuristics-pair)
 	(define (subsample samples ch)
@@ -143,40 +141,37 @@
 				(set! pause? (- pause? 1))
 				(when (= pause? 0)
 					(pause file-path (hash 'transition (transition-pause)
-																 'heuristics (heuristics-pause)
-																 'initial-state initial-state
-																 'samples samples
-																 'timeout-duration timeout-duration
-																 'stream-results? (if stream? #t #f)))))
+										   'heuristics (heuristics-pause)
+										   'initial-state initial-state
+										   'samples samples
+									   	   'timeout-duration timeout-duration
+										   'stream-results? (if stream? #t #f)))))
 			(if (= 0 remaining-samples)
-					(channel-put ch 'done)
-					(let*-values  ([(proc stdout stdin stderr)
-  													(subprocess #f #f (current-error-port) "/usr/local/bin/racket" file-path)])
-						(write-now "profiler-run" stdin)
+				(channel-put ch 'done)
+				(let*-values  ([(proc stdout stdin stderr)
+												(subprocess #f #f (current-error-port) (find-executable-path "racket") file-path)])
+					(write-now "profiler-run" stdin)
 
-						(define num-vars (read stdout))
-						(define new-state (transition num-vars timed-out?))
+					(define new-state (transition agreed-labels timed-out?))
 
-						(write-now timeout-duration stdin)
-						(write-now new-state stdin)
+					(write-now timeout-duration stdin)
+					(write-now new-state stdin)
 
-						(define result (read stdout))
-						(define new-timed-out? (equal? result 'timed-out))
-						(channel-put ch (cons new-state new-timed-out?))
-						(terminate-subprocess proc stdout stdin stderr)
-						(define new-samples (if (not new-timed-out?) 
-																		(- remaining-samples 1) 
-																		remaining-samples))
-						(subsample/acc new-samples ch new-timed-out?))))
+					(define result (read stdout))
+					(define new-timed-out? (equal? result 'timed-out))
+					(channel-put ch (cons new-state new-timed-out?))
+					(terminate-subprocess proc stdout stdin stderr)
+					(define new-samples (if (not new-timed-out?) 
+																	(- remaining-samples 1) 
+																	remaining-samples))
+					(subsample/acc new-samples ch new-timed-out?))))
 		(if resume?
 			(subsample/acc samples ch #f) ; resume without first pass, assume no timeout, since resumptions should be at a successful sample
 			(begin ; First pass, with initial-state, to see if it runs without any subsampling
 				(let*-values ([(proc stdout stdin stderr)
-												(subprocess #f #f (current-error-port) "/usr/local/bin/racket" file-path)])
+												(subprocess #f #f (current-error-port) (find-executable-path "racket") file-path)])
 					(write-now "profiler-run" stdin)
 
-					(define num-vars (read stdout))
-					(displayln num-vars)
 
 					(write-now timeout-duration stdin)
 					(write-now initial-state stdin)
@@ -185,7 +180,8 @@
 					(terminate-subprocess proc stdout stdin stderr)
 					(if timed-out?
 						(subsample/acc samples ch #t)
-						(begin 
+						(subsample/acc samples ch #t)
+						#;(begin 
 							(displayln "No subsampling needed, program executed within time limit. No heuristics collected.")
 							(channel-put ch 'done)
 							#t))))))
@@ -212,15 +208,17 @@
 			(lambda (in) (port->string in))))
 
 	(define-values (proc stdout stdin stderr)
-  	(subprocess #f #f (current-error-port) "/usr/local/bin/racket" file-path))
+  	(subprocess #f #f (current-error-port) (find-executable-path "racket") file-path))
 	(write-now "generate-json" stdin)
 
 	(write-now file-path stdin)
 	(write-now program-text stdin)
 	(define should-stream? (if resumption-data
-													 (hash-ref resumption-data 'stream-results?)
-													 stream-results?))
+							   (hash-ref resumption-data 'stream-results?)
+							   stream-results?))
 	(write-now (if should-stream? 'stream 'single) stdin)
+
+	(define agreed-labels (read stdout)) ; receive agreed-upon labels from generate-json subprocess
 
 	(define ports (cons stdin stdout))
 
@@ -230,30 +228,31 @@
 	(define results 
 		(if resumption-data
 			(let* ([samples (hash-ref resumption-data 'samples)]
-						 [initial-state (hash-ref resumption-data 'initial-state)]
-					   [transition-resumption-data (hash-ref resumption-data 'transition)]
-				  	 [heuristics-resumption-data (hash-ref resumption-data 'heuristics)]
-						 [transition-fn (random-specialization-transition initial-state 
-																															#f
-																															#:resume transition-resumption-data)]
-						 [heuristics-fn (make-heuristics stream? #:resume heuristics-resumption-data)]
-						 [timeout (hash-ref resumption-data 'timeout-duration)])
+				   [initial-state (hash-ref resumption-data 'initial-state)]
+				   [transition-resumption-data (hash-ref resumption-data 'transition)]
+				   [heuristics-resumption-data (hash-ref resumption-data 'heuristics)]
+				   [transition-fn (random-specialization-transition initial-state 
+																	#f
+																	#:resume transition-resumption-data)]
+				   [heuristics-fn (make-heuristics stream? #:resume heuristics-resumption-data)]
+				   [timeout (hash-ref resumption-data 'timeout-duration)])
 				(search initial-state
 								transition-fn
 								samples
 								heuristics-fn
-								file-path 
+								file-path
 								timeout
+								#:agreed-labels agreed-labels
 								#:stream-results stream?
 								#:resume #t
 								#:pause-in (get-pause-arg)))
 			(search (list)
-							(random-specialization-transition (list) 
-																								15)
+							(random-specialization-transition (list) 10)
 							1000
 							(make-heuristics stream?)
-							file-path 
+							file-path
 							2
+							#:agreed-labels agreed-labels
 							#:stream-results stream?
 							#:pause-in (get-pause-arg))))
 
@@ -295,10 +294,10 @@
 
 (define (run-profiler file-path #:resume [resumption-path #f])
 	(make-profiling-json-results file-path 
-															 #t
-															 #:resume (if resumption-path
-															 							(call-with-input-file resumption-path read-json)
-																						#f))
+								 #t
+								 #:resume (if resumption-path
+											  (call-with-input-file resumption-path read-json)
+											  #f))
 	(displayln "Profiler completed running"))
  
 (run-profiler (get-file-path-argument) 

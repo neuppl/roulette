@@ -59,12 +59,19 @@
 
 (define variable-contexts (make-weak-hash))
 
+(define substitutions (hash))
+
 (define (wrap e)
   e) ;(if (symbolic? e) (query e) e)
 
+
+
+(define (variable-label var)
+  (third (hash-ref variable-contexts var)))
 (define (write-now data [port (current-output-port)])
-	(displayln data port)
-	(flush-output port))
+  (write data port)
+  (newline port)
+  (flush-output port))
 
 
 (define (choose-ignored map)
@@ -74,6 +81,7 @@
 
 
 (define (compute-pmf flattened-map subst-map)
+  (set! subst-map (hash)) ;; ignore the previous substitutions logic, since we fix the vars in the flip macro based on the label.
   (fprintf (current-error-port) "Symbolic variables: ~v\n" (length (symbolics flattened-map)))
   (define-values (ignored computed-contents)  
     (choose-ignored flattened-map))
@@ -135,52 +143,51 @@
           (kill-thread th)  ; Kill the thread if timeout occurred
           (default)))))
 
-(define (optimal e)
-  (define variables (symbolics e))
+(define (optimal thnk)
+  ; Run once with empty substitutions to establish the full label set
+  (set! substitutions (hash))
+  (define e0 (thnk))
+  (define variable-labels (map variable-label (symbolics e0)))
   (define ⊥ (unreachable))
-  (define symbolic-map 
-    (hash->list (flatten-symbolic (if evidence e ⊥))))
 
   (define-values (rec-calls rem-size)
     (for*/fold ([num-calls (hash)]
                 [total-remaining-size (hash)])
-               ([var variables]
+               ([label variable-labels]
                 [asgn (list #t #f)])
       (reset-bdd!)
       (clear-cache)
-      (define subst-map (hash var asgn)) ; single assignment in the hash
+      (set! substitutions (hash label asgn))
+      (define e (thnk))
+      (set! substitutions (hash))
+      (define symbolic-map
+        (hash->list (flatten-symbolic (if evidence e ⊥))))
       (define roulette-interceptor
         (make-log-interceptor roulette-logger))
-        (define-values (result logs)
+        (define-values (_result logs)
             (roulette-interceptor
-              (λ () (compute-pmf symbolic-map subst-map))))
-        (define logging-info (hash-ref logs 'info))
+              (λ () (compute-pmf symbolic-map (hash)))))
         (define log-list (filter (lambda (x) (regexp-match? #rx"^roulette:" x))
                             (hash-ref logs 'info)))
-        (define num-rec-calls (string->number
-                                (second 
-                                  (regexp-match
-                                    #rx"roulette: ([0-9]+) recursive calls" 
-                                    (last log-list)))))
-        (set! num-rec-calls (bdd-num-recursive-calls))
+        (define num-rec-calls (bdd-num-recursive-calls))
         (displayln num-rec-calls)
-        (define total-size 
-          (foldr  +
+        (define total-size
+          (foldr +
                   0
-                  (map 
-                    (lambda (s) 
-                      (define match (regexp-match 
+                  (map
+                    (lambda (s)
+                      (define match (regexp-match
                         #rx"roulette: ([0-9]+) total size" s))
                       (if match
                           (string->number (second match))
                           #f))
-                    (filter  
-                      (lambda (x) 
+                    (filter
+                      (lambda (x)
                         (regexp-match? #rx"roulette: ([0-9]+) total size" x))
                         log-list))))
-        (define key (cons (third (hash-ref variable-contexts var)) asgn))
-        (values 
-          (hash-update num-calls (car key) (lambda (x) (/ (+ num-rec-calls x) 2)) num-rec-calls)
+        (define key (cons label asgn))
+        (values
+          (hash-update num-calls label (lambda (x) (/ (+ num-rec-calls x) 2)) num-rec-calls)
           (hash-set total-remaining-size key total-size))))
   (printf "\n\n\n\n Recursive calls: \n")
   (pretty-print (sort (hash->list rec-calls)
@@ -191,29 +198,31 @@
                       <
                       #:key cdr)))
 
-(define (profile e)
-  (set-limit! 5000000)
-  (define variables (symbolics e))
-  (write-now (length variables))
-  
-  (define timeout (read))
+(define (profile thnk)
+  (set-limit! 150000)
+  (read) ; timeout (unused with thunk approach)
   (define assignments (read))
+
+  (set! substitutions
+    (for/fold ([s (hash)])
+              ([label+asgn assignments])
+      (match-define (cons label asgn) label+asgn)
+      (hash-set s label asgn)))
+
+  (define e (thnk))
+
+  (fprintf (current-error-port) "Assignments received: ~v, symbolic variables after substitution: ~v\n"
+           (length assignments)
+           (length (symbolics e)))
+
   (define ⊥ (unreachable))
-  (define symbolic-map 
+  (define symbolic-map
     (hash->list (flatten-symbolic (if evidence e ⊥))))
-  (define subst-map (for/hash ([idx+asgn assignments])
-                              (match-define (cons idx asgn) idx+asgn)
-                              (values (list-ref variables idx) asgn)))
-  (define result #;(with-timeout 
-                   timeout
-                   (lambda () (begin 
-                                (compute-pmf symbolic-map subst-map)
-                                "done"))
-                   (lambda () "timed-out"))
-                   (with-handlers
-                    ([exn:fail:out-of-rec-calls? (lambda (_) 'timed-out)])
-                    (compute-pmf symbolic-map subst-map)
-                    'done))
+  (define result
+    (with-handlers
+      ([exn:fail:out-of-rec-calls? (lambda (_) 'timed-out)])
+      (compute-pmf symbolic-map (hash))
+      'done))
   (write-now result))
 
 (define (flip-fn pr)
@@ -230,13 +239,17 @@
     [(_ pr (~optional (~seq #:label label) #:defaults ([label #'(gensym)])))
      #:do [(define src (syntax-srcloc this-syntax))]
      #:with source #`#,src
-     #'(let ([out (flip-fn pr)])
-          (hash-set! variable-contexts 
-                      out 
+     #'(let* ([lbl label]
+              [out (let ([sub (hash-ref substitutions lbl 'unassigned)])
+                     (if (eq? sub 'unassigned)
+                         (flip-fn pr)
+                         sub))])
+          (hash-set! variable-contexts
+                      out
                       (list
                         source
                         (continuation-mark-set->context (current-continuation-marks))
-                        label))
+                        lbl))
           out)]))
 
 
@@ -269,8 +282,7 @@
   (close-input-port devnull-in))
 
 ;; Converts global variable contexts into a json serializable format
-(define (make-json-variable-contexts e)
-  (define variables (symbolics e))
+(define (make-json-variable-contexts)
   (define (srcloc->js-hash loc)
     (if (srcloc? loc)
       (begin 
@@ -284,7 +296,7 @@
       #f))
 
   (for/hash ([(key value) (in-hash variable-contexts)])
-    (values (->symbol (index-of variables key)) 
+    (values (->symbol (variable-label key))
             (hash 'syntactic-source (srcloc->js-hash (first value))
                   'context (map (lambda (ctx-pair)
                                   (list (~a (car ctx-pair)) 
@@ -307,17 +319,17 @@
       results))
 
 ;; Converts provided heuristics/results into a json serializable format
-(define (make-json-profiling-results results num-vars)
+(define (make-json-profiling-results results variable-labels)
   (if (hash? results)
       (begin
-        (define json-results 
+        (define json-results
           (for/hash! ([(key value) (in-hash results)])
-            (values (->symbol key) 
+            (values (->symbol key)
                     value)))
-        (for ([key (in-range num-vars)])
-          (hash-update! json-results 
-                        (->symbol key) 
-                        (lambda (x) x) 
+        (for ([label variable-labels])
+          (hash-update! json-results
+                        (->symbol label)
+                        (lambda (x) x)
                         (list 0 0)))
 
         json-results)
@@ -331,10 +343,14 @@
 
   (define source-code (read))
   (define result-type (read)) ; 'stream or 'single
-  
+
+  ; Exchange agreed-upon labels with profile.rkt at the start of the pipeline
+  (define variables (symbolics e))
+  (define variable-labels (map variable-label variables))
+  (write-now variable-labels)
 
   ;these remain the same across all runs of profiler.
-  (define json-variable-contexts (make-json-variable-contexts e))
+  (define json-variable-contexts (make-json-variable-contexts))
 
   (define write-js-viz
     (lambda (results)
@@ -353,7 +369,7 @@
         (unless (or (equal? results 'stop) (eof-object? results))
           (define json-profiling-results
             (make-json-profiling-results (deserialize-to-heuristics-hash results)
-                                         (length (symbolics e))))
+                                         variable-labels))
           (write-js-viz json-profiling-results)
           (loop)))
       ; After 'stop, read the final results sent by profile.rkt line 263

@@ -1,10 +1,10 @@
 #lang roulette/example/interrupt
 
 (define (make-bayesian-node dep1 dep2 row col)
-  (define label (string-append "row: " (number->string row) ", column: " (number->string col)))
+  (define label (string-append "r" (number->string row) "c" (number->string col)))
   (define node (if (and dep1 dep2) 
-                   (flip 0.5 #:label (string-append label "(true)")) 
-                   (flip 0.4 #:label (string-append label "(false)"))))
+                   (flip 0.5 #:label (string-append label "t")) 
+                   (flip 0.4 #:label (string-append label "f"))))
   node)
 
 
@@ -33,10 +33,8 @@
               cur-row)))))
 
 
-(define out (last (last (n-grid-bayesian 10))))
-
 (let ([entry (read)])
   (cond
-    [(equal? entry "generate-json") (make-json-visualization out)]
-    [(equal? entry "profiler-run") (profile out)]
+    [(equal? entry "generate-json") (make-json-visualization (last (last (n-grid-bayesian 7))))]
+    [(equal? entry "profiler-run") (profile (lambda () (last (last (n-grid-bayesian 7)))))]
     [else (error "unrecognized entry point ~v" entry)]))

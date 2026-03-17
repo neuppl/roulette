@@ -46,10 +46,8 @@
 (define optimal?
   (member "-o" args))
 
-(define out (last (last (n-grid-bayesian n))))
-
 (if optimal?
-  (optimal out)
-  (query out))
+  (optimal (lambda () (last (last (n-grid-bayesian n)))))
+  (query (last (last (n-grid-bayesian n)))))
 
 
