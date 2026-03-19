@@ -32,7 +32,6 @@
                           (values elem ((density inferred) elem))))
                       (hash (~@ y ry) ...)))]))
 
-
   ;; tests
   (test-case "basic FFI calls"
     (define x-lab (rsdd-label))
@@ -121,4 +120,14 @@
       y
 
       ([10 0.5] [12 0.5])))
+
+  (test-case "polynomial"
+    (let ()
+      (define-measurable x
+        (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring polynomial-semiring))
+      (define-measurable y
+        (bernoulli-measure '(0.2 0.7) '(0.8 0.3) #:semiring polynomial-semiring))
+      (define f
+        (density (infer (and x y) #:engine (rsdd-engine #:semiring polynomial-semiring))))
+      (check-equal? (f #t) (list (* 0.9 0.8) (+ (* 0.9 0.3) (* 0.4 0.8)) (* 0.4 0.3)))))
   )
