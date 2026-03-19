@@ -13,6 +13,7 @@
                           any)]
   [real-semiring semiring?]
   [complex-semiring semiring?]
+  [polynomial-semiring semiring?]
   [semiring? predicate/c]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -132,7 +133,7 @@
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _stdbool))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; wmc
+;; real semiring FFI
 
 (define-cpointer-type _rsdd_wmc_params_r)
 
@@ -157,7 +158,7 @@
   (_fun _rsdd_wmc_params_r _uint64 _double _double -> _void))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; complex wmc
+;; complex semiring FFI
 
 (define-cpointer-type _rsdd_wmc_params_c)
 (define-cstruct _complex_c ([re _double] [im _double]))
@@ -190,6 +191,55 @@
   (make-rectangular (complex_c-re c) (complex_c-im c)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; polynomial semiring FFI
+
+(define-cpointer-type _rsdd_poly_weight)
+(define-cpointer-type _rsdd_wmc_params_poly)
+
+(define-cstruct _weight_poly
+  ([low _rsdd_poly_weight]
+   [high _rsdd_poly_weight]))
+
+(define-rsdd new-wmc-params-poly
+  (_fun -> _rsdd_wmc_params_poly))
+
+(define-wrap rsdd-polynomial-wmc
+  #:from (lambda (ws ptr)
+           (define poly-ptr (bdd-wmc-poly ptr ws))
+           (begin0
+             (polynomial-get-coeffs poly-ptr (polynomial-len poly-ptr))
+             (destroy-polynomial poly-ptr)))
+  #:target POLY-WEIGHTS
+  #:fields ptr)
+(define-rsdd bdd-wmc-poly
+  (_fun _rsdd_bdd_ptr _rsdd_wmc_params_poly -> _rsdd_poly_weight))
+(define-rsdd polynomial-len
+  (_fun _rsdd_poly_weight -> _size))
+(define-rsdd polynomial-get-coeffs
+  (_fun _rsdd_poly_weight
+        [res : (_list o _double len)]
+        [len : _size]
+        -> _size
+        -> res))
+(define-rsdd destroy-polynomial
+  (_fun _rsdd_poly_weight -> _void))
+
+(define-wrap rsdd-set-polynomial-measure!
+  #:from (lambda (ws lab lo hi)
+           (define lo-lst (if (list? lo) lo (list lo)))
+           (define hi-lst (if (list? hi) hi (list hi)))
+           (wmc-param-poly-set-weight ws lab
+                                      lo-lst (length lo-lst)
+                                      hi-lst (length hi-lst)))
+  #:target POLY-WEIGHTS
+  #:fields label lo hi)
+(define-rsdd wmc-param-poly-set-weight
+  (_fun _rsdd_wmc_params_poly _uint64
+        (_list i _double) _size
+        (_list i _double) _size
+        -> _void))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
 
 (define-wrap rsdd-num-recursive-calls
@@ -210,6 +260,7 @@
 (define BUILDER (mk-bdd-manager-default-order 0))
 (define WEIGHTS (new-wmc-params-f64))
 (define COMPLEX-WEIGHTS (new-wmc-params-complex))
+(define POLY-WEIGHTS (new-wmc-params-poly))
 
 (define rsdd-true (make-rsdd-true))
 (define rsdd-false (make-rsdd-false))
@@ -247,6 +298,21 @@
 
 (define complex-semiring
   (semiring complex? 0.0 + rsdd-set-complex-measure! rsdd-complex-wmc))
+
+(define (polynomial? v)
+  (and (list? v) (andmap number? v)))
+
+(define (poly-plus p1 p2)
+  (let go ([p1 p1] [p2 p2])
+    (match* (p1 p2)
+      [('() '()) '()]
+      [('() p2) p2]
+      [(p1 '()) p1]
+      [((cons c1 r1) (cons c2 r2))
+       (cons (+ c1 c2) (go r1 r2))])))
+
+(define polynomial-semiring
+  (semiring polynomial? '() poly-plus rsdd-set-polynomial-measure! rsdd-polynomial-wmc))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
@@ -326,7 +392,7 @@
       (list->set
        (if lazy?
            (hash-keys ht)
-           (filter (compose not zero? density) (hash-keys ht)))))
+           (filter (λ (k) (not (equal? (density k) zero))) (hash-keys ht)))))
     (measure procedure support density (immutable-set/c any/c))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
