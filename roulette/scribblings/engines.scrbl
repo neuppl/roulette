@@ -30,7 +30,8 @@ automatically installs the RSDD backend.
 	 (engine/c (immutable-set/c any/c) s)]{
   Performs inference over the @racket[s] semiring using RSDD.
   @examples[#:eval evaluator #:label #f
-  (define engine (rsdd-engine #:semiring complex-semiring))]
+  (define complex-engine (rsdd-engine #:semiring complex-semiring))
+  (define polynomial-engine (rsdd-engine #:semiring polynomial-semiring))]
 }
 
 @defproc[(bernoulli-measure [f s]
@@ -43,9 +44,12 @@ automatically installs the RSDD backend.
   @racket[(set #t)] gets @racket[t],
   and @racket[(set #f #t)] gets @racket[((semiring-plus s) f t)].
   @examples[#:eval evaluator #:label #f
-  (define-measurable x
-    (bernoulli-measure 0+i 1 #:semiring complex-semiring))
-  ((infer x #:engine engine) (set #f #t))]
+    (define-measurable x
+      (bernoulli-measure 0+i 1 #:semiring complex-semiring))
+    ((infer x #:engine complex-engine) (set #f #t))
+    (define-measurable y
+      (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring polynomial-semiring))
+    ((infer y #:engine polynomial-engine) (set #f #t))]
 }
 
 @defproc[(semiring? [v any/c]) boolean?]{
@@ -53,6 +57,7 @@ automatically installs the RSDD backend.
 }
 
 @deftogether[(@defthing[real-semiring semiring?]
-              @defthing[complex-semiring semiring?])]{
+              @defthing[complex-semiring semiring?]
+	      @defthing[polynomial-semiring semiring?])]{
   Semirings that can be used with RSDD.
 }
