@@ -34,12 +34,11 @@
   (syntax-parser
     [(_ to:id
         #:from from:expr
-        (~optional (~seq #:target target:id))
         (~optional (~seq #:fields args:id ...))
         (~optional (~and #:cache should-cache)))
      #:with def (if (attribute should-cache) #'define/cache #'define)
      #`(def (to (~? (~@ args ...)))
-         (from (~? target) (~? (~@ args ...))))]))
+         (from (~? (~@ args ...))))]))
 
 (define-syntax define/cache
   (syntax-parser

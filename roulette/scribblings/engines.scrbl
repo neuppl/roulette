@@ -29,6 +29,10 @@ automatically installs the RSDD backend.
 @defproc[(rsdd-engine [#:semiring s semiring? real-semiring])
 	 (engine/c (immutable-set/c any/c) s)]{
   Performs inference over the @racket[s] semiring using RSDD.
+  When an engine is garbage collected,
+  all the memory associated with it
+  (i.e., BDDs and weights)
+  is freed.
   @examples[#:eval evaluator #:label #f
   (define complex-engine (rsdd-engine #:semiring complex-semiring))
   (define polynomial-engine (rsdd-engine #:semiring polynomial-semiring))]

@@ -23,18 +23,18 @@
          ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/define/conventions
+         racket/function
          racket/set
          racket/match
          rosette/base/core/bool
          rosette/base/core/term
          "../private/engine.rkt"
-         "../private/log.rkt"
          "../private/measure.rkt"
          "../private/measurable-space.rkt"
          "../private/util.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; data
+;; prelude
 
 (define rsdd-ffi-lib
   (ffi-lib "librsdd"))
@@ -42,45 +42,57 @@
 (define-ffi-definer define-rsdd rsdd-ffi-lib
   #:make-c-id convention:hyphen->underscore)
 
+(define rsdd-executor
+  (make-will-executor))
+
+(void
+ (thread
+  (λ ()
+    (let go ()
+      (will-execute rsdd-executor)
+      (go)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bdd
 
 (define-cpointer-type _rsdd_bdd_builder)
 (define-cpointer-type _rsdd_bdd_ptr)
 
+(define-rsdd free-bdd-manager
+  (_fun _rsdd_bdd_builder -> _void))
+
 (define-rsdd mk-bdd-manager-default-order
   (_fun _int64 -> _rsdd_bdd_builder))
 
 (define-wrap rsdd-label
   #:from bdd-new-label
-  #:target BUILDER)
+  #:fields builder)
 (define-rsdd bdd-new-label
   (_fun _rsdd_bdd_builder -> _int64))
 
 (define-wrap rsdd-var
   #:from (λ (builder lab) (bdd-var builder lab #t))
-  #:target BUILDER
-  #:fields label)
+  #:fields builder label)
 (define-rsdd bdd-var
   (_fun _rsdd_bdd_builder _int64 _stdbool -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-ite #:from bdd-ite #:target BUILDER #:fields x y z #:cache)
+(define-wrap rsdd-ite #:from bdd-ite #:fields builder x y z #:cache)
 (define-rsdd bdd-ite
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-and #:from bdd-and #:target BUILDER #:fields x y #:cache)
+(define-wrap rsdd-and #:from bdd-and #:fields builder x y #:cache)
 (define-rsdd bdd-and
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-or #:from bdd-or #:target BUILDER #:fields x y #:cache)
+(define-wrap rsdd-or #:from bdd-or #:fields builder x y #:cache)
 (define-rsdd bdd-or
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-compose #:from bdd-compose #:target BUILDER #:fields x l y #:cache)
+(define-wrap rsdd-compose #:from bdd-compose #:fields builder x l y #:cache)
 (define-rsdd bdd-compose
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _int64 _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-not #:from bdd-negate #:target BUILDER #:fields x #:cache)
+(define-wrap rsdd-not #:from bdd-negate #:fields builder x #:cache)
 (define-rsdd bdd-negate
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
@@ -104,11 +116,11 @@
 (define-rsdd bdd-clear-scratch
   (_fun _rsdd_bdd_ptr -> _void))
 
-(define-wrap make-rsdd-true #:from bdd-true #:target BUILDER)
+(define-wrap make-rsdd-true #:from bdd-true #:fields builder)
 (define-rsdd bdd-true
   (_fun _rsdd_bdd_builder -> _rsdd_bdd_ptr))
 
-(define-wrap make-rsdd-false #:from bdd-false #:target BUILDER)
+(define-wrap make-rsdd-false #:from bdd-false #:fields builder)
 (define-rsdd bdd-false
   (_fun _rsdd_bdd_builder -> _rsdd_bdd_ptr))
 
@@ -128,7 +140,7 @@
 (define-rsdd bdd-count-nodes
   (_fun _rsdd_bdd_ptr -> _size))
 
-(define-wrap rsdd-equal? #:from bdd-eq #:target BUILDER #:fields x y #:cache)
+(define-wrap rsdd-equal? #:from bdd-eq #:fields builder x y #:cache)
 (define-rsdd bdd-eq
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _stdbool))
 
@@ -140,10 +152,12 @@
 (define-rsdd new-wmc-params-f64
   (_fun -> _rsdd_wmc_params_r))
 
+(define-rsdd free-wmc-params-f64
+  (_fun _rsdd_wmc_params_r -> _void))
+
 (define-wrap rsdd-real-wmc
   #:from (λ (ws ptr) (bdd-wmc ptr ws))
-  #:target WEIGHTS
-  #:fields ptr)
+  #:fields weights ptr)
 (define-rsdd bdd-wmc
   (_fun _rsdd_bdd_ptr _rsdd_wmc_params_r -> _double))
 
@@ -152,8 +166,7 @@
            (define lo* (exact->inexact lo))
            (define hi* (exact->inexact hi))
            (wmc-param-f64-set-weight ws lab lo* hi*))
-  #:target WEIGHTS
-  #:fields label lo hi)
+  #:fields weights label lo hi)
 (define-rsdd wmc-param-f64-set-weight
   (_fun _rsdd_wmc_params_r _uint64 _double _double -> _void))
 
@@ -166,10 +179,12 @@
 (define-rsdd new-wmc-params-complex
   (_fun -> _rsdd_wmc_params_c))
 
+(define-rsdd free-wmc-params-complex
+  (_fun _rsdd_wmc_params_c -> _void))
+
 (define-wrap rsdd-complex-wmc
   #:from (λ (ws ptr) (_complex->complex (bdd-wmc-complex ptr ws)))
-  #:target COMPLEX-WEIGHTS
-  #:fields ptr)
+  #:fields weights ptr)
 (define-rsdd bdd-wmc-complex
   (_fun _rsdd_bdd_ptr _rsdd_wmc_params_c -> _complex_c))
 
@@ -178,8 +193,7 @@
            (define lo* (complex->_complex lo))
            (define hi* (complex->_complex hi))
            (wmc-param-complex-set-weight ws lab lo* hi*))
-  #:target COMPLEX-WEIGHTS
-  #:fields label lo hi)
+  #:fields weights label lo hi)
 (define-rsdd wmc-param-complex-set-weight
   (_fun _rsdd_wmc_params_c _uint64 _complex_c _complex_c -> _void))
 
@@ -203,14 +217,16 @@
 (define-rsdd new-wmc-params-poly
   (_fun -> _rsdd_wmc_params_poly))
 
+(define-rsdd destroy_wmc_params_poly
+  (_fun _rsdd_wmc_params_poly -> _void))
+
 (define-wrap rsdd-polynomial-wmc
   #:from (lambda (ws ptr)
            (define poly-ptr (bdd-wmc-poly ptr ws))
            (begin0
              (polynomial-get-coeffs poly-ptr (polynomial-len poly-ptr))
              (destroy-polynomial poly-ptr)))
-  #:target POLY-WEIGHTS
-  #:fields ptr)
+  #:fields weights ptr)
 (define-rsdd bdd-wmc-poly
   (_fun _rsdd_bdd_ptr _rsdd_wmc_params_poly -> _rsdd_poly_weight))
 (define-rsdd polynomial-len
@@ -231,8 +247,7 @@
            (wmc-param-poly-set-weight ws lab
                                       lo-lst (length lo-lst)
                                       hi-lst (length hi-lst)))
-  #:target POLY-WEIGHTS
-  #:fields label lo hi)
+  #:fields weights label lo hi)
 (define-rsdd wmc-param-poly-set-weight
   (_fun _rsdd_wmc_params_poly _uint64
         (_list i _double) _size
@@ -244,7 +259,7 @@
 
 (define-wrap rsdd-num-recursive-calls
   #:from bdd-num-recursive-calls
-  #:target BUILDER)
+  #:fields builder)
 (define-rsdd bdd-num-recursive-calls
   (_fun _rsdd_bdd_builder -> _size))
 
@@ -255,33 +270,33 @@
   (_fun _rsdd_bdd_ptr -> _string))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; constants
-
-(define BUILDER (mk-bdd-manager-default-order 0))
-(define WEIGHTS (new-wmc-params-f64))
-(define COMPLEX-WEIGHTS (new-wmc-params-complex))
-(define POLY-WEIGHTS (new-wmc-params-poly))
-
-(define rsdd-true (make-rsdd-true))
-(define rsdd-false (make-rsdd-false))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; engine
 
 (define (rsdd-engine #:semiring [s real-semiring])
-  (engine (make-infer s) (immutable-set/c any/c)))
+  (define b (mk-bdd-manager-default-order 0))
+  (define rw (new-wmc-params-f64))
+  (define cw (new-wmc-params-complex))
+  (define pw (new-wmc-params-poly))
+  (define result (engine (make-infer s b rw cw pw) (immutable-set/c any/c)))
+  (define (free! _)
+    (free-bdd-manager b)
+    (free-wmc-params-f64 rw)
+    (free-wmc-params-complex cw)
+    (destroy_wmc_params_poly pw))
+  (will-register rsdd-executor result free!)
+  result)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; semirings
 
 (provide semiring-predicate)
 
-(struct semiring (predicate zero plus var-set! wmc)
+(struct semiring (predicate zero plus)
   #:property prop:procedure 0
   #:transparent)
 
 (define (bernoulli-measure f t #:semiring [s real-semiring])
-  (match-define (semiring _ zero plus _ _) s)
+  (match-define (semiring _ zero plus) s)
   (define (proc val)
     (plus (if (set-member? val #f) f zero)
           (if (set-member? val #t) t zero)))
@@ -294,10 +309,10 @@
   (measure proc support density (immutable-set/c @boolean?)))
 
 (define real-semiring
-  (semiring real? 0.0 + rsdd-set-real-measure! rsdd-real-wmc))
+  (semiring real? 0.0 +))
 
 (define complex-semiring
-  (semiring complex? 0.0 + rsdd-set-complex-measure! rsdd-complex-wmc))
+  (semiring complex? 0.0 +))
 
 (define (polynomial? v)
   (and (list? v) (andmap number? v)))
@@ -312,73 +327,36 @@
        (cons (+ c1 c2) (go r1 r2))])))
 
 (define polynomial-semiring
-  (semiring polynomial? '() poly-plus rsdd-set-polynomial-measure! rsdd-polynomial-wmc))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; encoding
-
-(define/cache (enc v)
-  (match v
-    [(? expression?) (enc-expr v)]
-    [(? constant?)   (enc-const v)]
-    [_               (enc-lit v)]))
-
-(define (enc-expr v)
-  (match v
-    ;; Recognize `ite` shape and use BDD `ite` operation
-    [(or (expression (== @||)
-                     (expression (== @&&) (expression (== @!) g) e1)
-                     (expression (== @&&) g e2))
-         (expression (== @||)
-                     (expression (== @&&) g e2)
-                     (expression (== @&&) (expression (== @!) g) e1)))
-     (rsdd-ite (enc g) (enc e2) (enc e1))]
-    [(expression (app rsdd-encoder (? procedure? $op)) es ...)
-     (apply $op (map enc es))]
-    [_ (error 'enc "cannot encode ~a" v)]))
-
-(define-encoder rsdd-encoder
-  [@! rsdd-not]
-  [@&& (lift-arity rsdd-and)]
-  [@|| (lift-arity rsdd-or)]
-  [@=> rsdd-implies]
-  [@<=> rsdd-iff])
-
-(define (rsdd-implies x y)
-  (rsdd-or (rsdd-not x) y))
-
-(define (rsdd-iff x y)
-  (rsdd-ite x y (rsdd-not y)))
-
-(define (enc-const v)
-  (rsdd-var (const->label v)))
-
-;; Marked as cached because used in `wmc`
-(define/cache (const->label v)
-  (rsdd-label))
-
-(define (enc-lit v)
-  (match v
-    [#t rsdd-true]
-    [#f rsdd-false]
-    [(? number?) (hash v rsdd-true)]
-    [_ (error 'enc "expected a boolean?, or number?, given ~a" v)]))
+  (semiring polynomial? '() poly-plus))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; infer
 
-(define (make-infer s)
-  (match-define (semiring _predicate zero plus var-set! wmc) s)
-  (λ (val path-aware? lazy?)
-    (define vars (list->set (symbolics val)))
+(define (make-infer s builder real-weights complex-weights poly-weights)
+  (match-define (semiring _predicate zero plus) s)
+  (define/cache (const->label _) (rsdd-label builder))
+  (define enc (make-enc builder const->label))
+  (define var-set!
+    (match s
+      [(== real-semiring) (curry rsdd-set-real-measure! real-weights)]
+      [(== complex-semiring) (curry rsdd-set-complex-measure! complex-weights)]
+      [(== polynomial-semiring) (curry rsdd-set-polynomial-measure! poly-weights)]))
+  (define wmc
+    (match s
+      [(== real-semiring) (curry rsdd-real-wmc real-weights)]
+      [(== complex-semiring) (curry rsdd-complex-wmc complex-weights)]
+      [(== polynomial-semiring) (curry rsdd-polynomial-wmc poly-weights)]))
 
-    ;; Use `in-ddict-reverse` for "program order" as the variable order.
-    (for ([(var measure) (in-ddict-reverse measures)]
+  (λ (val path-aware? lazy?)
+    (define assumes (if path-aware? (vc-assumes (vc)) #t))
+    (define vars (list->set (append (symbolics val) (symbolics assumes))))
+
+    ;; Use `in-measures` for "program order" as the variable order.
+    (for ([(var measure) (in-measures)]
           #:when (set-member? vars var))
       (var-set! (const->label var) (measure (set #f)) (measure (set #t))))
 
     ;; Compute measure
-    (define pc (if path-aware? (vc-assumes (vc)) #t))
     (define ht (flatten-symbolic val))
     (define (procedure elems)
       (for/fold ([acc zero])
@@ -386,7 +364,7 @@
         (plus acc (density elem))))
     (define/cache (density val)
       (if (hash-has-key? ht val)
-          (wmc (enc/log! (&& pc (hash-ref ht val))))
+          (wmc (enc (&& assumes (hash-ref ht val))))
           zero))
     (define support
       (list->set
@@ -396,26 +374,61 @@
     (measure procedure support density (immutable-set/c any/c))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; size
+;; encoding
 
-(define (enc/log! expr)
-  (define bdd (enc expr))
-  (begin0
-    bdd
-    (log-roulette-info "~a total size" (cached-size bdd))
-    (log-roulette-info "~a recursive calls" (rsdd-num-recursive-calls))))
+(define (make-enc b const->label)
+  (define rsdd-true (make-rsdd-true b))
+  (define rsdd-false (make-rsdd-false b))
 
-(define (cached-size bdd)
-  (cond
-    [(or (rsdd-const? bdd) (= 1 (rsdd-scratch bdd 0))) 0]
-    [else
-     (rsdd-set-scratch! bdd 1)
-     (+ 1 (cached-size (rsdd-low bdd)) (cached-size (rsdd-high bdd)))]))
+  (define/cache (enc v)
+    (match v
+      [(? expression?) (enc-expr v)]
+      [(? constant?)   (enc-const v)]
+      [_               (enc-lit v)]))
+
+  (define (enc-expr v)
+    (match v
+      ;; Recognize `ite` shape and use BDD `ite` operation
+      [(or (expression (== @||)
+                       (expression (== @&&) (expression (== @!) g) e1)
+                       (expression (== @&&) g e2))
+           (expression (== @||)
+                       (expression (== @&&) g e2)
+                       (expression (== @&&) (expression (== @!) g) e1)))
+       (rsdd-ite b (enc g) (enc e2) (enc e1))]
+      [(expression (app rsdd-encoder (? procedure? $op)) es ...)
+       (apply $op (map enc es))]
+      [_ (error 'enc "cannot encode ~a" v)]))
+
+  (define-encoder rsdd-encoder
+    [@! (curry rsdd-not b)]
+    [@&& (lift-arity (curry rsdd-and b))]
+    [@|| (lift-arity (curry rsdd-or b))]
+    [@=> bdd-implies]
+    [@<=> bdd-iff])
+
+  (define (bdd-implies x y)
+    (rsdd-or b (rsdd-not b x) y))
+
+  (define (bdd-iff x y)
+    (rsdd-ite b x y (rsdd-not b y)))
+
+  (define (enc-const v)
+    (rsdd-var b (const->label v)))
+
+  (define (enc-lit v)
+    (match v
+      [#t rsdd-true]
+      [#f rsdd-false]
+      [(? number?) (hash v rsdd-true)]
+      [_ (error 'enc "expected a boolean?, or number?, given ~a" v)]))
+
+  enc)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; visualization
 
-(module+ gui
+#;(module+ gui
   (provide debug)
 
   (require racket/runtime-path

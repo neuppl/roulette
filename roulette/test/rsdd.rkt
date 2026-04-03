@@ -12,7 +12,10 @@
            "util.rkt")
 
   (require/expose roulette/engine/rsdd
-    (rsdd-label rsdd-var rsdd-true rsdd-false
+    (mk-bdd-manager-default-order
+     new-wmc-params-f64
+     new-wmc-params-complex
+     rsdd-label rsdd-var
      rsdd-and rsdd-or rsdd-not rsdd-ite
      rsdd-true? rsdd-false? rsdd-equal?
      rsdd-set-real-measure! rsdd-real-wmc
@@ -24,7 +27,8 @@
     (syntax-parser
       [(_ ([x:id rx:expr] ...) def:expr ... body:expr ([y:expr ry:expr] ...))
        (syntax/loc this-syntax
-         (check-close (let ()
+         (check-close 0.0000001
+                      (let ()
                         (define-measurable x (bernoulli-measure (- 1 rx) rx)) ...
                         def ...
                         (define inferred (infer body))
@@ -34,44 +38,45 @@
 
   ;; tests
   (test-case "basic FFI calls"
-    (define x-lab (rsdd-label))
-    (define x (rsdd-var x-lab))
+    (define b (mk-bdd-manager-default-order 0))
+    (define rw (new-wmc-params-f64))
+    (define cw (new-wmc-params-complex))
 
-    (define y-lab (rsdd-label))
-    (define y (rsdd-var y-lab))
+    (define x-lab (rsdd-label b))
+    (define x (rsdd-var b x-lab))
 
-    (define z-lab (rsdd-label))
-    (define z (rsdd-var z-lab))
+    (define y-lab (rsdd-label b))
+    (define y (rsdd-var b y-lab))
 
-    (define w-lab (rsdd-label))
-    (define w (rsdd-var w-lab))
+    (define z-lab (rsdd-label b))
+    (define z (rsdd-var b z-lab))
 
-    (rsdd-set-real-measure! x-lab 0.5 0.5)
-    (rsdd-set-real-measure! y-lab 0.5 0.5)
+    (define w-lab (rsdd-label b))
+    (define w (rsdd-var b w-lab))
 
-    (rsdd-set-complex-measure! z-lab 0 0+1i)
-    (rsdd-set-complex-measure! w-lab 0 0+1i)
+    (rsdd-set-real-measure! rw x-lab 0.5 0.5)
+    (rsdd-set-real-measure! rw y-lab 0.5 0.5)
 
-    (check-equal? (rsdd-real-wmc (rsdd-and x y)) 0.25)
-    (check-equal? (rsdd-complex-wmc (rsdd-and z w)) -1.0+0.0i)
-    (check-pred exact-nonnegative-integer? (rsdd-num-recursive-calls))
-    (check-equal? (rsdd-real-wmc (rsdd-or x y)) 0.75)
-    (check-equal? (rsdd-real-wmc (rsdd-not (rsdd-and x y))) 0.75)
-    (check-equal? (rsdd-real-wmc (rsdd-ite x x (rsdd-not x))) 1.0)
+    (rsdd-set-complex-measure! cw z-lab 0 0+1i)
+    (rsdd-set-complex-measure! cw w-lab 0 0+1i)
+
+    (check-equal? (rsdd-real-wmc rw (rsdd-and b x y)) 0.25)
+    (check-equal? (rsdd-complex-wmc cw (rsdd-and b z w)) -1.0+0.0i)
+    (check-pred exact-nonnegative-integer? (rsdd-num-recursive-calls b))
+    (check-equal? (rsdd-real-wmc rw (rsdd-or b x y)) 0.75)
+    (check-equal? (rsdd-real-wmc rw (rsdd-not b (rsdd-and b x y))) 0.75)
+    (check-equal? (rsdd-real-wmc rw (rsdd-ite b x x (rsdd-not b x))) 1.0)
 
     (check-equal?
-     (string->jsexpr (rsdd-to-json (rsdd-and x y)))
+     (string->jsexpr (rsdd-to-json (rsdd-and b x y)))
      #hasheq((nodes . (#hasheq((high . "True") (low . "False") (topvar . 1))
                        #hasheq((high . #hasheq((Ptr . #hasheq((compl . #f) (index . 0)))))
                                (low . "False") (topvar . 0))))
              (roots . (#hasheq((Ptr . #hasheq((compl . #f) (index . 1))))))))
 
-    (check-true (rsdd-equal? (rsdd-and x y) (rsdd-and y x)))
-    (check-true (rsdd-true? (rsdd-or x (rsdd-not x))))
-    (check-true (rsdd-true? rsdd-true))
-
-    (check-true (rsdd-false? (rsdd-and x (rsdd-not x))))
-    (check-true (rsdd-false? rsdd-false)))
+    (check-true (rsdd-equal? b (rsdd-and b x y) (rsdd-and b y x)))
+    (check-true (rsdd-true? (rsdd-or b x (rsdd-not b x))))
+    (check-true (rsdd-false? (rsdd-and b x (rsdd-not b x)))))
 
   (test-case "conditionals over atomic data"
     (check-program ([x0 0.1] [y0 0.5])

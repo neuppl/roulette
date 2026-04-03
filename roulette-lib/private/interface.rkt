@@ -42,7 +42,6 @@
 
 (require (for-syntax racket/base
                      syntax/parse)
-         data/ddict
          rosette
          "../engine/rsdd.rkt"
          "engine.rkt"
@@ -61,7 +60,7 @@
      #'(begin
          (define m e)
          (define-symbolic x ... (measure-point m))
-         (ddict-set! measures x m) ...)]))
+         (measures-set! x m) ...)]))
 
 (define-syntax -define-measurable*
   (syntax-parser
@@ -69,10 +68,13 @@
      #'(begin
          (define m e)
          (define-symbolic* x ... (measure-point m))
-         (ddict-set! measures x m) ...)]))
+         (measures-set! x m) ...)]))
 
 (define (measure-point m)
   (measurable-space-point (measure-domain m)))
 
-(define (infer val #:engine [eng default-engine] #:path-aware? [path-aware? #f] #:lazy? [lazy? #f])
+(define (infer val
+               #:engine [eng default-engine]
+               #:path-aware? [path-aware? #f]
+               #:lazy? [lazy? #f])
   ((engine-infer eng) val path-aware? lazy?))

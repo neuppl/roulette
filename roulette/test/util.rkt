@@ -12,16 +12,12 @@
          roulette)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; constants
-
-(define ϵ 0.0000001)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; defns
 
-(define-syntax-rule (check-close v1 v2)
-  (check-equal? (hash-round v1) (hash-round v2)))
+(define-syntax-rule (check-close ϵ v1 v2)
+  (check-true (hash-within ϵ v1 v2)))
 
-(define (hash-round ht)
-  (for/hash ([(k v) (in-hash ht)])
-    (values k (exact->inexact (* ϵ (round (/ v ϵ)))))))
+(define (hash-within ϵ h1 h2)
+  (and (set=? (hash-keys h1) (hash-keys h2))
+       (for/and ([k (in-list (hash-keys h1))])
+         (< (abs (- (hash-ref h1 k) (hash-ref h2 k))) ϵ))))
