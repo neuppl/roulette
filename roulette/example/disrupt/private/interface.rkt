@@ -99,9 +99,13 @@
   (for/lists (vs ws #:result (mean vs ws))
              ([_ (in-range n)])
     (set! engine (rsdd-engine))
-    (with-observe
-      (values (query (thk))
-              ((query o-evidence #:evidence s-evidence) #t)))))
+    (define old s-evidence)
+    (begin0
+      (with-observe
+        (let ([result-pmf (query (thk))]
+              [weight-pmf (query o-evidence #:evidence s-evidence)])
+          (values result-pmf (weight-pmf #t))))
+      (set! s-evidence old))))
 
 (define (hash-sample ht)
   (define target (random))
@@ -130,11 +134,10 @@
   (set! o-evidence (&& o-evidence e)))
 
 (define-syntax-rule (with-observe body0 body ...)
-  (let ([old-o-evidence o-evidence] [old-s-evidence s-evidence])
+  (let ([old o-evidence])
     (begin0
       (begin body0 body ...)
-      (set! o-evidence old-o-evidence)
-      (set! s-evidence old-s-evidence))))
+      (set! o-evidence old))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wrapping

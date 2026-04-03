@@ -32,9 +32,7 @@
   (define-syntax check-program
     (syntax-parser
       [(_ prog ([val pr] ...))
-       #:with (?eval ...) #'(run run-safe)
-       #'(begin
-           (check-program-fn ?eval 'prog (hash (~@ val pr) ...)) ...)]))
+       #'(check-program-fn run 'prog (hash (~@ val pr) ...))]))
 
   (define (check-program-fn ev prog ht)
     (with-check-info (['program prog])
@@ -50,6 +48,11 @@
   (check-program
    (flip 1/2)
    ([#t 1/2] [#f 1/2]))
+
+  (check-program-fn
+   run-safe
+   '(flip 1/2)
+   (hash #t 1/2 #f 1/2))
 
   (check-program
    (not (flip 0.5))
