@@ -9,6 +9,8 @@
 			      query
 			      observe!
 			      with-observe
+			      sample
+			      with-sample
 			      pmf?
 			      in-pmf))
 	  racket/sandbox
@@ -76,7 +78,7 @@ changes the probability of @racket[first-coin]. Conditional on
     (and x y)]
 }
 
-@defform[(with-observe body)]{
+@defform[(with-observe body ...+)]{
   Delimits observations to the dynamic extent of @racket[body]. After
   @racket[body] has finished, any observations executed during @racket[body]
   are forgotten.
@@ -87,6 +89,26 @@ changes the probability of @racket[first-coin]. Conditional on
       (observe! x)
       (query (and x y)))
     (query (and x y))]
+}
+
+@defproc[(sample [e any/c]) any/c]{
+  Samples a concrete value from the given probabilistic value.
+  @examples[
+    #:eval evaluator #:label #f
+    (sample (flip 1/2))]
+}
+
+@defform[(with-sample iter body ...+)]{
+  Runs the @racket[body] expression @racket[iter] times,
+  producing a probabilistic value according to the sampling distribution.
+  Note that observations are automatically delimited
+  (using @racket[with-observe])
+  inside of @racket[body]
+  to prevent observations from leaking between samples.
+  @examples[
+    #:eval evaluator #:label #f
+    (with-sample 100
+      (sample (flip 1/3)))]
 }
 
 @defproc[(in-pmf [e pmf?]) stream?]{

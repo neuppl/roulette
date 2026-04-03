@@ -15,8 +15,10 @@
 
 (define deps
   '("base"
+    "parser-tools-lib"
     "rackunit-lib"
-    "roulette-lib"))
+    "roulette-lib"
+    "text-table"))
 
 (define implies
   '("roulette-lib"))

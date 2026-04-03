@@ -7,21 +7,14 @@
          pmf?
          pmf-support
          in-pmf
-         for/pmf)
+         for/pmf
+         pmf-hash)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require racket/format
-         racket/list
-         racket/match
+(require racket/match
          racket/struct)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; constants
-
-(define ARROW "↦")
-(define SEP "|")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; probability mass function
@@ -35,12 +28,8 @@
       (λ (self) 'pmf)
       (λ (self)
         (match-define (pmf ht) self)
-        (define mappings
-          (for/list ([(k v) (in-hash ht)])
-            (list k (unquoted-printing-string ARROW) (unquoted-printing-string (~r v)))))
-        (define sep-unq (unquoted-printing-string SEP))
-        (define separated-mappings (add-between mappings (list sep-unq)))
-        (cons sep-unq (apply append separated-mappings)))))])
+        (for/list ([(k v) (in-hash ht)])
+          (unquoted-printing-string (format "[~v ~a]" k v))))))])
 
 (define (make-pmf ht)
   (for/pmf ([(value measure) (in-hash ht)]

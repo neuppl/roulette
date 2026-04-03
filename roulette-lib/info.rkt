@@ -25,6 +25,7 @@
     "ddict"
     "gui-lib"
     "pict-lib"
-    "rosette"))
+    "rosette"
+    "text-table"))
 
 (define build-deps '())
