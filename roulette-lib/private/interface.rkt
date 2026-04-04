@@ -15,8 +15,8 @@
   [-define-measurable define-measurable]
   [-define-measurable* define-measurable*])
  (contract-out
-  [infer (->i ([val (eng) (measurable-space-point (engine-domain (if (unsupplied-arg? eng) default-engine eng)))])
-              (#:engine [eng engine?]
+  [infer (->i ([val (eng) (measurable-space-point (send (if (unsupplied-arg? eng) default-engine eng) domain))])
+              (#:engine [eng (is-a?/c engine<%>)]
                #:path-aware? [path-aware? boolean?]
                #:lazy? [lazy? boolean?])
               any)])
@@ -77,4 +77,4 @@
                #:engine [eng default-engine]
                #:path-aware? [path-aware? #f]
                #:lazy? [lazy? #f])
-  ((engine-infer eng) val path-aware? lazy?))
+  (send eng infer val path-aware? lazy?))

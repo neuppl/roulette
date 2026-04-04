@@ -7,20 +7,16 @@
          define/cache
          define-encoder
          flatten-symbolic
-         lift-arity
-         dict-first-key
-         dict-first-value
-         in-ddict-reverse)
+         polynomial?
+         polynomial-add
+         lift-arity)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
 (require (for-syntax racket/base
                      syntax/parse)
-         data/ddict
-         racket/dict
          racket/match
-         racket/stream
          racket/struct
          rosette/base/core/bool
          rosette/base/core/polymorphic
@@ -117,6 +113,21 @@
     [_ #f]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; polynomial
+
+(define (polynomial? v)
+  (and (list? v) (andmap real? v)))
+
+(define (polynomial-add p1 p2)
+  (let go ([p1 p1] [p2 p2])
+    (match* (p1 p2)
+      [('() '()) '()]
+      [('() p2) p2]
+      [(p1 '()) p1]
+      [((cons c1 r1) (cons c2 r2))
+       (cons (+ c1 c2) (go r1 r2))])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; misc
 
 (define-syntax-rule (for*/hash/or (cl ...) body ...)
@@ -130,16 +141,3 @@
     (match args
       [(list x y) (f x y)]
       [(cons x rst) (f x (go rst))])))
-
-(define (dict-first-key ht)
-  (dict-iterate-key ht (dict-iterate-first ht)))
-
-(define (dict-first-value ht)
-  (dict-iterate-value ht (dict-iterate-first ht)))
-
-(define-syntax-rule (in-ddict-reverse dd)
-  (in-stream (ddict->reverse-stream dd)))
-
-(define (ddict->reverse-stream dd)
-  (for/stream ([k (reverse (ddict-keys dd))])
-    (values k (ddict-ref dd k))))

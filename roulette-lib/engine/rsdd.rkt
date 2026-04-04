@@ -6,7 +6,11 @@
 (require (except-in racket/contract ->))
 (provide
  (contract-out
-  [rsdd-engine (->* () (#:semiring semiring?) engine?)]
+  [rename make-rsdd-engine
+          rsdd-engine
+          (->* ()
+               (#:semiring semiring?)
+               (is-a?/c engine<%>))]
   [bernoulli-measure (->i ([f (s) (if (unsupplied-arg? s) real-semiring s)]
                            [t (s) (if (unsupplied-arg? s) real-semiring s)])
                           (#:semiring [s semiring?])
@@ -21,11 +25,17 @@
 
 (require (only-in rosette/base/core/reflect symbolics)
          ffi/unsafe
+         ffi/unsafe/custodian
          ffi/unsafe/define
          ffi/unsafe/define/conventions
+         racket/class
+         racket/file
+         racket/runtime-path
+         racket/system
          racket/function
          racket/set
          racket/match
+         racket/lazy-require
          rosette/base/core/bool
          rosette/base/core/term
          "../private/engine.rkt"
@@ -34,7 +44,7 @@
          "../private/util.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; prelude
+;; FFI prelude
 
 (define rsdd-ffi-lib
   (ffi-lib "librsdd"))
@@ -42,18 +52,8 @@
 (define-ffi-definer define-rsdd rsdd-ffi-lib
   #:make-c-id convention:hyphen->underscore)
 
-(define rsdd-executor
-  (make-will-executor))
-
-(void
- (thread
-  (λ ()
-    (let go ()
-      (will-execute rsdd-executor)
-      (go)))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; bdd
+;; BDD FFI
 
 (define-cpointer-type _rsdd_bdd_builder)
 (define-cpointer-type _rsdd_bdd_ptr)
@@ -272,34 +272,74 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; engine
 
-(define (rsdd-engine #:semiring [s real-semiring])
-  (define b (mk-bdd-manager-default-order 0))
-  (define rw (new-wmc-params-f64))
-  (define cw (new-wmc-params-complex))
-  (define pw (new-wmc-params-poly))
-  (define result (engine (make-infer s b rw cw pw) (immutable-set/c any/c)))
-  (define (free! _)
-    (free-bdd-manager b)
-    (free-wmc-params-f64 rw)
-    (free-wmc-params-complex cw)
-    (destroy_wmc_params_poly pw))
-  (will-register rsdd-executor result free!)
-  result)
+(define (make-rsdd-engine #:semiring [semi real-semiring])
+  (new rsdd-engine% [semi semi]))
+
+(define-local-member-name enc)
+
+(define rsdd-engine%
+  (class* object% (engine<%>)
+    (init semi)
+    (super-new)
+
+    (match-define (semiring _ zero add var-set! wmc get-map) semi)
+    (define builder (mk-bdd-manager-default-order 0))
+    (register-finalizer-and-custodian-shutdown builder free-bdd-manager)
+
+    (define weights (make-weights))
+    (define weight-map (get-map weights))
+    (define/cache (const->label _) (rsdd-label builder))
+    (define enc (make-enc builder const->label))
+
+    (define/public (domain)
+      (immutable-set/c any/c))
+
+    (define/public (infer val path-aware? lazy?)
+      (define assumes (if path-aware? (vc-assumes (vc)) #t))
+      (define vars (list->set (append (symbolics val) (symbolics assumes))))
+
+      ;; Use `in-measures` for "program order" as the variable order.
+      (for ([(var measure) (in-measures)]
+            #:when (set-member? vars var))
+        (define f (measure (set #f)))
+        (define t (measure (set #t)))
+        (var-set! weight-map (const->label var) f t))
+
+      ;; Compute measure
+      (define ht (flatten-symbolic val))
+      (define (procedure elems)
+        (for/fold ([acc zero])
+                  ([elem (in-set elems)])
+          (add acc (density elem))))
+      (define/cache (density val)
+        (if (hash-has-key? ht val)
+            (wmc weight-map (enc (&& assumes (hash-ref ht val))))
+            zero))
+      (define support
+        (list->set
+         (if lazy?
+             (hash-keys ht)
+             (filter (λ (k) (not (equal? (density k) zero))) (hash-keys ht)))))
+      (measure procedure support density (immutable-set/c any/c)))
+
+    (define/public (recursive-calls)
+      (rsdd-num-recursive-calls builder))
+
+    (define/public (show val)
+      (for/list ([(val expr) (in-hash (flatten-symbolic val))])
+        (define bdd (enc expr))
+        (define p (bdd->pict bdd))
+        (cons p val)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; semirings
-
-(provide semiring-predicate)
-
-(struct semiring (predicate zero plus)
-  #:property prop:procedure 0
-  #:transparent)
+;; bernoulli
 
 (define (bernoulli-measure f t #:semiring [s real-semiring])
-  (match-define (semiring _ zero plus) s)
+  (define zero (semiring-zero s))
+  (define add (semiring-add s))
   (define (proc val)
-    (plus (if (set-member? val #f) f zero)
-          (if (set-member? val #t) t zero)))
+    (add (if (set-member? val #f) f zero)
+         (if (set-member? val #t) t zero)))
   (define (density val)
     (if val t f))
   (define support
@@ -308,70 +348,47 @@
       val))
   (measure proc support density (immutable-set/c @boolean?)))
 
-(define real-semiring
-  (semiring real? 0.0 +))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; weight maps
 
-(define complex-semiring
-  (semiring complex? 0.0 +))
+(struct weights (real complex polynomial))
 
-(define (polynomial? v)
-  (and (list? v) (andmap number? v)))
-
-(define (poly-plus p1 p2)
-  (let go ([p1 p1] [p2 p2])
-    (match* (p1 p2)
-      [('() '()) '()]
-      [('() p2) p2]
-      [(p1 '()) p1]
-      [((cons c1 r1) (cons c2 r2))
-       (cons (+ c1 c2) (go r1 r2))])))
-
-(define polynomial-semiring
-  (semiring polynomial? '() poly-plus))
+(define (make-weights)
+  (define real (new-wmc-params-f64))
+  (define complex (new-wmc-params-complex))
+  (define polynomial (new-wmc-params-poly))
+  (define result (weights real complex polynomial))
+  (define (free _)
+    (free-wmc-params-f64 real)
+    (free-wmc-params-complex complex)
+    (destroy_wmc_params_poly polynomial))
+  (register-finalizer-and-custodian-shutdown weights free)
+  result)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; infer
+;; semirings
 
-(define (make-infer s builder real-weights complex-weights poly-weights)
-  (match-define (semiring _predicate zero plus) s)
-  (define/cache (const->label _) (rsdd-label builder))
-  (define enc (make-enc builder const->label))
-  (define var-set!
-    (match s
-      [(== real-semiring) (curry rsdd-set-real-measure! real-weights)]
-      [(== complex-semiring) (curry rsdd-set-complex-measure! complex-weights)]
-      [(== polynomial-semiring) (curry rsdd-set-polynomial-measure! poly-weights)]))
-  (define wmc
-    (match s
-      [(== real-semiring) (curry rsdd-real-wmc real-weights)]
-      [(== complex-semiring) (curry rsdd-complex-wmc complex-weights)]
-      [(== polynomial-semiring) (curry rsdd-polynomial-wmc poly-weights)]))
+(struct semiring (predicate zero add set-measure! wmc get-weight-map)
+  #:property prop:procedure 0)
 
-  (λ (val path-aware? lazy?)
-    (define assumes (if path-aware? (vc-assumes (vc)) #t))
-    (define vars (list->set (append (symbolics val) (symbolics assumes))))
+(define real-semiring
+  (semiring real? 0.0 +
+            rsdd-set-real-measure!
+            rsdd-real-wmc
+            weights-real))
 
-    ;; Use `in-measures` for "program order" as the variable order.
-    (for ([(var measure) (in-measures)]
-          #:when (set-member? vars var))
-      (var-set! (const->label var) (measure (set #f)) (measure (set #t))))
+(define complex-semiring
+  (semiring complex? 0.0 +
+            rsdd-set-complex-measure!
+            rsdd-complex-wmc
+            weights-complex))
 
-    ;; Compute measure
-    (define ht (flatten-symbolic val))
-    (define (procedure elems)
-      (for/fold ([acc zero])
-                ([elem (in-set elems)])
-        (plus acc (density elem))))
-    (define/cache (density val)
-      (if (hash-has-key? ht val)
-          (wmc (enc (&& assumes (hash-ref ht val))))
-          zero))
-    (define support
-      (list->set
-       (if lazy?
-           (hash-keys ht)
-           (filter (λ (k) (not (equal? (density k) zero))) (hash-keys ht)))))
-    (measure procedure support density (immutable-set/c any/c))))
+(define polynomial-semiring
+  (semiring polynomial? '()
+            polynomial-add
+            rsdd-set-polynomial-measure!
+            rsdd-polynomial-wmc
+            weights-polynomial))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
@@ -428,38 +445,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; visualization
 
-#;(module+ gui
-  (provide debug)
+(lazy-require [pict (bitmap)])
+(define-runtime-path HERE ".")
+(define PYTHON (find-executable-path "python3"))
+(define render-py (build-path HERE ".." "private" "etc" "render_graphviz.py"))
 
-  (require racket/runtime-path
-           racket/gui
-           pict)
-
-  (define-runtime-path HERE ".")
-  (define PYTHON (find-executable-path "python3"))
-  (define render-py (build-path HERE ".." "private" "etc" "render_graphviz.py"))
-
-  (define (debug val #:show? [show? #f])
-    (begin0
-      (for/list ([(val expr) (in-hash (flatten-symbolic val))])
-        (define bdd (enc expr))
-        (define p (bdd->pict bdd))
-        (when show? (show-pict p))
-        (log-roulette-info "~v has size ~a" val (rsdd-nodes (enc expr)))
-        (cons p val))
-      (log-roulette-info "~a recursive calls" (rsdd-num-recursive-calls))))
-
-  (define (bdd->pict bdd)
-    (define input-path (make-temporary-file "rkttmp~a.bdd"))
-    (define output-path (make-temporary-file "rkttmp~a.png"))
-    (with-output-to-file input-path
-      #:exists 'replace
-      (λ ()
-        (displayln (rsdd-to-json bdd))))
-    (define ok?
-      (system* PYTHON (path->string render-py)
-               "--file" (path->string input-path)
-               "--output" (path->string output-path)))
-    (unless ok?
-      (raise-user-error "failed to convert symbolic expression to image"))
-    (bitmap output-path)))
+(define (bdd->pict bdd)
+  (define input-path (make-temporary-file "rkttmp~a.bdd"))
+  (define output-path (make-temporary-file "rkttmp~a.png"))
+  (with-output-to-file input-path
+    #:exists 'replace
+    (λ ()
+      (displayln (rsdd-to-json bdd))))
+  (define ok?
+    (system* PYTHON (path->string render-py)
+             "--file" (path->string input-path)
+             "--output" (path->string output-path)))
+  (unless ok?
+    (raise-user-error "failed to convert symbolic expression to image"))
+  (bitmap output-path))

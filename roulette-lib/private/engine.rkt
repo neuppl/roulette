@@ -3,18 +3,24 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
 
-(provide (struct-out engine)
+(provide engine<%>
          engine/c)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require racket/contract)
+(require racket/contract
+         racket/class)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; data
 
-(struct engine (infer domain))
+(define engine<%>
+  (interface ()
+    infer domain))
 
 (define (engine/c dom cod)
-  (struct/c engine (-> dom cod) any/c))
+  (and/c
+   (is-a?/c engine<%>)
+   (object/c
+    [infer (-> dom cod)])))
