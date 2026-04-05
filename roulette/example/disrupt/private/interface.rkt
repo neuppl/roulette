@@ -18,6 +18,11 @@
  sample
  with-sample
 
+ ;; debug
+ clear-cache!
+ recursive-calls
+ size
+
  ;; `pmf.rkt`
  pmf
  pmf?
@@ -172,6 +177,18 @@
         (map header '(Value Probability))
         (for/list ([(v p) (in-pmf res)])
           (list v p))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; debug
+
+(define (clear-cache!)
+  (set! engine (rsdd-engine)))
+
+(define (recursive-calls)
+  (send engine recursive-calls))
+
+(define (size v)
+  (send engine size v))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; categorical random variable

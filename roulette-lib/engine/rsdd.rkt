@@ -76,23 +76,23 @@
 (define-rsdd bdd-var
   (_fun _rsdd_bdd_builder _int64 _stdbool -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-ite #:from bdd-ite #:fields builder x y z #:cache)
+(define-wrap rsdd-ite #:from bdd-ite #:fields builder x y z)
 (define-rsdd bdd-ite
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-and #:from bdd-and #:fields builder x y #:cache)
+(define-wrap rsdd-and #:from bdd-and #:fields builder x y)
 (define-rsdd bdd-and
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-or #:from bdd-or #:fields builder x y #:cache)
+(define-wrap rsdd-or #:from bdd-or #:fields builder x y)
 (define-rsdd bdd-or
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-compose #:from bdd-compose #:fields builder x l y #:cache)
+(define-wrap rsdd-compose #:from bdd-compose #:fields builder x l y)
 (define-rsdd bdd-compose
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _int64 _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
-(define-wrap rsdd-not #:from bdd-negate #:fields builder x #:cache)
+(define-wrap rsdd-not #:from bdd-negate #:fields builder x)
 (define-rsdd bdd-negate
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr -> _rsdd_bdd_ptr))
 
@@ -140,7 +140,7 @@
 (define-rsdd bdd-count-nodes
   (_fun _rsdd_bdd_ptr -> _size))
 
-(define-wrap rsdd-equal? #:from bdd-eq #:fields builder x y #:cache)
+(define-wrap rsdd-equal? #:from bdd-eq #:fields builder x y)
 (define-rsdd bdd-eq
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _stdbool))
 
@@ -275,8 +275,6 @@
 (define (make-rsdd-engine #:semiring [semi real-semiring])
   (new rsdd-engine% [semi semi]))
 
-(define-local-member-name enc)
-
 (define rsdd-engine%
   (class* object% (engine<%>)
     (init semi)
@@ -324,6 +322,10 @@
 
     (define/public (recursive-calls)
       (rsdd-num-recursive-calls builder))
+
+    (define/public (size v)
+      (for/sum ([f (in-hash-values (flatten-symbolic v))])
+        (bdd-size (enc f))))
 
     (define/public (show val)
       (for/list ([(val expr) (in-hash (flatten-symbolic val))])
@@ -441,6 +443,16 @@
       [_ (error 'enc "expected a boolean?, or number?, given ~a" v)]))
 
   enc)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; size
+
+(define/cache (bdd-size v)
+  (cond
+    [(or (rsdd-const? v) (= 1 (rsdd-scratch v 0))) 0]
+    [else
+     (rsdd-set-scratch! v 1)
+     (+ 1 (bdd-size (rsdd-low v)) (bdd-size (rsdd-high v)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; visualization
