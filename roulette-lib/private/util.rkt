@@ -36,15 +36,18 @@
      #`(def (to (~? (~@ args ...)))
          (from (~? (~@ args ...))))]))
 
+;; WARNING: Making these caches anything but `hasheq` will cause them to
+;; not be kill safe, and may cause indefinite hangs in multi-threaded
+;; applications.
 (define-syntax define/cache
   (syntax-parser
     [(_ (x:id a:id ... an:id) body:expr ...)
      #:with (b ...) (generate-temporaries #'(a ...))
      #:with (c ... d) #'(cache b ...)
      #'(define x
-         (let ([cache (make-weak-hash)])
+         (let ([cache (make-weak-hasheq)])
            (λ (a ... an)
-             (define b (hash-ref! c a make-weak-hash)) ...
+             (define b (hash-ref! c a make-weak-hasheq)) ...
              (hash-ref! d an (λ () body ...)))))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

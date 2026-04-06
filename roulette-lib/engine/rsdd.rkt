@@ -399,7 +399,9 @@
   (define rsdd-true (make-rsdd-true b))
   (define rsdd-false (make-rsdd-false b))
 
+  ;; Using `(sleep 0)` allows encoding to be interleaved with other threads.
   (define/cache (enc v)
+    (sleep 0)
     (match v
       [(? expression?) (enc-expr v)]
       [(? constant?)   (enc-const v)]
