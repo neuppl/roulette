@@ -62,6 +62,7 @@
   (let go ([val val])
     (match val
       ;; Can't just use (? @boolean?) because that might produce a symbolic Boolean itself.
+      [(or #t #f) (hash val #t)]
       [(and (app @boolean? #t) (? encodable?))
        (hash #t val #f (! val))]
       [(union gvs) (go (apply ite* gvs))]
