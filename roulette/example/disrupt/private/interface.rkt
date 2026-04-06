@@ -9,6 +9,7 @@
   [module-begin #%module-begin]
   [top-interaction #%top-interaction])
 
+ ;; operations
  flip
  query
 
@@ -17,6 +18,9 @@
 
  sample
  with-sample
+
+ ;; profiling
+ cost
 
  ;; debug
  clear-cache!
@@ -44,8 +48,6 @@
 ;; parameters
 
 (define engine (rsdd-engine))
-(gc-terms!)
-
 (define o-evidence #t)
 (define s-evidence #t)
 
@@ -63,13 +65,16 @@
        (define-measurable* x (bernoulli-measure (- 1 pr) pr))
        x)]))
 
-(define (query e #:evidence [evidence (and o-evidence s-evidence)])
+(define (query e
+               #:evidence [evidence (and o-evidence s-evidence)]
+               #:environment [env #f])
   (define ⊥ (unreachable))
   (define unnormalized
     (infer (if evidence e ⊥)
            #:engine engine
            #:path-aware? #t
-           #:lazy? #f))
+           #:lazy? #f
+           #:environment env))
   (define prob (density unnormalized))
   (define normalizer
     (for/sum ([value (in-set (support unnormalized))]
@@ -179,6 +184,40 @@
           (list v p))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; cost
+
+(define (cost val vars
+              #:iterations [iters 10]
+              #:budget [budget +inf.0]
+              #:wait [wait 1/4])
+  (define (make-env)
+    (for/hash ([var (in-set vars)])
+      (define pr (hash-ref (pmf-hash (query var)) #t 0))
+      (values var (< (random) pr))))
+
+  (define (budget-thread)
+    (thread
+     (λ ()
+       (let go ()
+         (sleep wait)
+         (and (<= (recursive-calls) budget) (go))))))
+
+  (define (query-thread)
+    (thread
+     (λ ()
+       (query val #:environment (make-env)))))
+
+  (for/list ([k (in-range iters)])
+    (clear-cache!)
+    (define b-thd (budget-thread))
+    (define q-thd (query-thread))
+    (sync b-thd q-thd)
+    (begin0
+      (and (thread-dead? q-thd) (recursive-calls))
+      (kill-thread q-thd)
+      (kill-thread b-thd))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
 
 (define (clear-cache!)
@@ -211,3 +250,28 @@
 (define (renormalize xs n)
   (for/list ([x+y (in-list xs)])
     (cons (car x+y) (/ (cdr x+y) n))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; gc-terms hack
+
+(require rackunit)
+(require/expose rosette/base/core/term (current-terms))
+
+;; This hack is necessary to convert Rosette's internal cache into an
+;; `eq?`-based hash for kill safety.
+(let ()
+  (define cache
+    (impersonate-hash
+     (make-weak-hasheq)
+     (lambda (h k)
+       (values k (lambda (h k e) (ephemeron-value e #f))))
+     (lambda (h k v)
+       (values k (make-ephemeron k v)))
+     (lambda (h k) k)
+     (lambda (h k) k)
+     hash-clear!))
+
+  (for ([(k v) (current-terms)])
+    (hash-set! cache k v))
+
+  (current-terms cache))

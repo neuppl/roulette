@@ -292,7 +292,7 @@
     (define/public (domain)
       (immutable-set/c any/c))
 
-    (define/public (infer val path-aware? lazy?)
+    (define/public (infer val path-aware? lazy? env)
       (define assumes (if path-aware? (vc-assumes (vc)) #t))
       (define vars (list->set (append (symbolics val) (symbolics assumes))))
 
@@ -310,9 +310,11 @@
                   ([elem (in-set elems)])
           (add acc (density elem))))
       (define/cache (density val)
-        (if (hash-has-key? ht val)
-            (wmc weight-map (enc (&& assumes (hash-ref ht val))))
-            zero))
+        (cond
+          [(hash-has-key? ht val)
+           (define g (&& assumes (hash-ref ht val)))
+           (wmc weight-map (enc (if env (substitute g env) g)))]
+          [else zero]))
       (define support
         (list->set
          (if lazy?
@@ -445,6 +447,43 @@
       [_ (error 'enc "expected a boolean?, or number?, given ~a" v)]))
 
   enc)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; substitution
+
+(define (substitute v env)
+  (define/cache (go v)
+    (match v
+      [(? expression?) (go-expr v)]
+      [(? constant?)   (hash-ref env v v)]
+      [_               v]))
+
+  (define (go-expr v)
+    (match v
+      [(or (expression (== @||)
+                       (expression (== @&&) (expression (== @!) g) e1)
+                       (expression (== @&&) g e2))
+           (expression (== @||)
+                       (expression (== @&&) g e2)
+                       (expression (== @&&) (expression (== @!) g) e1)))
+       (if-then-else (go g) (go e1) (go e2))]
+
+      [(expression (? procedure? $op) es ...)
+       (apply $op (map go es))]))
+
+  (go v))
+
+(define (if-then-else g e1 e2)
+  (cond
+    [(eq? g #t) e1]
+    [(eq? g #f) e2]
+    [(eq? e1 #t) (|| g e2)]
+    [(eq? e1 #f) (&& (! g) e2)]
+    [(eq? e2 #t) (|| g e1)]
+    [(eq? e2 #f) (&& (! g) e1)]
+    [else (expression @||
+                      (expression @&& (expression @! g) e1)
+                      (expression @&& g e2))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; size

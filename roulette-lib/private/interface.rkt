@@ -18,7 +18,8 @@
   [infer (->i ([val (eng) (measurable-space-point (send (if (unsupplied-arg? eng) default-engine eng) domain))])
               (#:engine [eng (is-a?/c engine<%>)]
                #:path-aware? [path-aware? boolean?]
-               #:lazy? [lazy? boolean?])
+               #:lazy? [lazy? boolean?]
+               #:environment [env (or/c #f hash?)])
               any)])
 
  ;; `private/measure.rkt`
@@ -76,5 +77,6 @@
 (define (infer val
                #:engine [eng default-engine]
                #:path-aware? [path-aware? #f]
-               #:lazy? [lazy? #f])
-  (send eng infer val path-aware? lazy?))
+               #:lazy? [lazy? #f]
+               #:environment [env #f])
+  (send eng infer val path-aware? lazy? env))
