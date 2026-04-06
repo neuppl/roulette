@@ -47,6 +47,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; parameters
 
+(gc-terms!)
 (define engine (rsdd-engine))
 (define o-evidence #t)
 (define s-evidence #t)
@@ -207,15 +208,19 @@
      (λ ()
        (query val #:environment (make-env)))))
 
-  (for/list ([k (in-range iters)])
-    (clear-cache!)
-    (define b-thd (budget-thread))
-    (define q-thd (query-thread))
-    (sync b-thd q-thd)
-    (begin0
-      (and (thread-dead? q-thd) (recursive-calls))
-      (kill-thread q-thd)
-      (kill-thread b-thd))))
+  (gc-terms-hack! make-weak-hasheq)
+  (begin0
+    (for/list ([k (in-range iters)])
+      (clear-cache!)
+
+      (define b-thd (budget-thread))
+      (define q-thd (query-thread))
+      (sync b-thd q-thd)
+      (begin0
+        (and (thread-dead? q-thd) (recursive-calls))
+        (kill-thread q-thd)
+        (kill-thread b-thd)))
+    (gc-terms-hack! make-weak-hash)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
@@ -252,17 +257,19 @@
     (cons (car x+y) (/ (cdr x+y) n))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; gc-terms hack
+;; gc-terms-hack!
 
 (require rackunit)
 (require/expose rosette/base/core/term (current-terms))
 
 ;; This hack is necessary to convert Rosette's internal cache into an
-;; `eq?`-based hash for kill safety.
-(let ()
+;; `eq?`-based hash for kill safety. Unfortunately, performance is horrible
+;; using an `eq?`-based hash for term caching, so it's enabled only during
+;; profiling.
+(define (gc-terms-hack! make)
   (define cache
     (impersonate-hash
-     (make-weak-hasheq)
+     (make)
      (lambda (h k)
        (values k (lambda (h k e) (ephemeron-value e #f))))
      (lambda (h k v)
