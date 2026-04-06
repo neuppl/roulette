@@ -62,13 +62,14 @@
 
 ;; Modified from `rosette/base/core/forall.rkt`
 (define (flatten-symbolic val)
-  (let go ([val val])
+  (define (go val)
     (match val
-      ;; Can't just use (? @boolean?) because that might produce a symbolic Boolean itself.
       [(or #t #f) (hash val #t)]
+      ;; Can't just use (? @boolean?) because that might produce a symbolic Boolean itself.
       [(and (app @boolean? #t) (? encodable?))
        (hash #t val #f (! val))]
-      [(union gvs) (go (apply ite* gvs))]
+      [(union gvs)
+       (go-gvs gvs)]
       [(cons (app go l) (app go r))
        (for*/hash/or ([(l-val l-guard) (in-hash l)]
                       [(r-val r-guard) (in-hash r)])
@@ -76,14 +77,10 @@
       [(expression (== ite) c t e)
        (define guards (go c))
        ;; Is that OK with default value?
-       (go (expression ite*
-                       (guarded (hash-ref guards #t #f) t)
-                       (guarded (hash-ref guards #f #f) e)))]
+       (go-gvs (list (cons (hash-ref guards #t #f) t)
+                     (cons (hash-ref guards #f #f) e)))]
       [(expression (== ite*) gvs ...)
-       (for*/hash/or ([gv (in-list gvs)]
-                      [(v g) (in-hash (go (guarded-value gv)))])
-         (define test (hash-ref (go (guarded-test gv)) #t))
-         (values v (&& test g)))]
+       (go-gvs (map (λ (g) (cons (guarded-test g) (guarded-value g))) gvs))]
       [(expression op es ...)
        (define es-hash
          (let loop ([es es])
@@ -106,7 +103,15 @@
       [(? vector?)
        (for*/hash/or ([(es g) (in-hash (go (vector->list val)))])
          (values (list->vector es) g))]
-      [_ (hash val #t)])))
+      [_ (hash val #t)]))
+
+  (define (go-gvs gvs)
+    (for*/hash/or ([gv (in-list gvs)]
+                   [(v g) (in-hash (go (cdr gv)))])
+      (define test (hash-ref (go (car gv)) #t))
+      (values v (&& test g))))
+
+  (go val))
 
 (define/cache (encodable? v)
   (match v
