@@ -161,8 +161,12 @@
 (define-syntax top-interaction
   (make-wrapping-top-interaction #'wrap))
 
-(define (wrap e)
-  (print-result (query e)))
+(define-syntax-rule (wrap e ...)
+  (call-with-values (λ () e ...) print-values))
+
+(define (print-values . es)
+  (for ([e (in-list es)])
+    (print-result (query e))))
 
 (define ((~header f) x)
   (match x
@@ -175,7 +179,7 @@
     (raise (exn:fail:observe-false "observed false" ccm)))
   (define ht (pmf-hash res))
   (if (= (hash-count ht) 1)
-      (first (hash-keys ht))
+      ((current-print) (first (hash-keys ht)))
       (print-table
        #:row-sep? '(#t #f ...)
        #:->string (list (~header ~v) (~header ~a))
