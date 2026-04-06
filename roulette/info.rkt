@@ -11,6 +11,9 @@
 (define scribblings
   '(["scribblings/roulette.scrbl" (multi-page)]))
 
+(define test-omit-paths '("extra"))
+(define compile-omit-paths '("extra"))
+
 ;; dependencies
 
 (define deps
