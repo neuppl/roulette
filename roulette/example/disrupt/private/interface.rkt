@@ -18,9 +18,11 @@
 
  sample
  with-sample
+ guided-sample
 
  ;; profiling
  cost
+ profile
 
  ;; debug
  clear-cache!
@@ -42,7 +44,8 @@
          racket/match
          roulette/engine/rsdd
          text-table
-         "pmf.rkt")
+         "pmf.rkt"
+         "profile.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; parameters
@@ -136,6 +139,13 @@
       (hash-update acc k (curry + (/ (* p w) total)) 0)))
   (make-categorical (hash->list result)))
 
+(define (guided-sample e profiler-results #:num-vars [num-vars 4])
+  (define env
+    (for/hash ([var (take profiler-results num-vars)])
+      (define pr (hash-ref (pmf-hash (query var)) #t 0))
+      (values var (< (random) pr))))
+
+  (query e #:environment env))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
 
@@ -188,9 +198,14 @@
         (for/list ([(v p) (in-pmf res)])
           (list v p))))))
 
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; cost
-
+; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
+; vars sampled randomly over a number of iterations. A value of #f means the val couldn't evaluate 
+; within budget for that sample.
 (define (cost val vars
               #:iterations [iters 10]
               #:budget [budget +inf.0]
@@ -207,24 +222,44 @@
          (sleep wait)
          (and (<= (recursive-calls) budget) (go))))))
 
-  (define (query-thread)
+  (define (query-thread env)
     (thread
      (λ ()
-       (query val #:environment (make-env)))))
+       (query val #:environment env))))
 
   (gc-terms-hack! make-weak-hasheq)
   (begin0
-    (for/list ([k (in-range iters)])
+    (for/list ([_ (in-range iters)])
       (clear-cache!)
 
       (define b-thd (budget-thread))
-      (define q-thd (query-thread))
+      (define env (make-env))
+      (define q-thd (query-thread env))
       (sync b-thd q-thd)
       (begin0
-        (and (thread-dead? q-thd) (recursive-calls))
+        (cons env (and (thread-dead? q-thd) (recursive-calls)))
         (kill-thread q-thd)
         (kill-thread b-thd)))
     (gc-terms-hack! make-weak-hash)))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; profiling
+
+
+
+;Ordered list of most "expensive" symbolic variables in provided expression, based on heuristics
+(define (profile e #:num-samples [samples 5])
+  (define transition (make-random-specialization-transition (symbolics e) 4))
+  (define heuristics (make-heuristics))
+
+  (for ([n (in-range samples)])
+    (define var-subset (transition))
+    (define cost-map (cost e var-subset))
+    (heuristics cost-map))
+  
+  (process-results (heuristics #f)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
