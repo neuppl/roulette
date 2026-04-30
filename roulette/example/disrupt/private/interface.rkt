@@ -207,21 +207,22 @@
          (sleep wait)
          (and (<= (recursive-calls) budget) (go))))))
 
-  (define (query-thread)
+  (define (query-thread env)
     (thread
      (λ ()
-       (query val #:environment (make-env)))))
+       (query val #:environment env))))
 
   (gc-terms-hack! make-weak-hasheq)
   (begin0
-    (for/list ([k (in-range iters)])
+    (for/list ([_ (in-range iters)])
       (clear-cache!)
 
+      (define env (make-env))
       (define b-thd (budget-thread))
-      (define q-thd (query-thread))
+      (define q-thd (query-thread env))
       (sync b-thd q-thd)
       (begin0
-        (and (thread-dead? q-thd) (recursive-calls))
+        (and (thread-dead? q-thd) (cons env (recursive-calls)))
         (kill-thread q-thd)
         (kill-thread b-thd)))
     (gc-terms-hack! make-weak-hash)))
@@ -274,12 +275,10 @@
   (define cache
     (impersonate-hash
      (make)
-     (lambda (h k)
-       (values k (lambda (h k e) (ephemeron-value e #f))))
-     (lambda (h k v)
-       (values k (make-ephemeron k v)))
-     (lambda (h k) k)
-     (lambda (h k) k)
+     (λ (_h k) (values k (λ (_h _k e) (ephemeron-value e #f))))
+     (λ (_h k v) (values k (make-ephemeron k v)))
+     (λ (_h k) k)
+     (λ (_h k) k)
      hash-clear!))
 
   (for ([(k v) (current-terms)])
