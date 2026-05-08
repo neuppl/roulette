@@ -21,7 +21,6 @@
  guided-sample
 
  ;; profiling
- recursive-calls/timeout
  cost
  profile
 
