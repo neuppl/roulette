@@ -21,6 +21,7 @@
  guided-sample
 
  ;; profiling
+ recursive-calls/timeout
  cost
  profile
 
@@ -40,7 +41,8 @@
 ;; require
 
 (require (for-syntax racket/base
-                     syntax/parse)
+                     syntax/parse
+                     racket/syntax-srcloc)
          racket/match
          roulette/engine/rsdd
          text-table
@@ -48,19 +50,37 @@
          "profile.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; parameters
+;; Global parameters
 
 (gc-terms!)
 (define engine (rsdd-engine))
 (define o-evidence #t)
 (define s-evidence #t)
+(define variable-contexts (make-weak-hash))
+
+(define (variable-label var)
+  (third (hash-ref variable-contexts var)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic features
 
 (struct unreachable ())
 
-(define (flip pr)
+(define-syntax flip
+  (syntax-parser 
+    [(_ pr (~optional (~seq #:label label) #:defaults ([label #'(gensym)])))
+     #:do [(define src (syntax-srcloc this-syntax))]
+     #:with source #`#,src
+     #'(let ([out (flip-fn pr)]) 
+          (hash-set! variable-contexts
+                     out
+                     (list
+                       source
+                       (continuation-mark-set->context (current-continuation-marks))
+                       label))
+          out)]))
+
+(define (flip-fn pr) 
   (cond
     [(= pr 0) #f]
     [(= pr 1) #t]
@@ -140,8 +160,9 @@
   (make-categorical (hash->list result)))
 
 (define (guided-sample e profiler-results #:num-vars [num-vars 4])
+  (define vars (map (lambda (var+label) (car var+label)) profiler-results))
   (define env
-    (for/hash ([var (take profiler-results num-vars)])
+    (for/hash ([var (take vars num-vars)])
       (define pr (hash-ref (pmf-hash (query var)) #t 0))
       (values var (< (random) pr))))
 
@@ -220,29 +241,31 @@
      (λ ()
        (let go ()
          (sleep wait)
+         (displayln "timed out")
          (and (<= (recursive-calls) budget) (go))))))
 
   (define (query-thread env)
     (thread
      (λ ()
-       (query val #:environment env))))
+       (begin0 
+        (query val #:environment env)
+        (displayln "completed sample")))))
 
   (gc-terms-hack! make-weak-hasheq)
   (begin0
-    (for/list ([_ (in-range iters)])
+    (for/hash ([k (in-range iters)])
       (clear-cache!)
+      (printf "~a: " k)
 
       (define b-thd (budget-thread))
       (define env (make-env))
       (define q-thd (query-thread env))
       (sync b-thd q-thd)
       (begin0
-        (cons env (and (thread-dead? q-thd) (recursive-calls)))
+        (values env (and (thread-dead? q-thd) (recursive-calls)))
         (kill-thread q-thd)
         (kill-thread b-thd)))
     (gc-terms-hack! make-weak-hash)))
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
@@ -250,16 +273,34 @@
 
 
 ;Ordered list of most "expensive" symbolic variables in provided expression, based on heuristics
-(define (profile e #:num-samples [samples 5])
-  (define transition (make-random-specialization-transition (symbolics e) 4))
-  (define heuristics (make-heuristics))
-
-  (for ([n (in-range samples)])
-    (define var-subset (transition))
-    (define cost-map (cost e var-subset))
-    (heuristics cost-map))
+(define (profile e #:sample-timeout [sample-duration 1]
+                   #:profiler-timeout [profiler-duration 10]
+                   #:specialize-amt [num-vars 10 #;(inexact->exact (round (/ (length (symbolics e)) 2)))]
+                   #:iterations [iters 10 #;(inexact->exact (round (expt num-vars 1.2)))])
   
-  (process-results (heuristics #f)))
+  (define transition (make-random-specialization-transition (symbolics e) num-vars))
+  (define heuristics (make-heuristics))
+  (define num-samples (round (/ profiler-duration (* iters sample-duration))))
+
+
+  (printf "profiler timeout: ~a\n" profiler-duration)
+  (printf "sample timeout: ~a\n" sample-duration)
+  (printf "specialization-amt: ~a\n" num-vars)
+  (printf "iterations: ~a\n" iters)
+  (printf "number of samples: ~a\n" num-samples)
+
+  (for ([k (in-range num-samples)])
+    (printf "Sample ~a\n" k)
+    (define var-subset (transition))
+    (define cost-map (cost e 
+                          var-subset 
+                          #:iterations iters
+                          #:budget 0
+                          #:wait sample-duration))
+    (heuristics cost-map))
+  (displayln "finished running profiler")
+  (define results (heuristics #f))
+  (top-results 10 variable-contexts results))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug

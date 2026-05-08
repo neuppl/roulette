@@ -1,7 +1,8 @@
 #lang roulette
 (provide make-heuristics
          make-random-specialization-transition
-         process-results)
+         process-results
+         top-results)
 
 
 
@@ -24,12 +25,12 @@
 (define (make-heuristics)
     (let ([acc-var-costs (make-hash)])
         (lambda (cost-map)
+            ;(displayln cost-map)
             (if cost-map
                 (begin
-                    (for ([entry cost-map])
-                        (match-define (cons env rec-calls) entry)
+                    (for ([(env rec-calls) (in-hash cost-map)])
                         (for ([(var _) (in-hash env)])
-                            (hash-update! 
+                            (hash-update!
                                 acc-var-costs 
                                 var
                                 (lambda (x) (list (if rec-calls 
@@ -44,25 +45,16 @@
 
 
 
+(define (top-results n variable-contexts acc-var-costs)
+    (let ([ratios (for/hash ([(var stats) (in-hash acc-var-costs)]
+                             #:when (list? stats))
+                    (values var (/ (first stats) (second stats))))])
+      (let ([sorted (sort (hash-keys ratios) > #:key (lambda (k) (hash-ref ratios k)))])
+        (map (lambda (k) (list (third (hash-ref variable-contexts k)) (hash-ref ratios k)))
+             (take sorted (min n (length sorted)))))))
+
 (define (process-results acc-var-costs) 
     (let ([ratios (for/hash ([(var stats) (in-hash acc-var-costs)]
                              #:when (list? stats))
                     (values var (/ (first stats) (second stats))))])
       (sort (hash-keys ratios) > #:key (lambda (k) (hash-ref ratios k)))))
-#|
-(define (search transition num-samples heuristics)
-
-  (define (do-runs remaining)
-    (if (zero? remaining)
-        (heuristics #f)
-        (let* ([new-state (transition)]
-               [result (cost new-state)])
-          (displayln result)
-          (heuristics result)
-          (do-runs (sub1 remaining)))))
-    (for ([i (in-range num-samples)])
-        (define var-subset (transition))
-        (cost var-subset))
-    )
-
-|#
