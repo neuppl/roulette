@@ -240,8 +240,10 @@
      (λ ()
        (let go ()
          (sleep wait)
-         (displayln "timed out")
-         (and (<= (recursive-calls) budget) (go))))))
+         (define rec-calls (recursive-calls))
+         (printf "timed out: ~a rec calls\n" rec-calls)
+       
+         (and (<= rec-calls budget) (go))))))
 
   (define (query-thread env)
     (thread
