@@ -403,7 +403,7 @@
 
   ;; Using `(sleep 0)` allows encoding to be interleaved with other threads.
   (define/cache (enc v)
-    (sleep 0)
+    (sleep 0.001)
     (match v
       [(? expression?) (enc-expr v)]
       [(? constant?)   (enc-const v)]

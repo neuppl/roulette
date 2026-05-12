@@ -43,6 +43,7 @@
 (require (for-syntax racket/base
                      syntax/parse
                      racket/syntax-srcloc)
+         (prefix-in engine: racket/engine)
          racket/match
          roulette/engine/rsdd
          text-table
@@ -230,58 +231,37 @@
 
 
 (define (with-timeout duration thnk default)
-  (let* ([th (thread thnk #:keep 'results)]
-         [out (sync/timeout duration th)])
-    (kill-thread th)
-    (if out
-        (thread-wait out)
-        (default))))
+  (define eng (engine:engine (lambda (x) (thnk))))
+  (or (and (engine:engine-run (* duration 1000) eng) (engine:engine-result eng)) (default)))
 
 
 ; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
 ; vars sampled randomly over a number of iterations. A value of #f means the val couldn't evaluate 
 ; within budget for that sample.
+; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
+; vars sampled randomly over a number of iterations. A value of #f means the val couldn't evaluate 
+; within budget for that sample.
 (define (cost val vars
               #:iterations [iters 10]
-              #:budget [budget +inf.0]
-              #:wait [wait 1/4])
+              #:timeout [duration 1/4])
   (define (make-env)
     (for/hash ([var (in-set vars)])
       (define pr (hash-ref (pmf-hash (query var)) #t 0))
       (values var (< (random) pr))))
 
-  (define (budget-thread)
-    (thread
-     (λ ()
-       (let go ()
-         (sleep wait)
-         (define rec-calls (recursive-calls))
-         (printf "timed out: ~a rec calls\n" rec-calls)
-       
-         (and (<= rec-calls budget) (go))))))
-
-  (define (query-thread env)
-    (thread
-     (λ ()
-       (begin0 
-        (query val #:environment env)
-        (displayln "completed sample")))))
-
-  (gc-terms-hack! make-weak-hasheq)
   (begin0
     (for/hash ([k (in-range iters)])
       (clear-cache!)
       (printf "~a: " k)
 
-      (define b-thd (budget-thread))
       (define env (make-env))
-      (define q-thd (query-thread env))
-      (sync b-thd q-thd)
-      (begin0
-        (values env (and (thread-dead? q-thd) (recursive-calls)))
-        (kill-thread q-thd)
-        (kill-thread b-thd)))
-    (gc-terms-hack! make-weak-hash)))
+      (values env 
+              (with-timeout duration 
+                            (lambda () (begin0 
+                                        (query val #:environment env)
+                                        (displayln "completed sample"))) 
+                            (lambda () (printf "timed out: ~a rec calls\n" (recursive-calls))
+                                       #f))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
@@ -309,8 +289,7 @@
     (define cost-map (cost e
                           var-subset
                           #:iterations iters
-                          #:budget 0
-                          #:wait duration))
+                          #:timeout duration))
     (heuristics cost-map))
   (display "\u001B[1mFinished running profiler.\u001B[0m\n")
   (heuristics #f))
@@ -380,3 +359,6 @@
     (hash-set! cache k v))
 
   (current-terms cache))
+
+
+(gc-terms-hack! make-weak-hasheq)
