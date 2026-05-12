@@ -45,13 +45,13 @@
 
 
 
-(define (top-results n variable-contexts acc-var-costs)
-    (let ([ratios (for/hash ([(var stats) (in-hash acc-var-costs)]
-                             #:when (list? stats))
-                    (values var (/ (first stats) (second stats))))])
-      (let ([sorted (sort (hash-keys ratios) > #:key (lambda (k) (hash-ref ratios k)))])
-        (map (lambda (k) (list (third (hash-ref variable-contexts k)) (hash-ref ratios k)))
-             (take sorted (min n (length sorted)))))))
+(define (top-results n var-label-map acc-var-costs)
+    (let* ([ratios (for/hash ([(var stats) (in-hash acc-var-costs)]
+                              #:when (list? stats))
+                             (values var (/ (first stats) (second stats))))]
+           [sorted (sort (hash-keys ratios) > #:key (lambda (k) (hash-ref ratios k)))])
+        (map (lambda (k) (hash-ref var-label-map k))
+             (take sorted (min n (length sorted))))))
 
 (define (process-results acc-var-costs) 
     (let ([ratios (for/hash ([(var stats) (in-hash acc-var-costs)]
