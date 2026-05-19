@@ -200,32 +200,29 @@
       (define pr (hash-ref (pmf-hash (query var)) #t 0))
       (values var (< (random) pr))))
 
-  (define (budget-thread)
+  (define (budget-thread return)
     (thread
      (λ ()
        (let go ()
          (sleep wait)
-         (and (<= (recursive-calls) budget) (go))))))
+         (if (<= (recursive-calls) budget)
+             (go)
+             (box-cas! rsdd-kill-signal-box #f return))))))
 
-  (define (query-thread env)
-    (thread
-     (λ ()
-       (query val #:environment env))))
-
-  (gc-terms-hack! make-weak-hasheq)
   (begin0
     (for/list ([_ (in-range iters)])
       (clear-cache!)
-
       (define env (make-env))
-      (define b-thd (budget-thread))
-      (define q-thd (query-thread env))
-      (sync b-thd q-thd)
-      (begin0
-        (and (thread-dead? q-thd) (cons env (recursive-calls)))
-        (kill-thread q-thd)
-        (kill-thread b-thd)))
-    (gc-terms-hack! make-weak-hash)))
+      (let ([b-thd #f])
+        (let/cc return
+          (set! b-thd (budget-thread return))
+          (query val #:environment env))
+        (kill-thread b-thd))
+      (cond
+        [(unbox rsdd-kill-signal-box)
+         (set-box! rsdd-kill-signal-box #f)
+         #f]
+        [else (cons env (recursive-calls))]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
@@ -260,28 +257,3 @@
 (define (renormalize xs n)
   (for/list ([x+y (in-list xs)])
     (cons (car x+y) (/ (cdr x+y) n))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; gc-terms-hack!
-
-(require rackunit)
-(require/expose rosette/base/core/term (current-terms))
-
-;; This hack is necessary to convert Rosette's internal cache into an
-;; `eq?`-based hash for kill safety. Unfortunately, performance is horrible
-;; using an `eq?`-based hash for term caching, so it's enabled only during
-;; profiling.
-(define (gc-terms-hack! make)
-  (define cache
-    (impersonate-hash
-     (make)
-     (λ (_h k) (values k (λ (_h _k e) (ephemeron-value e #f))))
-     (λ (_h k v) (values k (make-ephemeron k v)))
-     (λ (_h k) k)
-     (λ (_h k) k)
-     hash-clear!))
-
-  (for ([(k v) (current-terms)])
-    (hash-set! cache k v))
-
-  (current-terms cache))
