@@ -7,6 +7,10 @@
 
 (define rec-calls-limit #f)
 
+; low, high, total, num-ops for each bdd operation
+(define op-instrumentation (make-hash))
+(hash-set! op-instrumentation "bdd-not" (list +inf.0 0 0 0))
+(hash-set! op-instrumentation "bdd-and" (list +inf.0 0 0 0))
 ;; Error type raised when total number of recursive calls reaches an optional limit.
 (struct exn:fail:out-of-rec-calls exn:fail ())
 
@@ -132,7 +136,7 @@
 
 ;; Negate a BDD
 (define (bdd-not f)
-
+  (define start-time (current-milliseconds))
   (define not-memo (bdd-table-not-memo global-bdd-table))
   (define (neg-h f)
     (increment-rec-calls!)
@@ -147,50 +151,78 @@
                   (get-or-insert (bdd-node topvar (neg-h low) (neg-h high)))])])
           (hash-set! not-memo f result)
           result)))
-  (begin0 (neg-h f)))
+
+  (begin0 
+    (neg-h f)
+    (let* ([end-time (current-milliseconds)]
+           [time-taken (- end-time start-time)]
+           [current-data (hash-ref op-instrumentation "bdd-not")]
+           [low (first current-data)]
+           [high (second current-data)]
+           [total-time (third current-data)]
+           [num-ops (fourth current-data)]
+           [new-low (if (< time-taken low) time-taken low)]
+           [new-high (if (> time-taken high) time-taken high)]
+           [new-total (+ total-time time-taken)])
+        (hash-set! op-instrumentation "bdd-not" (list new-low new-high new-total (+ 1 num-ops))))))
 
 ;; Conjoin two BDDs
 (define (bdd-and f g)
+  (define start-time (current-milliseconds))
   (increment-rec-calls!)
   ;; Check for cached BDD
   (define cached (hash-ref (bdd-table-and-memo global-bdd-table) (cons f g) #f))
-  (if cached
-      cached
-      ;; No cached BDD, compute conjunction
-      (let ([result
-             (match* ((deref-bdd f) (deref-bdd g))
-               ;; False cases
-               [(_ (bdd-false)) false-ptr]
-               [((bdd-false) _) false-ptr]
-               ;; True cases
-               [((bdd-true) (bdd-true)) true-ptr]
-               [((bdd-true) (bdd-node _ _ _)) g]
-               [((bdd-node _ _ _) (bdd-true)) f]
-               ;; Node cases - same topvar
-               [((bdd-node f-topvar f-low f-high) (bdd-node g-topvar g-low g-high))
-                #:when (= f-topvar g-topvar)
-                (let ([l (bdd-and f-low g-low)]
-                      [h (bdd-and f-high g-high)])
-                  (if (= l h)
-                      l
-                      (get-or-insert (bdd-node f-topvar l h))))]
-               ;; Node cases - different topvar
-               [((bdd-node f-topvar f-low f-high) (bdd-node g-topvar g-low g-high))
-                #:when (< f-topvar g-topvar)
-                (let ([l (bdd-and f-low g)]
-                      [h (bdd-and f-high g)])
-                  (if (= l h)
-                      l
-                      (get-or-insert (bdd-node f-topvar l h))))]
-               [((bdd-node f-topvar f-low f-high) (bdd-node g-topvar g-low g-high))
-                (let ([l (bdd-and f g-low)]
-                      [h (bdd-and f g-high)])
-                  (if (= l h)
-                      l
-                      (get-or-insert (bdd-node g-topvar l h))))])])
-        ;; Cache the conjunction
-        (hash-set! (bdd-table-and-memo global-bdd-table) (cons f g) result)
-        (begin0 result))))
+  (define result 
+    (if cached
+        cached
+        ;; No cached BDD, compute conjunction
+        (let ([result
+              (match* ((deref-bdd f) (deref-bdd g))
+                ;; False cases
+                [(_ (bdd-false)) false-ptr]
+                [((bdd-false) _) false-ptr]
+                ;; True cases
+                [((bdd-true) (bdd-true)) true-ptr]
+                [((bdd-true) (bdd-node _ _ _)) g]
+                [((bdd-node _ _ _) (bdd-true)) f]
+                ;; Node cases - same topvar
+                [((bdd-node f-topvar f-low f-high) (bdd-node g-topvar g-low g-high))
+                  #:when (= f-topvar g-topvar)
+                  (let ([l (bdd-and f-low g-low)]
+                        [h (bdd-and f-high g-high)])
+                    (if (= l h)
+                        l
+                        (get-or-insert (bdd-node f-topvar l h))))]
+                ;; Node cases - different topvar
+                [((bdd-node f-topvar f-low f-high) (bdd-node g-topvar g-low g-high))
+                  #:when (< f-topvar g-topvar)
+                  (let ([l (bdd-and f-low g)]
+                        [h (bdd-and f-high g)])
+                    (if (= l h)
+                        l
+                        (get-or-insert (bdd-node f-topvar l h))))]
+                [((bdd-node f-topvar f-low f-high) (bdd-node g-topvar g-low g-high))
+                  (let ([l (bdd-and f g-low)]
+                        [h (bdd-and f g-high)])
+                    (if (= l h)
+                        l
+                        (get-or-insert (bdd-node g-topvar l h))))])])
+          ;; Cache the conjunction
+          (hash-set! (bdd-table-and-memo global-bdd-table) (cons f g) result)
+          result)))
+      (begin0
+        result
+        (let* ([end-time (current-milliseconds)]
+               [time-taken (- end-time start-time)]
+               [current-data (hash-ref op-instrumentation "bdd-and")]
+               [low (first current-data)]
+               [high (second current-data)]
+               [total-time (third current-data)]
+               [num-ops (fourth current-data)]
+               [new-low (if (< time-taken low) time-taken low)]
+               [new-high (if (> time-taken high) time-taken high)]
+               [new-total (+ total-time time-taken)])
+          (hash-set! op-instrumentation "bdd-and" (list new-low new-high new-total (+ 1 num-ops))))))
 
 ;; Disjoin two BDDs (via De Morgan's law)
 (define (bdd-or f g)
@@ -337,6 +369,22 @@
   (set-var-weight! c 0.5 0.5)
   (unless (within-epsilon (wmc disj) 0.875)
     (error "WMC test failed")))
+
+
+
+;;BDD instrumentation
+(define (bdd-instrumentation) 
+  (let ([not-instrumentation (hash-ref op-instrumentation "bdd-not")]
+        [and-instrumentation (hash-ref op-instrumentation "bdd-and")])
+    (match-define (list n-lo n-hi n-total n-ops) not-instrumentation)
+    (match-define (list a-lo a-hi a-total a-ops) and-instrumentation)
+    (hash "low" (min n-lo a-lo)
+          "hi" (max n-hi a-hi)
+          "avg" (exact->inexact 
+                  (/ (+ n-total a-total) 
+                     (if (= (+ n-ops a-ops) 0)
+                         1
+                         (+ n-ops a-ops)))))))
 
 ;; Run all tests
 (define (run-all-tests)

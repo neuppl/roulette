@@ -132,17 +132,22 @@
        (apply $op (map enc es))]
       [_ (error 'enc "cannot encode ~a" v)]))
 
-  (define-encoder bdd-encoder
-    [@! bdd-not]
-    [@&& (lift-arity (lambda (x y) 
-      (sleep 0)
+  (define (wrap-with-kill-signal binop)
+    (lambda (x y)
       (let ([return (unbox rbdd-kill-signal-box)])
         (when return
           (return)))
-          (bdd-and x y)))]
-    [@|| (lift-arity bdd-or)]
-    [@=> bdd-implies]
-    [@<=> bdd-iff])
+      (binop x y)))
+  (define-encoder bdd-encoder
+    [@! (lambda (x)
+      (let ([return (unbox rbdd-kill-signal-box)])
+        (when return
+          (return)))
+      (bdd-not x))]
+    [@&& (lift-arity (wrap-with-kill-signal bdd-and))]
+    [@|| (lift-arity (wrap-with-kill-signal bdd-or))]
+    [@=> (wrap-with-kill-signal bdd-implies)]
+    [@<=> (wrap-with-kill-signal bdd-iff)])
 
   (define (bdd-implies x y)
     (bdd-or (bdd-not x) y))

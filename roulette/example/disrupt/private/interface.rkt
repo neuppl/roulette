@@ -273,6 +273,8 @@
               (displayln "after setting box")))))))
 
   (for/hash ([k (in-range iters)])
+    (displayln (bdd-instrumentation))
+    ;(displayln enc-instrumentation)
     (printf "~a: " k)
     (displayln "here")
     (clear-cache!)
