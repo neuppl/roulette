@@ -45,16 +45,17 @@
                      racket/syntax-srcloc)
          (prefix-in engine: racket/engine)
          racket/match
-         roulette/engine/rsdd
+         roulette/engine/rbdd
          text-table
          "pmf.rkt"
-         "profile.rkt")
+         "profile.rkt"
+         "../../../../roulette-lib/private/bdd.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global parameters
 
 (gc-terms!)
-(define engine (rsdd-engine))
+(define engine (rbdd-engine))
 (define o-evidence #t)
 (define s-evidence #t)
 (define variable-contexts (make-hash))
@@ -137,7 +138,7 @@
 (define (with-sample-fn n thk)
   (for/lists (vs ws #:result (mean vs ws))
              ([_ (in-range n)])
-    (set! engine (rsdd-engine))
+    (set! engine (rbdd-engine))
     (define old s-evidence)
     (begin0
       (with-observe
@@ -229,10 +230,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; cost
 
-
 (define (with-timeout duration thnk default)
-  (define eng (engine:engine (lambda (x) (thnk))))
-  (or (and (engine:engine-run (* duration 1000) eng) (engine:engine-result eng)) (default)))
+  (let* ([th (thread thnk #:keep 'results)]
+         [out (sync/timeout duration th)])
+    ;; break-thread fires at the (sleep 0) points in enc, which happen
+    ;; before every BDD node encoding. Without waiting for th to die here,
+    ;; the next iteration starts while th is still live, causing concurrent
+    ;; access to the global encodable? cache and indefinite hangs.
+    (break-thread th)
+    (or (sync/timeout (* 10 duration) th)
+        (kill-thread th))
+    (if out
+        (thread-wait out)
+        (default))))
 
 
 ; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
@@ -243,25 +253,45 @@
 ; within budget for that sample.
 (define (cost val vars
               #:iterations [iters 10]
-              #:timeout [duration 1/4])
+              #:budget [budget +inf.0]
+              #:wait [wait 1/4])
   (define (make-env)
     (for/hash ([var (in-set vars)])
       (define pr (hash-ref (pmf-hash (query var)) #t 0))
       (values var (< (random) pr))))
 
-  (begin0
-    (for/hash ([k (in-range iters)])
-      (clear-cache!)
-      (printf "~a: " k)
+  (define (budget-thread return)
+    (thread
+     (λ ()
+       (let go ()
+         (sleep wait)
+         (displayln "after wait")
+         (if (<= (recursive-calls) budget)
+             (go)
+             (begin
+              (box-cas! rbdd-kill-signal-box #f return)
+              (displayln "after setting box")))))))
 
-      (define env (make-env))
-      (values env 
-              (with-timeout duration 
-                            (lambda () (begin0 
-                                        (query val #:environment env)
-                                        (displayln "completed sample"))) 
-                            (lambda () (printf "timed out: ~a rec calls\n" (recursive-calls))
-                                       #f))))))
+  (for/hash ([k (in-range iters)])
+    (printf "~a: " k)
+    (displayln "here")
+    (clear-cache!)
+    (define env (make-env))
+    (let ([b-thd #f])
+      (let/cc return
+        (set! b-thd (budget-thread return))
+        (query val #:environment env))
+      (kill-thread b-thd))
+    (values env
+            (cond
+              [(unbox rbdd-kill-signal-box)
+                (set-box! rbdd-kill-signal-box #f)
+                (displayln "after timeout")
+                #f]
+              [else 
+                (let ([rec-calls (recursive-calls)])
+                  (printf "completed sample (~a recursive calls)\n" rec-calls)
+                  rec-calls)]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
@@ -289,7 +319,8 @@
     (define cost-map (cost e
                           var-subset
                           #:iterations iters
-                          #:timeout duration))
+                          #:budget 0
+                          #:wait duration))
     (heuristics cost-map))
   (display "\u001B[1mFinished running profiler.\u001B[0m\n")
   (heuristics #f))
@@ -303,7 +334,8 @@
 ;; debug
 
 (define (clear-cache!)
-  (set! engine (rsdd-engine)))
+  (reset-bdd!)
+  (set! engine (rbdd-engine)))
 
 (define (recursive-calls)
   (send engine recursive-calls))

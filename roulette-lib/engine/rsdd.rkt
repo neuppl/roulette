@@ -18,7 +18,9 @@
   [real-semiring semiring?]
   [complex-semiring semiring?]
   [polynomial-semiring semiring?]
-  [semiring? predicate/c]))
+  [semiring? predicate/c])
+
+ rsdd-kill-signal-box)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -397,13 +399,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
 
+(define rsdd-kill-signal-box (box #f))
+
 (define (make-enc b const->label)
   (define rsdd-true (make-rsdd-true b))
   (define rsdd-false (make-rsdd-false b))
 
-  ;; Using `(sleep 0)` allows encoding to be interleaved with other threads.
   (define/cache (enc v)
-    (sleep 0)
+    (let ([return (unbox rsdd-kill-signal-box)])
+      (when return
+        (return)))
     (match v
       [(? expression?) (enc-expr v)]
       [(? constant?)   (enc-const v)]

@@ -44,7 +44,7 @@
 (require (for-syntax racket/base
                      syntax/parse)
          rosette
-         "../engine/rsdd.rkt"
+         "../engine/rbdd.rkt"
          "engine.rkt"
          "wrap-modbeg.rkt"
          "measure.rkt"
@@ -53,7 +53,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; definitions
 
-(define default-engine (rsdd-engine))
+(define default-engine (rbdd-engine))
 
 (define-syntax -define-measurable
   (syntax-parser
