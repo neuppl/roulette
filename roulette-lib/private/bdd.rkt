@@ -136,9 +136,11 @@
 
 ;; Negate a BDD
 (define (bdd-not f)
+  (sleep 0)
   (define start-time (current-milliseconds))
   (define not-memo (bdd-table-not-memo global-bdd-table))
   (define (neg-h f)
+    (sleep 0)
     (increment-rec-calls!)
     (define cached (hash-ref not-memo f #f))
     (if cached
@@ -168,6 +170,7 @@
 
 ;; Conjoin two BDDs
 (define (bdd-and f g)
+  (sleep 0)
   (define start-time (current-milliseconds))
   (increment-rec-calls!)
   ;; Check for cached BDD

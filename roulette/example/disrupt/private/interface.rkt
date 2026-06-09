@@ -242,24 +242,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; cost
 
+
 (define (with-timeout duration thnk default)
   (let* ([th (thread thnk #:keep 'results)]
          [out (sync/timeout duration th)])
-    ;; break-thread fires at the (sleep 0) points in enc, which happen
-    ;; before every BDD node encoding. Without waiting for th to die here,
-    ;; the next iteration starts while th is still live, causing concurrent
-    ;; access to the global encodable? cache and indefinite hangs.
-    (break-thread th)
-    (or (sync/timeout (* 10 duration) th)
-        (kill-thread th))
+    (kill-thread th)
     (if out
         (thread-wait out)
         (default))))
 
 
-; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
-; vars sampled randomly over a number of iterations. A value of #f means the val couldn't evaluate 
-; within budget for that sample.
 ; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
 ; vars sampled randomly over a number of iterations. A value of #f means the val couldn't evaluate 
 ; within budget for that sample.
@@ -272,39 +264,23 @@
       (define pr (hash-ref (pmf-hash (query var)) #t 0))
       (values var (< (random) pr))))
 
-  (define (budget-thread return)
-    (thread
-     (λ ()
-       (let go ()
-         (sleep wait)
-         (displayln "after wait")
-         (if (<= (recursive-calls) budget)
-             (go)
-             (begin
-              (box-cas! kill-signal-box #f return)
-              (displayln "after setting box")))))))
-
   (for/hash ([k (in-range iters)])
-    (displayln rs:enc-instrumentation)
     (printf "~a: " k)
-    (displayln "here")
     (clear-cache!)
+
     (define env (make-env))
-    (let ([b-thd #f])
-      (let/cc return
-        (set! b-thd (budget-thread return))
-        (query val #:environment env))
-      (kill-thread b-thd))
-    (values env
-            (cond
-              [(unbox kill-signal-box)
-                (set-box! kill-signal-box #f)
-                (displayln "after timeout")
-                #f]
-              [else 
-                (let ([rec-calls (recursive-calls)])
-                  (printf "completed sample (~a recursive calls)\n" rec-calls)
-                  rec-calls)]))))
+    (define out (with-timeout wait 
+                              (lambda () 
+                                (query val #:environment env)
+                                (displayln "completed sample")
+                                (recursive-calls)
+                              )
+                              (lambda () 
+                                (displayln "timed out")
+                                #f)))
+
+    (begin0
+      (values env out))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
