@@ -10,8 +10,9 @@
           rbdd-engine
           (->* ()
                (is-a?/c engine<%>))]
-    [bernoulli-measure (->* (number? number?) () any)])
-  rbdd-kill-signal-box)
+  [bernoulli-measure (->* (number? number?) () any)])
+  kill-signal-box
+  reset-bdd!)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -107,7 +108,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
 
-(define rbdd-kill-signal-box (box #f))
+(define kill-signal-box (box #f))
 
 (define (make-enc)
   (define/cache (enc v)
@@ -134,13 +135,13 @@
 
   (define (wrap-with-kill-signal binop)
     (lambda (x y)
-      (let ([return (unbox rbdd-kill-signal-box)])
+      (let ([return (unbox kill-signal-box)])
         (when return
           (return)))
       (binop x y)))
   (define-encoder bdd-encoder
     [@! (lambda (x)
-      (let ([return (unbox rbdd-kill-signal-box)])
+      (let ([return (unbox kill-signal-box)])
         (when return
           (return)))
       (bdd-not x))]

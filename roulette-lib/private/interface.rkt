@@ -44,7 +44,9 @@
 (require (for-syntax racket/base
                      syntax/parse)
          rosette
-         "../engine/rbdd.rkt"
+         (prefix-in rs: "../engine/rsdd.rkt")
+         (prefix-in rkt: "../engine/rbdd.rkt")
+         "../../bdd-engine.rkt"
          "engine.rkt"
          "wrap-modbeg.rkt"
          "measure.rkt"
@@ -52,8 +54,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; definitions
-
-(define default-engine (rbdd-engine))
+(define make-engine (if (equal? bdd-engine-backend "rsdd")
+                        rs:rsdd-engine
+                        rkt:rbdd-engine))
+(define default-engine (make-engine))
 
 (define-syntax -define-measurable
   (syntax-parser

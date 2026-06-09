@@ -45,17 +45,29 @@
                      racket/syntax-srcloc)
          (prefix-in engine: racket/engine)
          racket/match
-         roulette/engine/rbdd
+         "../../../../bdd-engine.rkt"
+         (prefix-in rs: roulette/engine/rsdd)
+         (prefix-in rkt: roulette/engine/rbdd)
          text-table
          "pmf.rkt"
-         "profile.rkt"
-         "../../../../roulette-lib/private/bdd.rkt")
+         "profile.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global parameters
 
 (gc-terms!)
-(define engine (rbdd-engine))
+(define make-engine (if (equal? bdd-engine-backend "rsdd") 
+                        rs:rsdd-engine 
+                        rkt:rbdd-engine))
+
+(define bernoulli-measure (if (equal? bdd-engine-backend "rsdd") 
+                              rs:bernoulli-measure 
+                              rkt:bernoulli-measure))
+(define kill-signal-box (if (equal? bdd-engine-backend "rsdd") 
+                            rs:kill-signal-box 
+                            rkt:kill-signal-box))
+
+(define engine (make-engine))
 (define o-evidence #t)
 (define s-evidence #t)
 (define variable-contexts (make-hash))
@@ -138,7 +150,7 @@
 (define (with-sample-fn n thk)
   (for/lists (vs ws #:result (mean vs ws))
              ([_ (in-range n)])
-    (set! engine (rbdd-engine))
+    (set! engine (make-engine))
     (define old s-evidence)
     (begin0
       (with-observe
@@ -269,12 +281,11 @@
          (if (<= (recursive-calls) budget)
              (go)
              (begin
-              (box-cas! rbdd-kill-signal-box #f return)
+              (box-cas! kill-signal-box #f return)
               (displayln "after setting box")))))))
 
   (for/hash ([k (in-range iters)])
-    (displayln (bdd-instrumentation))
-    ;(displayln enc-instrumentation)
+    (displayln rs:enc-instrumentation)
     (printf "~a: " k)
     (displayln "here")
     (clear-cache!)
@@ -286,8 +297,8 @@
       (kill-thread b-thd))
     (values env
             (cond
-              [(unbox rbdd-kill-signal-box)
-                (set-box! rbdd-kill-signal-box #f)
+              [(unbox kill-signal-box)
+                (set-box! kill-signal-box #f)
                 (displayln "after timeout")
                 #f]
               [else 
@@ -336,8 +347,8 @@
 ;; debug
 
 (define (clear-cache!)
-  (reset-bdd!)
-  (set! engine (rbdd-engine)))
+  (rkt:reset-bdd!)
+  (set! engine (make-engine)))
 
 (define (recursive-calls)
   (send engine recursive-calls))

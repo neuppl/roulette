@@ -20,7 +20,7 @@
   [polynomial-semiring semiring?]
   [semiring? predicate/c])
   enc-instrumentation
-  rsdd-kill-signal-box)
+  kill-signal-box)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -399,7 +399,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
 
-(define rsdd-kill-signal-box (box #f))
+(define kill-signal-box (box #f))
 (define enc-instrumentation (make-hash))
 (hash-set! enc-instrumentation "lo" +inf.0)
 (hash-set! enc-instrumentation "hi" 0)
@@ -412,7 +412,7 @@
 
   (define/cache (enc v)
     (define start-time (current-milliseconds))
-    (let ([return (unbox rsdd-kill-signal-box)])
+    (let ([return (unbox kill-signal-box)])
       (when return
         (return)))
     (begin0 

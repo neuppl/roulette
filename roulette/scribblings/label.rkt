@@ -5,6 +5,7 @@
 
 (provide (all-from-out racket)
          (all-from-out roulette)
+         (all-from-out roulette/engine/rsdd)
          (all-from-out roulette/engine/rbdd))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -12,4 +13,5 @@
 
 (require racket/require)
 (require (subtract-in roulette racket)
-         roulette/engine/rbdd)
+         (prefix-in rs: roulette/engine/rsdd)
+         (prefix-in rkt: roulette/engine/rbdd))
