@@ -1,0 +1,4878 @@
+{
+	"Total-runs": 3,
+	"Total-samples": 3,
+	"file-path": "test.rkt",
+	"row: 1, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 1, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 1, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 10, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 10, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 11, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 11, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 12, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 12, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 13, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 13, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 14, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 14, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 2, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 2, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 3, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 3, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 4, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 4, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 5, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 5, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 6, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 6, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 7, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 7, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 4 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 8, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 8, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 1 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 1 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 10 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 10 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 11 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 11 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 12 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 12 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 13 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 13 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 14 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 14 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 2 (false)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 2,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 2 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 3 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 3 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 4 (true)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 5 (false)": {
+		"results": {
+			"num-successful-samples": 0,
+			"num-total-samples": 1,
+			"total-recursive-calls": 0
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 5 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 6 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 6 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 7 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 7 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 1,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 8 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 600
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 8 (true)": {
+		"results": {
+			"num-successful-samples": 2,
+			"num-total-samples": 3,
+			"total-recursive-calls": 42599
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"row: 9, col: 9 (false)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 7,
+			"position": 299,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 51
+		}
+	},
+	"row: 9, col: 9 (true)": {
+		"results": {
+			"num-successful-samples": 1,
+			"num-total-samples": 2,
+			"total-recursive-calls": 41999
+		},
+		"syntactic-source": {
+			"column": 19,
+			"line": 6,
+			"position": 228,
+			"source": "/Users/smarant/Downloads/test.rkt",
+			"span": 50
+		}
+	},
+	"source-code": "#lang roulette/example/disrupt\n\n(define (make-bayesian-node dep1 dep2 row col)\n  (define label (string-append \"row: \" (number->string row) \", col: \" (number->string col)))\n  (define node (if (and dep1 dep2) \n                   (flip 0.5 #:label (string-append label \" (true)\")) \n                   (flip 0.4 #:label (string-append label \" (false)\"))))\n  node)\n\n\n(define (n-grid-bayesian n)\n  (last\n   (last\n    (for*/fold ([grid (list)])\n               ([row (in-range 1 n 1)]\n                [col (in-range 1 n 1)])\n      (if (< (length grid) row) ; create a new row and append (first node in a new row)\n          (append grid (list (list (make-bayesian-node\n                                    #t \n                                    (if (= row 1)\n                                        #t \n                                        (first (list-ref grid (- row 2))))\n                                    row\n                                    col))))\n          (for/list ([cur-row grid])\n            (if (< (length cur-row) col)\n                (append\n                 cur-row\n                 (list (make-bayesian-node\n                        (list-ref     (list-ref grid (- row 1)) (- col 2))\n                        (if (= row 1)\n                            #t\n                            (list-ref (list-ref grid (- row 2)) (- col 1)))\n                        row\n                        col)))\n                cur-row)))))))\n\n(define out (n-grid-bayesian 15))\n(printf \"Total symbolic variable count: ~a\\n\" (length (symbolics out)))\n(define profiler-results (profile out\n                                  #:timeout 1\n                                  #:iterations 1\n                                  #:samples 3\n                                  #:specialize-amt 200))\n(save-results profiler-results \"results.json\" \"test.rkt\")\n\n(define labels (process-results profiler-results))\n;labels\n;(guided-sample out labels #:take 150)"
+}

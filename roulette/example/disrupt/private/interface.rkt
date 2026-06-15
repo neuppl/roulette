@@ -24,6 +24,7 @@
  cost
  profile
  process-results
+ save-results
 
  ;; debug
  clear-cache!
@@ -50,7 +51,8 @@
          (prefix-in rkt: roulette/engine/rbdd)
          text-table
          "pmf.rkt"
-         "profile.rkt")
+         "profile.rkt"
+         json)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global parameters
@@ -272,8 +274,9 @@
     (define out (with-timeout wait 
                               (lambda () 
                                 (query val #:environment env)
-                                (displayln "completed sample")
-                                (recursive-calls)
+                                (define rec-calls (recursive-calls))
+                                (printf "completed sample in ~a recursive calls \n" rec-calls)
+                                rec-calls
                               )
                               (lambda () 
                                 (displayln "timed out")
@@ -284,8 +287,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
-
-
 
 ;Ordered list of most "expensive" symbolic variables in provided expression, based on heuristics
 (define (profile e #:timeout [duration 1]
@@ -315,6 +316,42 @@
   (heuristics #f))
 
 
+
+(define (save-results profiler-results json-path rkt-path)
+  (define (srcloc->js-hash loc)
+    (match-define (srcloc source line column position span) loc)
+    (hash
+      `source (~a source)
+      `line line
+      `column column
+      `position position
+      `span span))
+
+  (define json-formatted-results 
+    (hash-set*
+      (for/hash ([(key value) (in-hash profiler-results)])
+        (cond [(string? key) (values (string->symbol key) value)]
+              [(symbolic? key) 
+              (let ([var-label (hash-ref var-label-map key)])
+                  (values (string->symbol var-label)
+                          (hash 
+                            'results (hash 'num-successful-samples (first value)
+                                            'num-total-samples (second value)
+                                            'total-recursive-calls (third value))
+
+                            'syntactic-source (srcloc->js-hash (second (hash-ref variable-contexts var-label))))))]))
+      'source-code (call-with-input-file rkt-path
+                      (lambda (in) (port->string in)))
+      'file-path rkt-path))
+  
+  (call-with-output-file json-path
+    (lambda (out)
+      (write-json 
+        json-formatted-results
+        out
+        #:indent #\tab))
+    #:exists 'replace)
+  (printf "\u001B[1mSaved profiler results to ~a\u001B[0m\n" json-path))
 
 (define (process-results profiler-results)
   (variable-labels var-label-map profiler-results))
