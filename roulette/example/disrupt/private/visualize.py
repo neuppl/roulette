@@ -3,28 +3,12 @@ import argparse
 import json
 from pathlib import Path
 
-env = Environment(loader=FileSystemLoader('templates'))
+
+print ("hello world")
+env = Environment(loader=FileSystemLoader('/Users/smarant/Documents/University stuff/Fall 2025/Roulette Research/roulette/roulette/example/disrupt/private/templates/'))
 template = env.get_template('results.html')
 
-RESERVED_KEYS = {"file-path", "source-code", "Total-runs", "Total-samples"}
-
-
-def compute_score(results):
-    """
-    Implements the variable-labels scoring formula from profile.rkt.
-    Higher score = cheaper (more successes per recursive call).
-      score = num_successful / (avg_rec_calls * num_total_samples_adj)
-    where adj values have +1 applied (matching the add1 in variable-labels).
-    Returns 0 if no successful samples.
-    """
-    num_successful = results["num-successful-samples"]
-    if num_successful == 0:
-        return 0.0
-    num_total_adj = results["num-total-samples"] + 1
-    total_rec_calls_adj = results["total-recursive-calls"] + 1
-    avg_rec_calls = total_rec_calls_adj / num_successful
-    cost = avg_rec_calls * num_total_adj
-    return num_successful / cost
+RESERVED_KEYS = {"file-path", "source-code", "Total-runs", "Collected-samples", "config"}
 
 
 def syntactic_source_key(src):
@@ -44,21 +28,21 @@ if __name__ == "__main__":
     file_path = data["file-path"]
     code = data["source-code"]
     total_runs = data.get("Total-runs", 0)
-    total_samples = data.get("Total-samples", 0)
+    total_samples = data.get("Collected-samples", 0)
+    config = data.get("config", {})
 
     entries = {k: v for k, v in data.items() if k not in RESERVED_KEYS}
 
-    # Compute variable-labels scores (higher = cheaper)
-    scores = {k: compute_score(v["results"]) for k, v in entries.items()}
+    scores = {k: v["cost-value"] for k, v in entries.items()}
     max_score = max(scores.values(), default=1) or 1.0
 
     # Build heuristics dict for the template.
     # color-ratio: 0 = cheapest (green), 1 = most expensive (red)
-    heuristics = {"Total-runs": total_runs, "Total-samples": total_samples}
+    heuristics = {"Total-runs": total_runs, "Collected-samples": total_samples}
     for k, v in entries.items():
         normalized = scores[k] / max_score
         heuristics[k] = {
-            "color-ratio": round(1.0 - normalized, 6),
+            "color-ratio": round(normalized, 6),
             "num-successful-samples": v["results"]["num-successful-samples"],
             "num-total-samples": v["results"]["num-total-samples"],
             "total-recursive-calls": v["results"]["total-recursive-calls"],
@@ -91,7 +75,9 @@ if __name__ == "__main__":
         file=file_path,
         code=code,
         heuristics=heuristics,
-        sources=sources
+        sources=sources,
+        config=config,
+        num_flips=len(entries)
     )
 
     save_path = Path(file_path).with_suffix(".html")

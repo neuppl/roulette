@@ -25,6 +25,7 @@
  profile
  process-results
  save-results
+ visualize
 
  ;; debug
  clear-cache!
@@ -290,12 +291,18 @@
 
 ;Ordered list of most "expensive" symbolic variables in provided expression, based on heuristics
 (define (profile e #:timeout [duration 1]
-                   #:iterations [iters 10]
                    #:samples [samples 10]
-                   #:specialize-amt [num-vars (inexact->exact (round (/ (length (symbolics e)) 2)))])
+                   #:iterations [iters 10]
+                   #:specialize-amt [num-vars (inexact->exact (round (/ (length (symbolics e)) 2)))]
+                   #:stream-visualization [stream-path? #f])
   
   (define transition (make-random-specialization-transition (symbolics e) num-vars))
-  (define heuristics (make-heuristics))
+  (define config-data (hash 'timeout duration
+                            'specialization-amt num-vars
+                            'iterations iters
+                            'samples samples
+                            'total-vars (length (symbolics e))))
+  (define heuristics (make-heuristics config-data))
 
   (display "\u001B[1mProfiler Configuration: \u001B[0m\n")
   (printf "timeout: ~a\n" duration)
@@ -311,13 +318,19 @@
                           #:iterations iters
                           #:budget 0
                           #:wait duration))
-    (heuristics cost-map))
+    (heuristics cost-map)
+    (when stream-path?
+          (define cur-cost-map (heuristics #f))
+          (define json-path (save-results cur-cost-map stream-path?))
+          (visualize json-path)))
   (display "\u001B[1mFinished running profiler.\u001B[0m\n")
   (heuristics #f))
 
 
 
-(define (save-results profiler-results json-path rkt-path)
+(define (save-results profiler-results name)
+  (define json-path (path->string (path-replace-extension name ".json")))
+  (define rkt-path (path->string (path-replace-extension name ".rkt")))
   (define (srcloc->js-hash loc)
     (match-define (srcloc source line column position span) loc)
     (hash
@@ -338,7 +351,7 @@
                             'results (hash 'num-successful-samples (first value)
                                             'num-total-samples (second value)
                                             'total-recursive-calls (third value))
-
+                            'cost-value (var-value value)
                             'syntactic-source (srcloc->js-hash (second (hash-ref variable-contexts var-label))))))]))
       'source-code (call-with-input-file rkt-path
                       (lambda (in) (port->string in)))
@@ -351,7 +364,25 @@
         out
         #:indent #\tab))
     #:exists 'replace)
-  (printf "\u001B[1mSaved profiler results to ~a\u001B[0m\n" json-path))
+  (printf "\u001B[1mSaved profiler results to ~a\u001B[0m\n" json-path)
+  json-path)
+
+
+(define (visualize json-path #:open [open? #f])
+  (displayln "Running visualize.py to generate html ...")
+  (define-values (viz-proc _out _in _err)
+    (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "python3") 
+                "/Users/smarant/Documents/University stuff/Fall 2025/Roulette Research/roulette/roulette/example/disrupt/private/visualize.py" 
+                json-path))
+  (subprocess-wait viz-proc)
+  (define html-path (path->string (path-replace-extension json-path ".html")))
+  
+  (when open?
+        (define-values (open-proc _out _in _err)
+          (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "open") html-path))
+        (subprocess-wait open-proc))
+        
+  html-path)
 
 (define (process-results profiler-results)
   (variable-labels var-label-map profiler-results))
