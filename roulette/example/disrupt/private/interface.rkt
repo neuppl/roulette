@@ -47,6 +47,7 @@
                      racket/syntax-srcloc)
          (prefix-in engine: racket/engine)
          racket/match
+         pkg/lib
          "../../../../bdd-engine.rkt"
          (prefix-in rs: roulette/engine/rsdd)
          (prefix-in rkt: roulette/engine/rbdd)
@@ -328,9 +329,9 @@
 
 
 
-(define (save-results profiler-results name)
-  (define json-path (path->string (path-replace-extension name ".json")))
-  (define rkt-path (path->string (path-replace-extension name ".rkt")))
+(define (save-results profiler-results save-path)
+  (define json-path (path->string (path-replace-extension save-path ".json")))
+  (define rkt-path (path->string (path-replace-extension save-path ".rkt")))
   (define (srcloc->js-hash loc)
     (match-define (srcloc source line column position span) loc)
     (hash
@@ -372,7 +373,7 @@
   (displayln "Running visualize.py to generate html ...")
   (define-values (viz-proc _out _in _err)
     (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "python3") 
-                "/Users/smarant/Documents/University stuff/Fall 2025/Roulette Research/roulette/roulette/example/disrupt/private/visualize.py" 
+                (path->string (simplify-path (build-path (pkg-directory "roulette") "example/disrupt/private/visualize.py")))
                 json-path))
   (subprocess-wait viz-proc)
   (define html-path (path->string (path-replace-extension json-path ".html")))
@@ -381,7 +382,6 @@
         (define-values (open-proc _out _in _err)
           (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "open") html-path))
         (subprocess-wait open-proc))
-        
   html-path)
 
 (define (process-results profiler-results)

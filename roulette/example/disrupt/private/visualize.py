@@ -3,9 +3,7 @@ import argparse
 import json
 from pathlib import Path
 
-
-print ("hello world")
-env = Environment(loader=FileSystemLoader('/Users/smarant/Documents/University stuff/Fall 2025/Roulette Research/roulette/roulette/example/disrupt/private/templates/'))
+env = Environment(loader=FileSystemLoader(Path(__file__).resolve().parent / "templates"))
 template = env.get_template('results.html')
 
 RESERVED_KEYS = {"file-path", "source-code", "Total-runs", "Collected-samples", "config"}
