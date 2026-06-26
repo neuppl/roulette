@@ -322,14 +322,14 @@
     (heuristics cost-map)
     (when stream-path?
           (define cur-cost-map (heuristics #f))
-          (define json-path (save-results cur-cost-map stream-path?))
-          (visualize json-path)))
+          (define json-path (save-results cur-cost-map stream-path? #:print #f))
+          (visualize json-path #:print #f)))
   (display "\u001B[1mFinished running profiler.\u001B[0m\n")
   (heuristics #f))
 
 
 
-(define (save-results profiler-results save-path)
+(define (save-results profiler-results save-path #:print [print? #t])
   (define json-path (path->string (path-replace-extension save-path ".json")))
   (define rkt-path (path->string (path-replace-extension save-path ".rkt")))
   (define (srcloc->js-hash loc)
@@ -365,12 +365,12 @@
         out
         #:indent #\tab))
     #:exists 'replace)
-  (printf "\u001B[1mSaved profiler results to ~a\u001B[0m\n" json-path)
+  
+  (when print? (printf "\u001B[1mSaved profiler results to ~a\u001B[0m\n" json-path))
   json-path)
 
 
-(define (visualize json-path #:open [open? #f])
-  (displayln "Running visualize.py to generate html ...")
+(define (visualize json-path #:open [open? #f] #:print [print? #t])
   (define-values (viz-proc _out _in _err)
     (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "python3") 
                 (path->string (simplify-path (build-path (pkg-directory "roulette") "example/disrupt/private/visualize.py")))
@@ -382,6 +382,8 @@
         (define-values (open-proc _out _in _err)
           (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "open") html-path))
         (subprocess-wait open-proc))
+  (when print?
+    (printf "HTML file produced at: ~a" html-path))
   html-path)
 
 (define (process-results profiler-results)

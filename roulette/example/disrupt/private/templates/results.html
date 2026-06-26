@@ -506,17 +506,18 @@
            */
           function getHeuristicCounts(key) {
               if (!heuristicsData || !heuristicsData[key]) {
-                  return { successCount: 0, totalCount: 0, recCalls: 0 };
+                  return { successCount: 0, totalCount: 0, recCalls: 0, costValue: 0 };
               }
               const entry = heuristicsData[key];
               if (typeof entry === 'object' && !Array.isArray(entry)) {
                   return {
                       successCount: entry['num-successful-samples'] || 0,
                       totalCount: entry['num-total-samples'] || 0,
-                      recCalls: entry['total-recursive-calls'] || 0
+                      recCalls: entry['total-recursive-calls'] || 0,
+                      costValue: entry['cost-value'] || 0
                   };
               }
-              return { successCount: 0, totalCount: 0, recCalls: 0 };
+              return { successCount: 0, totalCount: 0, recCalls: 0, costValue: 0 };
           }
 
           // Parse sources data from Jinja2
@@ -686,7 +687,7 @@
                       html += `<div style="${tileBase}cursor:pointer;transition:box-shadow 0.15s ease;"
                                onmouseover="this.style.boxShadow='0 3px 8px rgba(0,0,0,0.12)';"
                                onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.05)';"
-                               onclick="document.getElementById('code-locations-heading').scrollIntoView({behavior:'smooth',block:'start'});">
+                               onclick="(function(){ const el = document.getElementById('code-locations-heading'); if (!el) return; const top = el.getBoundingClientRect().top + window.scrollY - 16; window.scrollTo({top, behavior:'smooth'}); })();">
                                    <div style="${tileLabel}">Code locations</div>
                                    <div style="${tileValue}">${locationCount}</div>
                                </div>`;
@@ -707,7 +708,6 @@
                   // Create individual flip tiles
                   sortedKeys.forEach(({ key, ratio }) => {
                       const color = getColorForRatio(ratio);
-                      const percentage = (ratio * 100).toFixed(1);
                       const rgb = color.match(/\d+/g).map(Number);
                       const bgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.2)`;
                       const hoverBgColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.35)`;
@@ -730,7 +730,7 @@
                                title="${escapeHtml(titleText)}">
                               <div style="font-size: 8px; font-weight: 400; color: #868e96; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(key)}</div>
                               <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px;">
-                                  <div style="font-size: 14px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${percentage}%</div>
+                                  <div style="font-size: 14px; font-weight: 700; color: #212529; font-family: 'Monaco', monospace;">${counts.costValue.toFixed(4)}</div>
                                   <div style="font-size: 8px; color: #6c757d; white-space: nowrap;">${counts.successCount}/${counts.totalCount}</div>
                               </div>
                               <div style="font-size: 8px; color: #868e96; white-space: nowrap;">${counts.recCalls} calls</div>
@@ -753,14 +753,15 @@
                       }
 
                       let totalRatio = 0;
+                      let totalCostValue = 0;
                       let count = 0;
                       const contextKeys = Object.keys(source.contexts);
 
                       // Only count contexts that exist in heuristicsData
                       contextKeys.forEach(contextKey => {
                           if (heuristicsData && heuristicsData[contextKey] !== undefined) {
-                              const ratio = getHeuristicValue(contextKey);
-                              totalRatio += ratio;
+                              totalRatio += getHeuristicValue(contextKey);
+                              totalCostValue += getHeuristicCounts(contextKey).costValue;
                               count++;
                           }
                       });
@@ -768,15 +769,15 @@
                       if (count === 0) return null;
 
                       const averageRatio = totalRatio / count;
+                      const avgCostValue = totalCostValue / count;
                       const avgColor = getColorForRatio(averageRatio);
-                      const percentage = (averageRatio * 100).toFixed(1);
 
                       return {
                           index,
                           source,
                           averageRatio,
+                          avgCostValue,
                           avgColor,
-                          percentage,
                           contextCount: count
                       };
                   })
@@ -798,8 +799,8 @@
                                   Line ${item.source.line}:${item.source.column} • Span ${item.source.span}
                               </div>
                               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                                  <span style="font-size: 16px; font-weight: 600; color: #212529; font-family: 'Monaco', monospace;">${item.percentage}%</span>
-                                  <span style="font-size: 11px; color: #868e96; font-weight: 500;">avg success</span>
+                                  <span style="font-size: 16px; font-weight: 600; color: #212529; font-family: 'Monaco', monospace;">${item.avgCostValue.toFixed(4)}</span>
+                                  <span style="font-size: 11px; color: #868e96; font-weight: 500;">avg cost</span>
                               </div>
                               <div style="font-size: 10px; color: #868e96; background: ${bgColor}; padding: 3px 6px; border-radius: 3px; text-align: center;">
                                   ${item.contextCount} context${item.contextCount !== 1 ? 's' : ''}
@@ -838,6 +839,30 @@
           }
 
           /**
+           * Smooth-scroll so the span is near the top of the viewport (only if needed),
+           * then call callback once the scroll settles.
+           * @param {HTMLElement} span
+           * @param {Function} callback
+           */
+          function scrollToSpanThen(span, callback) {
+              const rect = span.getBoundingClientRect();
+              const inView = rect.top >= 60 && rect.bottom <= window.innerHeight - 60;
+              if (!inView) {
+                  const absoluteTop = rect.top + window.scrollY - 100;
+                  window.scrollTo({ top: Math.max(0, absoluteTop), behavior: 'smooth' });
+                  const onEnd = () => {
+                      window.removeEventListener('scrollend', onEnd);
+                      clearTimeout(fallback);
+                      callback();
+                  };
+                  const fallback = setTimeout(onEnd, 500);
+                  window.addEventListener('scrollend', onEnd, { once: true });
+              } else {
+                  callback();
+              }
+          }
+
+          /**
            * Focus on a code location by opening/focusing its dialog
            * @param {number} sourceIndex - Index of the source to focus on
            */
@@ -845,42 +870,17 @@
               const source = sources[sourceIndex];
               if (!source) return;
 
-              // Find the corresponding span
               const span = codeElement.querySelector(`.hoverable-code[data-index="${sourceIndex}"]`);
               if (!span) return;
 
-              // Check if dialog already exists for this span
-              const existingDialog = openDialogs.find(d => d.spanIndex === sourceIndex);
-
-              if (existingDialog) {
-                  // Dialog exists, just focus it
-                  const dialog = document.getElementById(existingDialog.id);
-                  if (dialog) {
-                      dialog.style.zIndex = 1000 + (++dialogIdCounter);
-                      repositionDialogIfOffScreen(dialog);
-                      scrollPageToDialog(dialog);
+              scrollToSpanThen(span, () => {
+                  const existingDialog = openDialogs.find(d => d.spanIndex === sourceIndex);
+                  if (existingDialog) {
+                      const dialog = document.getElementById(existingDialog.id);
+                      if (dialog) dialog.style.zIndex = 1000 + (++dialogIdCounter);
+                  } else {
+                      showDialog(span, source, sourceIndex);
                   }
-              } else {
-                  // Open new dialog
-                  showDialog(span, source, sourceIndex);
-
-                  // Scroll to show the dialog
-                  setTimeout(() => {
-                      const newDialog = openDialogs[openDialogs.length - 1];
-                      if (newDialog) {
-                          const dialog = document.getElementById(newDialog.id);
-                          if (dialog) {
-                              scrollPageToDialog(dialog);
-                          }
-                      }
-                  }, 50);
-              }
-
-              // Also scroll the code into view
-              span.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'center',
-                  inline: 'nearest'
               });
           }
 
@@ -927,11 +927,11 @@
                           // Open the context dropdown
                           item.open = true;
 
-                          // Scroll within dialog
                           scrollToContextInDialog(dialog, item);
 
-                          // Scroll page to show dialog
-                          scrollPageToDialog(dialog);
+                          if (dialogInfo.spanElement) {
+                              scrollToSpanThen(dialogInfo.spanElement, () => {});
+                          }
 
                           return true;
                       }
@@ -951,20 +951,16 @@
                   if (source.contexts && source.contexts[contextKey] !== undefined) {
                       const span = codeElement.querySelector(`.hoverable-code[data-index="${i}"]`);
                       if (span) {
-                          showDialog(span, source, i);
-
-                          // Wait for dialog creation, then focus context
-                          setTimeout(() => {
-                              const newDialog = openDialogs[openDialogs.length - 1];
-                              if (newDialog) {
-                                  const dialog = document.getElementById(newDialog.id);
-                                  if (dialog) {
-                                      focusContextInNewDialog(dialog, contextKey);
-                                      scrollPageToDialog(dialog);
+                          scrollToSpanThen(span, () => {
+                              showDialog(span, source, i);
+                              setTimeout(() => {
+                                  const newDialog = openDialogs[openDialogs.length - 1];
+                                  if (newDialog) {
+                                      const dialog = document.getElementById(newDialog.id);
+                                      if (dialog) focusContextInNewDialog(dialog, contextKey);
                                   }
-                              }
-                          }, 50);
-
+                              }, 50);
+                          });
                           return true;
                       }
                   }
@@ -1011,7 +1007,7 @@
                   const centerY = (viewportHeight - dialog.offsetHeight) / 2;
 
                   dialog.style.left = Math.max(20, centerX) + 'px';
-                  dialog.style.top = Math.max(20, centerY) + 'px';
+                  dialog.style.top = Math.max(20, centerY + window.scrollY) + 'px';
               }
           }
 
@@ -1360,9 +1356,8 @@
                   width = remembered.width || 500;
                   height = remembered.height || 400;
 
-                  // Ensure position is within bounds
-                  top = Math.max(minTopMargin, Math.min(top, window.innerHeight - 50));
-                  left = Math.max(0, Math.min(left, window.innerWidth - 100));
+                  top = Math.max(minTopMargin, top);
+                  left = Math.max(0, left);
               } else {
                   const spanRect = span.getBoundingClientRect();
                   const offset = openDialogs.length * 20;
@@ -1370,12 +1365,13 @@
                   top = spanRect.bottom + window.scrollY + 10 + offset;
                   left = spanRect.left + window.scrollX + offset;
 
-                  // Check if dialog would go off bottom
+                  // If dialog would go off bottom of viewport, place above span instead
                   if (top + height > window.innerHeight + window.scrollY) {
                       top = spanRect.top + window.scrollY - height - 10;
                   }
 
-                  top = Math.max(minTopMargin, top - window.scrollY) + window.scrollY;
+                  // Ensure dialog never goes above the document top
+                  top = Math.max(minTopMargin, top);
 
                   // Check if dialog would go off right edge
                   if (left + width > window.innerWidth + window.scrollX) {

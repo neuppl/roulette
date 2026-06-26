@@ -41,6 +41,7 @@ if __name__ == "__main__":
         normalized = scores[k] / max_score
         heuristics[k] = {
             "color-ratio": round(normalized, 6),
+            "cost-value": round(scores[k], 6),
             "num-successful-samples": v["results"]["num-successful-samples"],
             "num-total-samples": v["results"]["num-total-samples"],
             "total-recursive-calls": v["results"]["total-recursive-calls"],
@@ -82,4 +83,3 @@ if __name__ == "__main__":
     with open(save_path, 'w') as f:
         f.write(html_output)
 
-    print("HTML file produced at: ", save_path)

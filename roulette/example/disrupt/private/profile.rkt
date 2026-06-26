@@ -48,14 +48,11 @@
 
 (define (var-value stats) 
     (let ([num-successful-samples (first stats)]
-					[num-total-samples (add1 (second stats))]
-					[total-rec-calls (add1 (third stats))])
-			#;(if (= num-successful-samples 0)
+					[num-total-samples (second stats)]
+					[total-rec-calls (third stats)])
+			(if (= num-total-samples 0)
 					0
-					(let* ([avg-rec-calls (/ total-rec-calls num-successful-samples)]
-								 [cost (* avg-rec-calls num-total-samples)])
-							(exact->inexact (/ num-successful-samples cost))))
-			(exact->inexact (/ num-successful-samples num-total-samples))))
+					(exact->inexact (/ num-successful-samples num-total-samples)))))
 
 (define (variable-labels var-label-map acc-var-costs)
     (let* ([ratios (for/hash ([(var stats) (in-hash acc-var-costs)]
