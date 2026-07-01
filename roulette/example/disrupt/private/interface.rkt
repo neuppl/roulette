@@ -70,6 +70,9 @@
 (define kill-signal-box (if (equal? bdd-engine-backend "rsdd") 
                             rs:kill-signal-box 
                             rkt:kill-signal-box))
+(define (clear-cache!) (if (equal? bdd-engine-backend "rsdd") 
+                           (set! engine (make-engine))
+                           (rkt:reset-bdd!)))
 
 (define engine (make-engine))
 (define o-evidence #t)
@@ -273,19 +276,15 @@
     (clear-cache!)
 
     (define env (make-env))
-    (define out (with-timeout wait 
-                              (lambda () 
-                                (query val #:environment env)
-                                (define rec-calls (recursive-calls))
-                                (printf "completed sample in ~a recursive calls \n" rec-calls)
-                                rec-calls
-                              )
-                              (lambda () 
-                                (displayln "timed out")
-                                #f)))
-
-    (begin0
-      (values env out))))
+    (with-timeout wait 
+                  (lambda () 
+                    (query val #:environment env)
+                    (define rec-calls (recursive-calls))
+                    (printf "completed sample in ~a recursive calls \n" rec-calls)
+                    rec-calls)
+                  (lambda () 
+                    (displayln "timed out")
+                    #f))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
@@ -417,11 +416,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; debug
-
-(define (clear-cache!)
-  (rkt:reset-bdd!)
-  (set! engine (make-engine)))
+;; debug  
 
 (define (recursive-calls)
   (send engine recursive-calls))
