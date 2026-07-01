@@ -256,9 +256,7 @@
         (default))))
 
 
-; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
-; vars sampled randomly over a number of iterations. A value of #f means the val couldn't evaluate 
-; within budget for that sample.
+
 (define (cost val vars
               #:iterations [iters 10]
               #:budget [budget +inf.0]
@@ -268,24 +266,24 @@
       (define pr (hash-ref (pmf-hash (query var)) #t 0))
       (values var (< (random) pr))))
 
-  (for/hash ([k (in-range iters)])
-    (printf "~a: " k)
-    (clear-cache!)
+  (define results 
+    (for/list ([k (in-range iters)])
+      (printf "~a: " k)
+      (clear-cache!)
 
-    (define env (make-env))
-    (define out (with-timeout wait 
-                              (lambda () 
-                                (query val #:environment env)
-                                (define rec-calls (recursive-calls))
-                                (printf "completed sample in ~a recursive calls \n" rec-calls)
-                                rec-calls
-                              )
-                              (lambda () 
-                                (displayln "timed out")
-                                #f)))
-
-    (begin0
-      (values env out))))
+      (define env (make-env))
+      (with-timeout wait 
+                                (lambda () 
+                                  (query val #:environment env)
+                                  (define rec-calls (recursive-calls))
+                                  (printf "completed sample in ~a recursive calls \n" rec-calls)
+                                  rec-calls)
+                                (lambda () 
+                                  (displayln "timed out")
+                                  #f))))
+    (define results-without-timeouts (filter number? results))
+    (and (> (length results-without-timeouts) (/ (length results) 2)) ; if majority of samples run without timemout
+         (length vars))) ; then the cost is the number of assigned vars, else false.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
