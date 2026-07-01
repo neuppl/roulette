@@ -389,6 +389,33 @@
 (define (process-results profiler-results)
   (variable-labels var-label-map profiler-results))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; profiler evaluation
+
+
+
+;Compares the time taken to randomly sample num-vars in e, against the time taken to sample the first 
+; num-vars in var-labels. Returns the difference, and prints information to output port. 
+(define (compare-sampling-duration e var-labels #:take [num-vars 10] 
+                                                #:samples [num-samples 10])
+  (define-values (_ __ real-guided ___) 
+    (time-apply (lambda ()
+      (for ([n (in-range num-samples)]) 
+        (guided-sample e var-labels #:take num-vars))) 
+    (list)))
+  (printf "Time taken to guided sample ~a top vars ~a times: ~a" num-vars num-samples real-guided)
+  (define shuffled-var-labels (shuffle var-labels))
+  
+  (define-values (____ _____ real-random ______) 
+    (time-apply (lambda ()
+      (for ([n (in-range num-samples)]) 
+        (guided-sample e shuffled-var-labels #:take num-vars))) 
+    (list)))
+  (printf "Time taken to sample ~a random vars ~a times: ~a" num-vars num-samples real-random)
+  (- real-guided real-random))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
 
