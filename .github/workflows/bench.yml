@@ -34,7 +34,7 @@ jobs:
           echo "Output of ls: $(ls -la)"
 
       - name: Copy results to benchmark data repository
-        run: mv data plots results roulette-bench-data/
+        run: mv roulette/benchmark/* roulette-bench-data/
 
       - name: Commit and push changes
         run: |
