@@ -23,7 +23,7 @@ jobs:
       - name: Checkout benchmark data repository
         uses: actions/checkout@v4
         with:
-          repository: "neuppl/roulette-bench-data"
+          repository: "Smaran-Teja/roulette-bench-data"
           path: "roulette-bench-data" # This will be a subdirectory
           token: ${{ secrets.PAT }} # MUST use PAT for push permissions
           persist-credentials: true # Keep credentials for push
