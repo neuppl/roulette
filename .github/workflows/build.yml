@@ -18,8 +18,8 @@ jobs:
       #
       - uses: Bogdanp/setup-racket@v1.7
         with:
-          architecture: 'x64'
-          distribution: 'full'
-          version: 'current'
-      - run: raco pkg install --auto roulette-lib/ roulette/
+          architecture: "x64"
+          distribution: "full"
+          version: "current"
+      - run: raco pkg install --auto benchmark_ci/ roulette-lib/ roulette/
       - run: raco test roulette/

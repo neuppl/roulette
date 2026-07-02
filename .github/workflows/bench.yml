@@ -15,4 +15,31 @@ jobs:
           version: "current"
 
       - run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/
-      - run: cd roulette/benchmark; ./run_benchmarks.sh
+      - run: cd roulette/benchmark && ./run_benchmarks.sh
+  push-to-benchmark-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout benchmark data repository
+        uses: actions/checkout@v4
+        with:
+          repository: "neuppl/roulette-bench-data"
+          path: "roulette-bench-data" # This will be a subdirectory
+          token: ${{ secrets.PAT }} # MUST use PAT for push permissions
+          persist-credentials: true # Keep credentials for push
+
+      - name: log
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Output of ls: $(ls -la)"
+
+      - name: Copy results to benchmark data repository
+        run: mv data plots results roulette-bench-data/
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          cd roulette-bench-data
+          git add .
+          git commit -m "push benchmark results"
+          git push
