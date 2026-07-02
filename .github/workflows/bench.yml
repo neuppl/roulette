@@ -14,11 +14,12 @@ jobs:
           distribution: "full"
           version: "current"
 
-      - run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/
-      - run: cd roulette/benchmark && ./run_benchmarks.sh
-  push-to-benchmark-repo:
-    runs-on: ubuntu-latest
-    steps:
+      - name: Install dependencies
+        run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/
+
+      - name: Run benchmarks
+        run: cd roulette/benchmark && ./run_benchmarks.sh
+
       - name: Checkout benchmark data repository
         uses: actions/checkout@v4
         with:
