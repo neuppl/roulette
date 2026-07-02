@@ -17,4 +17,4 @@ DIR="data/run_${DATE_STRING}"
 mkdir -p "$DIR"
 mv *.json "$DIR/" 
 
-raco scribble --pdf summary.scribl
+raco scribble --htmls results.scribl

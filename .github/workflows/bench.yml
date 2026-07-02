@@ -1,0 +1,18 @@
+on: [push, pull_request]
+name: benchmark
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      #
+      # Racket
+      #
+      - uses: Bogdanp/setup-racket@v1.7
+        with:
+          architecture: "x64"
+          distribution: "full"
+          version: "current"
+
+      - run: raco pkg install --auto roulette-lib/ roulette/ bnehcmark_ci/
+      - run: cd roulette/benchmark; ./run_benchmarks.sh
