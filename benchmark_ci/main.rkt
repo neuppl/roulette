@@ -50,13 +50,16 @@
                                                     (list (~s val) prob))]
                                         [else (~s r)])) 
                                     res))
+
+				(define data-dir (build-path (current-directory) "data"))
+				
         (call-with-output-file (path-replace-suffix (file-name-from-path (quote-module-name)) ".json")
           (lambda (out)
             (write-json 
               (hash
                 'result jsonified-res
                 'real_time_ms real
-                'cpu_time_ms cpu
+                'cpu_time_ms cpu 
                 'gc_time_ms gc
                 'recursive-calls (recursive-calls)
                 'total-size (+ (size ?r) ...))
