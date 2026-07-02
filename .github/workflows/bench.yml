@@ -14,5 +14,5 @@ jobs:
           distribution: "full"
           version: "current"
 
-      - run: raco pkg install --auto roulette-lib/ roulette/ bnehcmark_ci/
+      - run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/
       - run: cd roulette/benchmark; ./run_benchmarks.sh
