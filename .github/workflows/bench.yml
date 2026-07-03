@@ -19,7 +19,7 @@ jobs:
           version: "current"
 
       - name: Install dependencies
-        run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/
+        run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/ gtp-util gtp-plot
 
       - name: Run benchmarks
         run: cd roulette/benchmark && ./run_benchmarks.sh
