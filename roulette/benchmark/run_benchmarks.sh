@@ -16,5 +16,3 @@ DATE_STRING=$(date +%Y-%m-%d_%H-%M-%S)
 DIR="data/run_${DATE_STRING}"
 mkdir -p "$DIR"
 mv *.json "$DIR/" 
-
-raco scribble --htmls results.scribl
