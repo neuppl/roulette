@@ -23,10 +23,9 @@ jobs:
 
       - name: Run benchmarks
         run: cd roulette/benchmark && ./run_benchmarks.sh
-      
-      - name: Generate extra plots
-        run: ls -la; cd roulette/extra && raco scribble --htmls roulette/extra/extra.scribl
 
+      - name: Generate extra plots
+        run: ls -la; cd roulette/extra && raco scribble --htmls plots.scribl
 
       - name: Checkout benchmark data repository
         uses: actions/checkout@v4

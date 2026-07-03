@@ -1,0 +1,53 @@
+#lang scribble/manual
+@(require racket/list
+          file/convertible
+          scribble/base)
+
+@title{Extra plots}
+
+These are additional benchmarking plots that are used to visualize the performance of the profiling tool for Roulette.
+@;; ---------------------------------------------------------------------------
+@;; Other plots. Every .rkt file in extra/ may provide any number of
+@;; identifiers whose value is renderable (a pict, image, plot snip, or anything
+@;; else implementing the convertible interface). We enumerate those files,
+@;; dynamically require every provided identifier from each, and display every
+@;; renderable value under a heading naming the identifier that is exported.
+@;; Non-renderable provides (helper functions, etc.) are skipped. Files are
+@;; processed in name order.
+@;; ---------------------------------------------------------------------------
+
+@(define extra-dir "../extra")
+
+@(define (extra-rkt-files)
+   (if (directory-exists? extra-dir)
+       (sort
+        (for/list ([p (in-list (directory-list extra-dir))]
+                   #:when (regexp-match? #rx"\\.rkt$" (path->string p)))
+          (path->string p))
+        string<?)
+       '()))
+
+@;; The phase-0 value identifiers provided by a module, in name order. We
+@;; declare the module (without instantiating it) so module->exports can
+@;; inspect it.
+@(define (provided-identifiers mod)
+   (dynamic-require mod (void))
+   (define-values (vars stxs) (module->exports mod))
+   (define phase-0 (cond [(assv 0 vars) => cdr] [else '()]))
+   (sort (map car phase-0) symbol<?))
+
+@(define (other-plots-section)
+   (append*
+    (for/list ([filename (in-list (extra-rkt-files))])
+      (define mod (build-path extra-dir filename))
+      (append*
+       (for/list ([id (in-list (provided-identifiers mod))])
+         (define val (dynamic-require mod id))
+         (if (convertible? val)
+             (list
+              @bold{@(symbol->string id)}
+              (linebreak)
+              (centered val)
+              (linebreak))
+             '()))))))
+@(other-plots-section)
