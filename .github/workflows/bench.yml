@@ -19,10 +19,14 @@ jobs:
           version: "current"
 
       - name: Install dependencies
-        run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/ gtp-plot gtp-util
+        run: raco pkg install --auto roulette-lib/ roulette/ benchmark_ci/
 
       - name: Run benchmarks
         run: cd roulette/benchmark && ./run_benchmarks.sh
+      
+      - name: Generate extra plots
+        run: ls -la; cd roulette/extra && raco scribble --htmls roulette/extra/extra.scribl
+
 
       - name: Checkout benchmark data repository
         uses: actions/checkout@v4
