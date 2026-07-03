@@ -2,7 +2,7 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-    
+
 name: benchmark
 jobs:
   benchmark:
@@ -38,7 +38,7 @@ jobs:
           echo "Output of ls: $(ls -la)"
 
       - name: Copy results to benchmark data repository
-        run: rsync -av roulette/benchmark/ roulette-bench-data/; mkdir roulette-bench-data/extra; rsync -av roulette/extra roulette-bench-data/extra
+        run: mkdir -p roulette-bench-data/extra roulette-bench-data/benchmarks; rsync -av roulette/benchmark/ roulette-bench-data/benchmarks; rsync -av roulette/extra roulette-bench-data/extra
 
       - name: Commit and push changes
         run: |
