@@ -7,7 +7,8 @@
           plot/no-gui
           plot/utils
           scribble/base
-          racket/date)
+          racket/date
+          "../extra/grid.rkt")
 
 @title{Benchmarking results summary}
 @margin-note{These plots were generated on @(date->string (current-date))}
@@ -167,3 +168,13 @@ Racket's @tt{plot} library from the raw benchmark data in the @tt{data/} directo
 @section{Total size}
 @(single-metric-section "total-size" 'total-size
                         "Total Size for ~a" "Total Size" "purple")
+
+@section{Other plots}
+
+@bold{gtp-n-grid-2}
+
+The performance lattice for the @tt{2x2} grid benchmark
+(@tt{gtp-n-grid-2}), produced by @tt{cost-lattice} in @tt{extra/grid.rkt}:
+
+@linebreak[]
+@centered[gtp-n-grid-2]

@@ -4,7 +4,7 @@
 ;; require
 
 (require "lattice.rkt")
-
+(provide gtp-n-grid-2)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; grid
 
@@ -32,7 +32,7 @@
 ;; tests
 
 ;; lattice test
-(cost-lattice (make-grid 2) #:iterations 10)
+(define gtp-n-grid-2 (cost-lattice (make-grid 2) #:iterations 10))
 
 ;; cost test
 #;(cost (make-grid 200) '() #:budget 2500000 #:wait 0.2 #:iterations 10)
