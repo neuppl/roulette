@@ -23,6 +23,4 @@
       (flip 0.4)))
 
 
-(make-grid 5)
-(make-grid 5)
-(flip 0.5)
+(make-grid 10)
