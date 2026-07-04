@@ -24,9 +24,6 @@ jobs:
       - name: Run benchmarks
         run: cd roulette/benchmark && ./run_benchmarks.sh
 
-      - name: Generate extra plots
-        run: ls -la; cd roulette/extra && raco scribble --htmls plots.scribl
-
       - name: Checkout benchmark data repository
         uses: actions/checkout@v4
         with:
@@ -41,7 +38,10 @@ jobs:
           echo "Output of ls: $(ls -la)"
 
       - name: Copy results to benchmark data repository
-        run: mkdir -p roulette-bench-data/extra roulette-bench-data/benchmarks; rsync -av roulette/benchmark/ roulette-bench-data/benchmarks; rsync -av roulette/extra/ roulette-bench-data/extra
+        run: mkdir -p roulette-bench-data/extra roulette-bench-data/benchmarks roulette-bench-data/site; rsync -av roulette/benchmark/ roulette-bench-data/benchmarks; rsync -av roulette/extra/ roulette-bench-data/extra
+
+      - name: Generate Scribble docs
+        run: cp roulette/site.scribl roulette-bench-data/site.scribl;  cd roulette-bench-data; raco scribble --htmls site.scribl
 
       - name: Commit and push changes
         run: |
