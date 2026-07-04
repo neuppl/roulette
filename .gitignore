@@ -18,3 +18,5 @@ tables/
 .vscode
 *.rktd
 *.csv
+roulette/benchmark/data
+roulette/benchmark/plots

@@ -44,7 +44,10 @@ jobs:
           rsync -av roulette/extra/ roulette-bench-data/extra
 
       - name: Generate Scribble docs
-        run: cp roulette/site.scribl roulette-bench-data/site.scribl;  cd roulette-bench-data; raco scribble --htmls site.scribl
+        run: |
+          cp roulette/site.scribl roulette-bench-data/site.scribl
+          cd roulette-bench-data
+          raco scribble --htmls site.scribl
 
       - name: Commit and push changes
         run: |

@@ -1,12 +1,10 @@
-# Find and run all .rkt files in the benchmark directory
-for benchmark in *.rkt; do
-    if [ -f "$benchmark" ]; then
-        echo "----------------------------------------"
-        echo "Running benchmark: $(basename "$benchmark")"
+# Find and run all .rkt files in the benchmark directory and its subdirectories
+find . -type f -name '*.rkt' | while read -r benchmark; do
+    echo "----------------------------------------"
+    echo "Running benchmark: $benchmark"
 
-        racket "$benchmark"
-        echo "----------------------------------------\n"
-    fi
+    racket "$benchmark"
+    echo "----------------------------------------\n"
 done
 
 echo "All benchmarks completed"
