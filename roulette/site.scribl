@@ -184,7 +184,7 @@ Racket's @tt{plot} library from the raw benchmark data in the @tt{data/} directo
 @(define (extra-rkt-files)
    (if (directory-exists? extra-dir)
        (sort
-        (for/list ([p (in-list (directory-list extra-dir))]
+        (for/list ([p (in-directory extra-dir)]
                    #:when (regexp-match? #rx"\\.rkt$" (path->string p)))
           (path->string p))
         string<?)

@@ -190,8 +190,13 @@
   (sleep 0)
   (define start-time (current-milliseconds))
   (increment-rec-calls!)
-  ;; Check for cached BDD
-  (define cached (hash-ref (bdd-table-and-memo global-bdd-table) (cons f g) #f))
+  ;; Check for cached BDD. The memo is a nested `hasheq` keyed by the integer
+  ;; pointers `f` and `g` (a flat `(cons f g)` key never hits, since each cons
+  ;; is a fresh, non-`eq?` allocation). Nested `hasheq` keeps it kill-safe.
+  (define and-memo (bdd-table-and-memo global-bdd-table))
+  (define cached
+    (let ([inner (hash-ref and-memo f #f)])
+      (and inner (hash-ref inner g #f))))
   (define result 
     (if cached
         cached
@@ -228,7 +233,7 @@
                         l
                         (get-or-insert (bdd-node g-topvar l h))))])])
           ;; Cache the conjunction
-          (hash-set! (bdd-table-and-memo global-bdd-table) (cons f g) result)
+          (hash-set! (hash-ref! and-memo f make-hasheq) g result)
           result)))
       (begin0
         result
