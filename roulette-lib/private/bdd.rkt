@@ -69,10 +69,27 @@
 ;; Global BDD table
 (define global-bdd-table (fresh-bdd-table))
 
+;; Reset the contents of an existing table in place, reusing its (large)
+;; backing vector instead of reallocating. Only slots below `next-free` are
+;; ever read, so the stale entries above it need not be cleared.
+(define (reset-bdd-table-in-place! tbl)
+  (define compute-tbl (bdd-table-compute-table tbl))
+  (define arr (bdd-table-backing-table tbl))
+  (hash-clear! compute-tbl)
+  (hash-clear! (bdd-table-and-memo tbl))
+  (hash-clear! (bdd-table-not-memo tbl))
+  (vector-set! arr 0 (bdd-true))
+  (vector-set! arr 1 (bdd-false))
+  (hash-set! compute-tbl (bdd-true) true-ptr)
+  (hash-set! compute-tbl (bdd-false) false-ptr)
+  (set-box! (bdd-table-next-free tbl) 2)
+  (set-box! (bdd-table-num-vars tbl) 0)
+  (set-box! (bdd-table-recursive-calls tbl) 0))
+
 ;;Reset all global structures/data
 (define (reset-bdd!)
   (set! rec-calls-limit #f)
-  (set! global-bdd-table (fresh-bdd-table))
+  (reset-bdd-table-in-place! global-bdd-table)
   (set! global-wmc-params (wmc-params (make-hasheq) 1.0 0.0)))
 
 ;; Get the number of recursive calls

@@ -70,9 +70,17 @@
 (define kill-signal-box (if (equal? bdd-engine-backend "rsdd") 
                             rs:kill-signal-box 
                             rkt:kill-signal-box))
-(define (clear-cache!) (if (equal? bdd-engine-backend "rsdd") 
+(define (clear-cache!) (if (equal? bdd-engine-backend "rsdd")
                            (set! engine (make-engine))
-                           (rkt:reset-bdd!)))
+                           ;; Reset the global BDD table *and* recreate the engine.
+                           ;; The rbdd engine's `enc` cache maps constants to BDD
+                           ;; pointers into the global table; resetting the table
+                           ;; alone would leave stale pointers behind, so we must
+                           ;; also discard the engine (and its cache) to keep them
+                           ;; in sync (mirrors the rsdd path above).
+                           (begin
+                             (rkt:reset-bdd!)
+                             (set! engine (make-engine)))))
 
 (define engine (make-engine))
 (define o-evidence #t)

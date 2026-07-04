@@ -23,4 +23,4 @@
       (flip 0.4)))
 
 
-(make-grid 12)
+(make-grid 9)
