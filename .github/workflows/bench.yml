@@ -38,7 +38,8 @@ jobs:
           echo "Output of ls: $(ls -la)"
 
       - name: Copy results to benchmark data repository
-        run: mkdir -p roulette-bench-data/extra roulette-bench-data/benchmark
+        run: |
+          mkdir -p roulette-bench-data/extra roulette-bench-data/benchmark
           rsync -av roulette/benchmark/ roulette-bench-data/benchmark
           rsync -av roulette/extra/ roulette-bench-data/extra
 
