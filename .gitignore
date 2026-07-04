@@ -3,6 +3,7 @@
 .\#*
 .DS_Store
 compiled/
+roulette/site/
 doc/
 tables/
 *.swp
