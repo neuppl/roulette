@@ -183,11 +183,9 @@ Racket's @tt{plot} library from the raw benchmark data in the @tt{data/} directo
 
 @(define (extra-rkt-files)
    (if (directory-exists? extra-dir)
-       (sort
-        (for/list ([p (in-directory extra-dir)]
-                   #:when (regexp-match? #rx"\\.rkt$" (path->string p)))
-          (path->string p))
-        string<?)
+       (for/list ([p (in-directory extra-dir)]
+                  #:when (regexp-match? #rx"\\.rkt$" (path->string p)))
+         p)
        '()))
 
 @;; The phase-0 value identifiers provided by a module, in name order. We
@@ -202,10 +200,9 @@ Racket's @tt{plot} library from the raw benchmark data in the @tt{data/} directo
 @(define (other-plots-section)
    (append*
     (for/list ([filename (in-list (extra-rkt-files))])
-      (define mod (build-path extra-dir filename))
       (append*
-       (for/list ([id (in-list (provided-identifiers mod))])
-         (define val (dynamic-require mod id))
+       (for/list ([id (in-list (provided-identifiers filename))])
+         (define val (dynamic-require filename id))
          (if (convertible? val)
              (list
               @bold{@(symbol->string id)}
