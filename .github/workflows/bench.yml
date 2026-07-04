@@ -1,7 +1,7 @@
 on:
+  workflow_dispatch:
   push:
   pull_request:
-  workflow_dispatch:
 
 name: benchmark
 jobs:
@@ -38,7 +38,9 @@ jobs:
           echo "Output of ls: $(ls -la)"
 
       - name: Copy results to benchmark data repository
-        run: mkdir -p roulette-bench-data/extra roulette-bench-data/benchmarks roulette-bench-data/site; rsync -av roulette/benchmark/ roulette-bench-data/benchmarks; rsync -av roulette/extra/ roulette-bench-data/extra
+        run: mkdir -p roulette-bench-data/extra roulette-bench-data/benchmark
+          rsync -av roulette/benchmark/ roulette-bench-data/benchmark
+          rsync -av roulette/extra/ roulette-bench-data/extra
 
       - name: Generate Scribble docs
         run: cp roulette/site.scribl roulette-bench-data/site.scribl;  cd roulette-bench-data; raco scribble --htmls site.scribl
