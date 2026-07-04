@@ -216,4 +216,5 @@ Racket's @tt{plot} library from the raw benchmark data in the @tt{data/} directo
 
 @section{Extra plots}
 These are additional benchmarking plots that are used to visualize the performance of the profiling tool for Roulette.
+@(linebreak)
 @(other-plots-section)
