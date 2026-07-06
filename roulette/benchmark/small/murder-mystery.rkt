@@ -13,4 +13,4 @@
   (observe! obs)
   alice-dunnit)
 
-(query (gun-found-at-scene #true))
+(gun-found-at-scene #true)

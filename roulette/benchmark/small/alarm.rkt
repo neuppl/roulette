@@ -12,4 +12,3 @@
 (define called (&& mary-wakes phone-working))
 (observe! called)
 burglary
-(and (flip 0.5) (flip 0.5) (flip 0.5) (flip 0.5) (flip 0.5) (flip 0.5))
