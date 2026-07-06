@@ -17,9 +17,14 @@
 There are currently 3 parameters on which benchmarks are collected: timing
 (which includes real time, cpu time and gc time), number of recursive calls, and
 total size. You can find plots for each parameter in the seperate sections of this
-document. The plots below are generated directly by this Scribble document using
-Racket's @tt{plot} library from the raw benchmark data in the @tt{data/} directory.
+document. The plots are generated from the data in the @tt{data/} directory.
 
+Additionally, there are also benchmarks for the code profiler in Section 4, Extra plots.
+These are generated from the files in the @tt{extra} directory.
+
+You can find these files and data in the @hyperlink["https://github.com/Smaran-Teja/roulette-bench-data"]{roulette-bench-data} repository.
+
+These benchmarks are re-generated with each commit to the @hyperlink["https://github.com/neuppl/roulette"]{roulette} repository.
 @;; ---------------------------------------------------------------------------
 @;; Data loading
 @;;
