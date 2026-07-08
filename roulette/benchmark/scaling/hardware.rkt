@@ -118,4 +118,6 @@
   (set! BIT-WIDTH bw)
   (read-total ((tri n) fuel (blank-memory))))
 
-(main 6 7 8)
+(define _ (scale (main 6 7 8)
+                 (main 7 8 9)
+                 (main 8 9 10)))

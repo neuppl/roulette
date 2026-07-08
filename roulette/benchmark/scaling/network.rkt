@@ -68,4 +68,4 @@
     (diamond acc)))
 
 
-(main 7)
+(define _ (scale (main 2) (main 4) (main 6) (main 8)))

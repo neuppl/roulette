@@ -19,7 +19,12 @@ There are currently 3 parameters on which benchmarks are collected: timing
 total size. You can find plots for each parameter in the seperate sections of this
 document. The plots are generated from the data in the @tt{data/} directory.
 
-Additionally, there are also benchmarks for the code profiler in Section 4, Extra plots.
+Scaling benchmarks (those produced by the @tt{scale} form) are reported
+separately in the Scaling benchmarks section, with timing, recursive calls and
+total size shown side-by-side per benchmark; they do not appear in the
+per-parameter sections above.
+
+Additionally, there are also benchmarks for the code profiler in the Extra plots section.
 These are generated from the files in the @tt{extra} directory.
 
 You can find these files and data in the @hyperlink["https://github.com/Smaran-Teja/roulette-bench-data"]{roulette-bench-data} repository.
@@ -104,6 +109,21 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
         (for/and ([r (in-list recs)])
           (hash-has-key? (cdr r) key))))
 
+@;; Is this a scaling benchmark? The `scale` macro tags its JSON "scaling" with
+@;; a list of x-axis labels (one per scaled expression) and reports each metric
+@;; as a list, whereas ordinary benchmarks set "scaling" to #f and report scalar
+@;; metrics. We key off the most recent run, so a benchmark that only recently
+@;; became a scaling one is classified by its current shape.
+@(define (scaling-file? filename)
+   (define recs (records-for filename))
+   (and (pair? recs)
+        (list? (hash-ref (cdr (last recs)) 'scaling #f))))
+
+@;; The x-axis labels for a scaling benchmark: the source syntax of each scaled
+@;; expression, as recorded under "scaling".
+@(define (scale-labels rec)
+   (hash-ref rec 'scaling))
+
 @;; A line + marker renderer for a single metric (matches matplotlib marker="o").
 @(define (metric-renderers recs key color label)
    (define pts (series recs key))
@@ -129,13 +149,62 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
    (image #:scale 1 (path->string out)))
 
 @;; ---------------------------------------------------------------------------
+@;; Scaling-plot helpers. A scaling benchmark reports each metric as a list of
+@;; values within a single run (one per scale step), so the x-axis here is the
+@;; scale step index rather than the run. Plots are narrower so three fit
+@;; side-by-side.
+@;; ---------------------------------------------------------------------------
+
+@;; One x-axis tick per scaled expression, labelled with that expression's
+@;; source syntax (e.g. "(main 2)").
+@(define (make-scale-ticks labels)
+   (define n (length labels))
+   (ticks
+    (lambda (lo hi)
+      (for/list ([i (in-range n)])
+        (pre-tick i #t)))
+    (lambda (lo hi pts)
+      (for/list ([pt (in-list pts)])
+        (list-ref labels (inexact->exact (round (pre-tick-value pt))))))))
+
+@;; (vector step-index value) points for one list-valued metric.
+@(define (scale-series lst)
+   (for/list ([i (in-naturals)]
+              [v (in-list lst)])
+     (vector i v)))
+
+@(define (scale-metric-renderers lst color label)
+   (define pts (scale-series lst))
+   (list (lines pts #:color color #:label label #:width 2)
+         (points pts #:color color #:sym 'fullcircle #:size 6)))
+
+@;; Render one scaling plot to plots/scaling/<stem>-<suffix>.svg. labels are the
+@;; per-expression x-axis labels.
+@(define (render-scale-plot filename suffix title y-label renderers labels)
+   (define out-dir (build-path plots-dir "scaling"))
+   (make-directory* out-dir)
+   (define out (build-path out-dir
+                           (string-append (stem filename) "-" suffix ".svg")))
+   (parameterize ([plot-x-ticks (make-scale-ticks labels)]
+                  [plot-x-label "Expression"]
+                  [plot-y-label y-label]
+                  [plot-title title]
+                  [plot-x-tick-label-angle 45]
+                  [plot-x-tick-label-anchor 'top-right]
+                  [plot-width 420]
+                  [plot-height 360])
+     (plot-file (append* renderers) out 'svg))
+   (image #:scale 1 (path->string out)))
+
+@;; ---------------------------------------------------------------------------
 @;; Per-parameter plot builders. Each returns an itemlist with one titled plot
 @;; per benchmark that has the relevant metric.
 @;; ---------------------------------------------------------------------------
 
 @(define (timing-section)
    (itemlist
-    (for/list ([filename (in-list (all-benchmark-files))])
+    (for/list ([filename (in-list (all-benchmark-files))]
+               #:unless (scaling-file? filename))
       (define recs (records-for filename))
       (item @bold{@(stem filename)}
             (linebreak)
@@ -151,7 +220,8 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @(define (single-metric-section subdir key title-fmt y-label color)
    (itemlist
     (append*
-     (for/list ([filename (in-list (all-benchmark-files))])
+     (for/list ([filename (in-list (all-benchmark-files))]
+                #:unless (scaling-file? filename))
        (define recs (records-for filename))
        (if (has-key? recs key)
            (list
@@ -164,6 +234,50 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
                    (list (metric-renderers recs key color (symbol->string key)))
                    (map car recs))))
            '())))))
+
+@;; One benchmark per file: three plots (timing, recursive calls, total size)
+@;; laid out side-by-side, plotted against the scale-step index. Only scaling
+@;; benchmarks appear here, and they appear nowhere else.
+@(define (scaling-section)
+   (append*
+    (for/list ([filename (in-list (all-benchmark-files))]
+               #:when (scaling-file? filename))
+      (define latest (cdr (last (records-for filename))))
+      (define labels (scale-labels latest))
+      (list
+       @bold{@(stem filename)}
+       (linebreak)
+       (tabular
+        #:sep (hspace 3)
+        (list
+         (list
+          (render-scale-plot
+           filename "timing"
+           (format "Timing for ~a" (stem filename)) "Time (ms)"
+           (list (scale-metric-renderers (hash-ref latest 'real_time_ms) "blue" "real_time_ms")
+                 (scale-metric-renderers (hash-ref latest 'cpu_time_ms) "orange" "cpu_time_ms")
+                 (scale-metric-renderers (hash-ref latest 'gc_time_ms) "green" "gc_time_ms"))
+           labels)
+          (render-scale-plot
+           filename "recursive-calls"
+           (format "Recursive Calls for ~a" (stem filename)) "Number of Recursive Calls"
+           (list (scale-metric-renderers (hash-ref latest 'recursive-calls) "green" "recursive-calls"))
+           labels)
+          (render-scale-plot
+           filename "total-size"
+           (format "Total Size for ~a" (stem filename)) "Total Size"
+           (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
+           labels))))
+       (linebreak)))))
+
+@section{Scaling benchmarks}
+These benchmarks are produced by the @tt{scale} form, which records each metric
+across a series of expressions to show how performance scales. For each
+benchmark the timing, recursive-call and total-size plots are shown
+side-by-side, with the x-axis labelled by each expression's source syntax
+(e.g. @tt{(main 2)}) from the most recent run.
+@(linebreak)
+@(scaling-section)
 
 @section{Timing}
 @(timing-section)
