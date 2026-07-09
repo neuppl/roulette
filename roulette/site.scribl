@@ -252,36 +252,34 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; laid out side-by-side, plotted against the scale-step index. Only scaling
 @;; benchmarks appear here, and they appear nowhere else.
 @(define (scaling-section)
-   (append*
+   (itemlist
     (for/list ([filename (in-list (all-benchmark-files))]
                #:when (scaling-file? filename))
       (define latest (cdr (last (records-for filename))))
       (define labels (scale-labels latest))
-      (list
-       @bold{@(stem filename)}
-       (linebreak)
-       (tabular
-        #:sep (hspace 3)
-        (list
-         (list
-          (render-scale-plot
-           filename "timing"
-           (format "Timing for ~a" (stem filename)) "Time (ms)"
-           (list (scale-metric-renderers (hash-ref latest 'real_time_ms) "blue" "real_time_ms")
-                 (scale-metric-renderers (hash-ref latest 'cpu_time_ms) "orange" "cpu_time_ms")
-                 (scale-metric-renderers (hash-ref latest 'gc_time_ms) "green" "gc_time_ms"))
-           labels)
-          (render-scale-plot
-           filename "recursive-calls"
-           (format "Recursive Calls for ~a" (stem filename)) "Number of Recursive Calls"
-           (list (scale-metric-renderers (hash-ref latest 'recursive-calls) "green" "recursive-calls"))
-           labels)
-          (render-scale-plot
-           filename "total-size"
-           (format "Total Size for ~a" (stem filename)) "Total Size"
-           (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
-           labels))))
-       (linebreak)))))
+      (item @bold{@(stem filename)}
+            (linebreak)
+            (tabular
+             #:sep (hspace 3)
+             (list
+              (list
+               (render-scale-plot
+                filename "timing"
+                (format "Timing for ~a" (stem filename)) "Time (ms)"
+                (list (scale-metric-renderers (hash-ref latest 'real_time_ms) "blue" "real_time_ms")
+                      (scale-metric-renderers (hash-ref latest 'cpu_time_ms) "orange" "cpu_time_ms")
+                      (scale-metric-renderers (hash-ref latest 'gc_time_ms) "green" "gc_time_ms"))
+                labels)
+               (render-scale-plot
+                filename "recursive-calls"
+                (format "Recursive Calls for ~a" (stem filename)) "Number of Recursive Calls"
+                (list (scale-metric-renderers (hash-ref latest 'recursive-calls) "green" "recursive-calls"))
+                labels)
+               (render-scale-plot
+                filename "total-size"
+                (format "Total Size for ~a" (stem filename)) "Total Size"
+                (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
+                labels))))))))
 
 @;; One plot per max-arg benchmark, tracking the "arg-value" (largest feasible
 @;; argument) across runs -- same run-indexed x-axis as the timing plots. Only
@@ -356,18 +354,18 @@ that maximum argument changes across benchmark runs.
    (sort (map car phase-0) symbol<?))
 
 @(define (other-plots-section)
-   (append*
-    (for/list ([filename (in-list (extra-rkt-files))])
-      (append*
-       (for/list ([id (in-list (provided-identifiers filename))])
-         (define val (dynamic-require filename id))
-         (if (convertible? val)
-             (list
-              @bold{@(symbol->string id)}
-              (linebreak)
-              (centered val)
-              (linebreak))
-             '()))))))
+   (itemlist
+    (append*
+     (for/list ([filename (in-list (extra-rkt-files))])
+       (append*
+        (for/list ([id (in-list (provided-identifiers filename))])
+          (define val (dynamic-require filename id))
+          (if (convertible? val)
+              (list
+               (item @bold{@(symbol->string id)}
+                     (linebreak)
+                     (centered val)))
+              '())))))))
 
 @section{Extra plots}
 These are additional benchmarking plots that are used to visualize the performance of the profiling tool for Roulette.
