@@ -58,13 +58,23 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
         #:key (lambda (p) (path->string (file-name-from-path p))))
        '()))
 
+@;; The x-axis label for a run: the first 7 characters of the commit hash
+@;; recorded in COMMIT_HASH.txt in that run's directory. Older runs that predate
+@;; the commit-hash file fall back to the run directory name.
+@(define (commit-label d)
+   (define f (build-path d "COMMIT_HASH.txt"))
+   (if (file-exists? f)
+       (let ([h (string-trim (file->string f))])
+         (substring h 0 (min 7 (string-length h))))
+       (path->string (file-name-from-path d))))
+
 @;; A "record" is a (cons run-label jsexpr) pair. records-for gathers, in run
 @;; order, every run that produced results for the given benchmark file.
 @(define (records-for filename)
    (for*/list ([d (in-list (run-dirs))]
                [f (in-value (build-path d filename))]
                #:when (file-exists? f))
-     (cons (path->string (file-name-from-path d))
+     (cons (commit-label d)
            (call-with-input-file f read-json))))
 
 @;; Every distinct benchmark JSON filename seen across all runs.
@@ -82,9 +92,10 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; Plotting helpers
 @;; ---------------------------------------------------------------------------
 
-@;; Custom x-axis ticks: one tick per run, labelled with the run timestamp.
-@;; When there are many runs we thin the ticks (roughly ten labels) so they
-@;; don't overlap, mirroring the behaviour of the old Python script.
+@;; Custom x-axis ticks: one tick per run, labelled with the run's commit hash
+@;; (see commit-label). When there are many runs we thin the ticks (roughly ten
+@;; labels) so they don't overlap, mirroring the behaviour of the old Python
+@;; script. The "run_" strip only matters for the older-run fallback label.
 @(define (make-run-ticks labels)
    (define n (length labels))
    (define step (max 1 (quotient n 10)))

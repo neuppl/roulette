@@ -13,4 +13,7 @@ echo "All benchmarks completed"
 DATE_STRING=$(date +%Y-%m-%d_%H-%M-%S)
 DIR="data/run_${DATE_STRING}"
 mkdir -p "$DIR"
-mv *.json "$DIR/" 
+mv *.json "$DIR/"
+if [ -n "$1" ]; then
+    echo "$1" > "$DIR/COMMIT_HASH.txt"
+fi
