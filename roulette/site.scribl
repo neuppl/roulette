@@ -24,6 +24,11 @@ separately in the Scaling benchmarks section, with timing, recursive calls and
 total size shown side-by-side per benchmark; they do not appear in the
 per-parameter sections above.
 
+Max-argument benchmarks (those produced by the @tt{max-arg} form) are reported
+in the Maximum argument section, one plot per benchmark tracking the largest
+feasible argument across runs; they too are excluded from the per-parameter
+sections.
+
 Additionally, there are also benchmarks for the code profiler in the Extra plots section.
 These are generated from the files in the @tt{extra} directory.
 
@@ -124,6 +129,14 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @(define (scale-labels rec)
    (hash-ref rec 'scaling))
 
+@;; Is this a max-arg benchmark? The `max-arg` form writes a minimal json tagged
+@;; "max-arg": true whose sole metric is "arg-value" (the largest feasible
+@;; argument found that run). Classified off the most recent run.
+@(define (max-arg-file? filename)
+   (define recs (records-for filename))
+   (and (pair? recs)
+        (eq? #t (hash-ref (cdr (last recs)) 'max-arg #f))))
+
 @;; A line + marker renderer for a single metric (matches matplotlib marker="o").
 @(define (metric-renderers recs key color label)
    (define pts (series recs key))
@@ -204,7 +217,7 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @(define (timing-section)
    (itemlist
     (for/list ([filename (in-list (all-benchmark-files))]
-               #:unless (scaling-file? filename))
+               #:unless (or (scaling-file? filename) (max-arg-file? filename)))
       (define recs (records-for filename))
       (item @bold{@(stem filename)}
             (linebreak)
@@ -221,7 +234,7 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
    (itemlist
     (append*
      (for/list ([filename (in-list (all-benchmark-files))]
-                #:unless (scaling-file? filename))
+                #:unless (or (scaling-file? filename) (max-arg-file? filename)))
        (define recs (records-for filename))
        (if (has-key? recs key)
            (list
@@ -270,6 +283,23 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
            labels))))
        (linebreak)))))
 
+@;; One plot per max-arg benchmark, tracking the "arg-value" (largest feasible
+@;; argument) across runs -- same run-indexed x-axis as the timing plots. Only
+@;; max-arg benchmarks appear here, and they appear nowhere else.
+@(define (max-arg-section)
+   (itemlist
+    (for/list ([filename (in-list (all-benchmark-files))]
+               #:when (max-arg-file? filename))
+      (define recs (records-for filename))
+      (item @bold{@(stem filename)}
+            (linebreak)
+            (render-plot
+             filename "max-arg"
+             (format "Max argument for ~a" (stem filename))
+             "Max argument value"
+             (list (metric-renderers recs 'arg-value "red" "arg-value"))
+             (map car recs))))))
+
 @section{Scaling benchmarks}
 These benchmarks are produced by the @tt{scale} form, which records each metric
 across a series of expressions to show how performance scales. For each
@@ -278,6 +308,13 @@ side-by-side, with the x-axis labelled by each expression's source syntax
 (e.g. @tt{(main 2)}) from the most recent run.
 @(linebreak)
 @(scaling-section)
+
+@section{Maximum argument}
+These benchmarks are produced by the @tt{max-arg} form, which finds the largest
+argument for which a computation completes within a timeout. Each plot shows how
+that maximum argument changes across benchmark runs.
+@(linebreak)
+@(max-arg-section)
 
 @section{Timing}
 @(timing-section)

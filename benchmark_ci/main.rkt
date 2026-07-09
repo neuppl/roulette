@@ -2,7 +2,8 @@
 
 (provide (except-out (all-from-out roulette/example/disrupt) #%module-begin)
          (rename-out [#%mb #%module-begin])
-         scale)
+         scale
+         max-arg)
 
 (require (for-syntax syntax/parse)
          json
@@ -28,7 +29,7 @@
     [else (~s r)]))
 
 ;; path is computed in each macro's template so (quote-module-name) resolves
-;; in the *user's* module, naming the output file after their source.
+;; in the user's module, naming the output file after their source, not this `main.rkt` module
 ;; `scaling` is #f for a non-scaling run, or a list of x-axis label strings
 ;; (one per scaled expression) for a scaling run.
 (define (write-benchmark path scaling result real cpu gc rec-calls total-size)
@@ -71,6 +72,51 @@
            (map (lambda (e) (list-ref e 3)) entries)
            (map (lambda (e) (list-ref e 4)) entries)
            (map (lambda (e) (list-ref e 5)) entries))))]))
+
+
+(define (with-timeout duration thnk default)
+  (let* ([th (thread thnk #:keep 'results)]
+         [out (sync/timeout duration th)])
+    (kill-thread th)
+    (if out
+        (thread-wait out)
+        (default))))
+
+;; Find the largest argument n (starting at #:start, incrementing by #:step)
+;; for which (fn n) completes within #:timeout seconds, and runs scale benchmark 
+; from start to the max argument 
+(define-syntax (max-arg stx)
+  (syntax-parse stx
+    [(_ ?fn (~alt (~optional (~seq #:start ?start) #:defaults ([?start #'0]))
+                  (~optional (~seq #:step ?step) #:defaults ([?step #'1]))
+                  (~optional (~seq #:timeout ?duration) #:defaults ([?duration #'1])))
+        ...)
+     #'(let ([fn ?fn] [start ?start] [step ?step] [duration ?duration])
+         (define (timeout? n)
+           (let ([result (with-timeout duration
+                                       (lambda () (fn n))
+                                       (lambda () 'timed-out))])
+             (if (equal? result 'timed-out)
+                 (begin
+                   (printf "timed out at n=~a \n" n)
+                   #t)
+                 (begin
+                   (printf "Ran without timeout at n=~a \n" n)
+                   #f))))
+
+         (define max (let loop ([i start])
+                       (if (timeout? i)
+                           (- i step)  ; _previous_ iteration is the last one without timeout
+                           (loop (+ i step)))))
+
+         (call-with-output-file (path-replace-suffix (file-name-from-path (quote-module-name)) ".json")
+          (lambda (out)
+            (write-json
+              (hash
+                'max-arg #t
+                'arg-value max)
+              out))
+          #:exists 'replace))]))
 
 (begin-for-syntax
   (define top-level-exprs '()))
