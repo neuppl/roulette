@@ -94,7 +94,7 @@
      #'(let ([fn ?fn] [start ?start] [step ?step] [duration ?duration])
          (define (timeout? n)
            (let ([result (with-timeout duration
-                                       (lambda () (fn n))
+                                       (lambda () (query (fn n)))
                                        (lambda () 'timed-out))])
              (if (equal? result 'timed-out)
                  (begin
@@ -114,7 +114,10 @@
             (write-json
               (hash
                 'max-arg #t
-                'arg-value max)
+                'arg-value max
+                'start start
+                'step step
+                'timeout duration)
               out))
           #:exists 'replace))]))
 

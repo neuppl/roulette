@@ -24,4 +24,4 @@
 
 
 
-(define _ (max-arg (lambda (n) (query (make-grid n))) #:start 10 #:step 10 #:timeout 1))
+(define _ (max-arg make-grid #:start 10 #:step 10 #:timeout 1))

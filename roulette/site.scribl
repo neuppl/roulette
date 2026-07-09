@@ -146,11 +146,13 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; Render a plot to an SVG file and return an @image element for it. The SVG
 @;; is filed under plots/<subdir>/ so each parameter's plots stay grouped
 @;; together. renderers is a list of renderer lists (one per metric).
-@(define (render-plot filename subdir title y-label renderers labels)
+@(define (render-plot filename subdir title y-label renderers labels
+                      #:y-ticks [y-ticks (plot-y-ticks)])
    (define out-dir (build-path plots-dir subdir))
    (make-directory* out-dir)
    (define out (build-path out-dir (string-append (stem filename) ".svg")))
    (parameterize ([plot-x-ticks (make-run-ticks labels)]
+                  [plot-y-ticks y-ticks]
                   [plot-x-label "Run"]
                   [plot-y-label y-label]
                   [plot-title title]
@@ -281,22 +283,51 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
                 (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
                 labels))))))))
 
+@;; Y-axis ticks for a max-arg plot: one at every candidate argument value
+@;; start, start+step, start+2*step, ... that falls within the plot's range.
+@(define (make-arg-ticks start step)
+   (ticks
+    (lambda (lo hi)
+      (define first-k (inexact->exact (floor (/ (- lo start) step))))
+      (define last-k (inexact->exact (ceiling (/ (- hi start) step))))
+      (for*/list ([k (in-inclusive-range first-k last-k)]
+                  [v (in-value (+ start (* k step)))]
+                  #:when (and (>= v lo) (<= v hi)))
+        (pre-tick v #t)))
+    (lambda (lo hi pts)
+      (for/list ([pt (in-list pts)])
+        (number->string (pre-tick-value pt))))))
+
 @;; One plot per max-arg benchmark, tracking the "arg-value" (largest feasible
-@;; argument) across runs -- same run-indexed x-axis as the timing plots. Only
-@;; max-arg benchmarks appear here, and they appear nowhere else.
+@;; argument) across runs -- same run-indexed x-axis as the timing plots. The
+@;; y-axis is scaled to the candidate arguments (start, start+step, ...) and the
+@;; timeout is shown alongside the heading. Only max-arg benchmarks appear here,
+@;; and they appear nowhere else.
 @(define (max-arg-section)
    (itemlist
     (for/list ([filename (in-list (all-benchmark-files))]
                #:when (max-arg-file? filename))
       (define recs (records-for filename))
+      (define latest (cdr (last recs)))
+      ;; start/step/timeout were added later; older runs may lack them, so we
+      ;; degrade gracefully to default y-ticks and no timeout note.
+      (define start (hash-ref latest 'start #f))
+      (define step (hash-ref latest 'step #f))
+      (define timeout (hash-ref latest 'timeout #f))
       (item @bold{@(stem filename)}
+            (if timeout
+                (format " (timeout: ~a s, start: ~a, step: ~a)" timeout start step)
+                "")
             (linebreak)
             (render-plot
              filename "max-arg"
              (format "Max argument for ~a" (stem filename))
              "Max argument value"
              (list (metric-renderers recs 'arg-value "red" "arg-value"))
-             (map car recs))))))
+             (map car recs)
+             #:y-ticks (if (and start step)
+                           (make-arg-ticks start step)
+                           (plot-y-ticks)))))))
 
 @section{Scaling benchmarks}
 These benchmarks are produced by the @tt{scale} form, which records each metric
