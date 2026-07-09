@@ -12,7 +12,7 @@ jobs:
       #
       # Racket
       #
-      - uses: Bogdanp/setup-racket@v1.7
+      - uses: Bogdanp/setup-racket@v1.15
         with:
           architecture: "x64"
           distribution: "full"
@@ -25,7 +25,7 @@ jobs:
         run: cd roulette/benchmark && ./run_benchmarks.sh
 
       - name: Checkout benchmark data repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: "Smaran-Teja/roulette-bench-data"
           path: "roulette-bench-data" # This will be a subdirectory
