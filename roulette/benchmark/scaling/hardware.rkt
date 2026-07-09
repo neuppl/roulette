@@ -118,6 +118,14 @@
   (set! BIT-WIDTH bw)
   (read-total ((tri n) fuel (blank-memory))))
 
-(define _ (scale (main 5 6 7)
-                 (main 6 7 8)
-                 (main 7 8 9)))
+;; scale all three arguments to main from a single number
+(define (main* k) (main k (+ 1 k) (+ 2 k)))
+
+
+(define _ (scale 
+                 (main* 2)
+                 (main* 3)
+                 (main* 4)
+                 (main* 5)
+                 (main* 6)
+                 (main* 7)))
