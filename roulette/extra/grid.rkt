@@ -34,5 +34,3 @@
 ;; lattice test
 (define gtp-n-grid-2 (cost-lattice (make-grid 2) #:iterations 10))
 gtp-n-grid-2
-;; cost test
-#;(cost (make-grid 200) '() #:budget 2500000 #:wait 0.2 #:iterations 10)
