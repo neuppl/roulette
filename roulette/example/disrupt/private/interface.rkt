@@ -336,6 +336,14 @@
 
 
 
+; return an hash from variable assignments (exhaustive; includes every possible assignment) 
+;                to number of recursive calls using that as an environment for query
+#;(define (optimal thnk)
+  (define variables (symbolics (thnk))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; profiler utility functions
+
 (define (save-results profiler-results save-path #:print [print? #t])
   (define json-path (path->string (path-replace-extension save-path ".json")))
   (define rkt-path (path->string (path-replace-extension save-path ".rkt")))

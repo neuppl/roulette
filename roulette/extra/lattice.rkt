@@ -43,7 +43,12 @@
      #:make-in-configurations
      (λ _ (hash-values configs))))
 
-  (parameterize ([*LATTICE-LINES?* #t])
+  (parameterize ([*FONT-SIZE* 8]
+                 [*LATTICE-UNIT-WIDTH* 5]
+                 [*LATTICE-UNIT-HEIGHT* 4]
+                 [*LATTICE-CONFIG-X-MARGIN* 10]
+                 [*LATTICE-CONFIG-Y-MARGIN* 20]
+                 [*LATTICE-LINES?* #true])
     (performance-lattice pi)))
 
 (define (subset->bitstring var-subset vars)
