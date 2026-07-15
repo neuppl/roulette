@@ -313,20 +313,26 @@
       (define pr (hash-ref (pmf-hash (query var)) #t 0))
       (values var (< (random) pr))))
 
-  (for/hash ([k (in-range iters)])
-    (printf "~a: " k)
-    (clear-cache!)
+  ;; Kill safety: swap Rosette's term cache for an `eq?`-based ephemeron hash
+  ;; only for the duration of the (thread-killed) timed queries below, then
+  ;; restore an `equal?`-based cache so normal queries keep hash-consing.
+  (gc-terms-hack! make-weak-hasheq)
+  (begin0
+    (for/hash ([k (in-range iters)])
+      (printf "~a: " k)
+      (clear-cache!)
 
-    (define env (make-env))
-    (with-timeout wait 
-                  (lambda () 
-                    (query val #:environment env)
-                    (define rec-calls (recursive-calls))
-                    (printf "completed sample in ~a recursive calls \n" rec-calls)
-                    rec-calls)
-                  (lambda () 
-                    (displayln "timed out")
-                    #f))))
+      (define env (make-env))
+      (with-timeout wait
+                    (lambda ()
+                      (query val #:environment env)
+                      (define rec-calls (recursive-calls))
+                      (printf "completed sample in ~a recursive calls \n" rec-calls)
+                      rec-calls)
+                    (lambda ()
+                      (displayln "timed out")
+                      #f)))
+    (gc-terms-hack! make-weak-hash)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiling
@@ -649,6 +655,3 @@
     (hash-set! cache k v))
 
   (current-terms cache))
-
-
-(gc-terms-hack! make-weak-hasheq)
