@@ -17,7 +17,8 @@
 ;; dependencies
 
 (define deps
-  '("base"
+  '("rosette"
+    "base"
     "parser-tools-lib"
     "rackunit-lib"
     "roulette-lib"

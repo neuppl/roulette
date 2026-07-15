@@ -31,7 +31,7 @@
   [exponent (:: (:or "e" "E") (:? (:or "+" "-")) (:+ digit))]
   [keyword (:: (:or "network" "variable" "probability" "property"
                     "type" "discrete" "default" "table"))]
-  [space (:or #\space #\tab #\newline #\, #\|)])
+  [space (:or whitespace #\, #\|)])
 
 (define bayes-lex
   (lexer-src-pos

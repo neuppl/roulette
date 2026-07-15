@@ -8,12 +8,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (for-syntax syntax/transformer)
+(require (only-in rosette assert)
          parser-tools/lex
          (prefix-in : parser-tools/lex-sre)
          parser-tools/yacc
          rosette
-         (only-in rosette assert)
          syntax/readerr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
