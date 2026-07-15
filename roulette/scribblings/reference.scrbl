@@ -23,6 +23,8 @@ computations, just as any ordinary concrete value of that type. An @emph{engine}
 is then used to perform inference on derived values. The examples in this
 section use the @secref{RSDD} backend.
 
+@defmodule*[(roulette roulette/safe) #:lang]
+
 @section{Measures}
 
 @defform[(define-measurable id ...+ measure)
