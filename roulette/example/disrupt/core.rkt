@@ -4,7 +4,6 @@
 ;; provide
 
 (provide
- ;; `disrupt.rkt`
  (rename-out
   [module-begin #%module-begin]
   [top-interaction #%top-interaction])
@@ -19,20 +18,18 @@
  sample
  with-sample
 
- ;; profiling
- cost
-
  ;; debug
  clear-cache!
  recursive-calls
  size
 
- ;; `pmf.rkt`
+ ;; pmf
  pmf
  pmf?
  pmf-support
  in-pmf
- for/pmf)
+ for/pmf
+ pmf-hash)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -40,9 +37,9 @@
 (require (for-syntax racket/base
                      syntax/parse)
          racket/match
+         racket/struct
          roulette/engine/rsdd
-         text-table
-         "pmf.rkt")
+         text-table)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; parameters
@@ -51,6 +48,35 @@
 (define engine (rsdd-engine))
 (define o-evidence #t)
 (define s-evidence #t)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; probability mass function
+
+(struct pmf (hash)
+  #:property prop:procedure
+  (λ (self value) (hash-ref (pmf-hash self) value 0))
+  #:methods gen:custom-write
+  [(define write-proc
+     (make-constructor-style-printer
+      (λ (self) 'pmf)
+      (λ (self)
+        (match-define (pmf ht) self)
+        (for/list ([(k v) (in-hash ht)])
+          (unquoted-printing-string (format "[~v ~a]" k v))))))])
+
+(define (make-pmf ht)
+  (for/pmf ([(value measure) (in-hash ht)]
+            #:when (not (zero? measure)))
+    (values value measure)))
+
+(define (pmf-support pmf)
+  (hash-keys (pmf-hash pmf)))
+
+(define (in-pmf pmf)
+  (in-hash (pmf-hash pmf)))
+
+(define-syntax-rule (for/pmf (for-clause ...) body-or-break ... body)
+  (pmf (for/hash (for-clause ...) body-or-break ... body)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic features
@@ -187,42 +213,6 @@
         (map header '(Value Probability))
         (for/list ([(v p) (in-pmf res)])
           (list v p))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; cost
-
-(define (cost val vars
-              #:iterations [iters 10]
-              #:budget [budget +inf.0]
-              #:wait [wait 1/4])
-  (define (make-env)
-    (for/hash ([var (in-set vars)])
-      (define pr (hash-ref (pmf-hash (query var)) #t 0))
-      (values var (< (random) pr))))
-
-  (define (budget-thread return)
-    (thread
-     (λ ()
-       (let go ()
-         (sleep wait)
-         (if (<= (recursive-calls) budget)
-             (go)
-             (box-cas! rsdd-kill-signal-box #f return))))))
-
-  (begin0
-    (for/list ([_ (in-range iters)])
-      (clear-cache!)
-      (define env (make-env))
-      (let ([b-thd #f])
-        (let/cc return
-          (set! b-thd (budget-thread return))
-          (query val #:environment env))
-        (kill-thread b-thd))
-      (cond
-        [(unbox rsdd-kill-signal-box)
-         (set-box! rsdd-kill-signal-box #f)
-         #f]
-        [else (cons env (recursive-calls))]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug

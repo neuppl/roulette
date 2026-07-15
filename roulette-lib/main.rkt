@@ -9,12 +9,12 @@
   define-symbolic
   define-symbolic*)
 
- (all-from-out "private/interface.rkt"))
+ (all-from-out "private/core.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require "private/interface.rkt"
+(require "private/core.rkt"
          rosette)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -5,12 +5,12 @@
 
 (provide
  (all-from-out roulette)
- (all-from-out "disrupt/private/interface.rkt"))
+ (all-from-out "disrupt/core.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require "disrupt/private/interface.rkt")
+(require "disrupt/core.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; reader

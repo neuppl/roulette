@@ -4,8 +4,8 @@
 ;; tests
 
 (module+ test
-  (require "util.rkt"
-           "../example/disrupt/private/pmf.rkt"
+  (require (only-in "../example/disrupt/core.rkt" pmf-hash)
+           "util.rkt"
            "bn/cancer.rkt")
 
   (define ϵ 0.0000001)
