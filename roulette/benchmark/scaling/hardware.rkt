@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bitvector
 
@@ -122,10 +122,9 @@
 (define (main* k) (main k (+ 1 k) (+ 2 k)))
 
 
-(define _ (scale 
-                 (main* 2)
-                 (main* 3)
-                 (main* 4)
-                 (main* 5)
-                 (main* 6)
-                 (main* 7)))
+(scale (main* 2)
+       (main* 3)
+       (main* 4)
+       (main* 5)
+       (main* 6)
+       (main* 7))

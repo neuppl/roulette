@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 
 
 (define n0 (flip 0.5))
@@ -11,4 +11,4 @@
 (define n31 (if n1 (flip 0.8) (flip 0.1)))
 (define n32 (if n2 (flip 0.8) (flip 0.1)))
 (define n3 (|| n31 n32 n33))
-n3
+(benchmark n3)

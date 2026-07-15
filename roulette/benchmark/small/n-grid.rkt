@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; grid
 
@@ -23,4 +23,4 @@
       (flip 0.4)))
 
 
-(make-grid 10)
+(benchmark (make-grid 10))

@@ -1,10 +1,10 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 
 (define evidence (flip 0.5))
 (define coin (flip 0.5))
 
-(cond
-  [evidence
-   (observe! coin)
-   evidence]
-  [else evidence])
+(benchmark (cond
+              [evidence
+              (observe! coin)
+              evidence]
+              [else evidence]))

@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bitvectors
 
@@ -68,4 +68,4 @@
     (diamond acc)))
 
 
-(define _ (max-arg main #:start 1 #:step 1 #:timeout 2))
+(max-arg main #:start 1 #:step 1 #:timeout 2)

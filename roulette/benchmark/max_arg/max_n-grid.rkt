@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; grid
 
@@ -24,4 +24,4 @@
 
 
 
-(define _ (max-arg make-grid #:start 10 #:step 10 #:timeout 1))
+(max-arg make-grid #:start 10 #:step 10 #:timeout 1)

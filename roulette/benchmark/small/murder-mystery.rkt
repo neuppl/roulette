@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 
 (define (mystery)
   (define alice-dunnit (flip 0.3))
@@ -13,4 +13,4 @@
   (observe! obs)
   alice-dunnit)
 
-(gun-found-at-scene #true)
+(benchmark (gun-found-at-scene #true))

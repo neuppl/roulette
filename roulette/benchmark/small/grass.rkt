@@ -1,4 +1,4 @@
-#lang benchmark_ci
+#lang roulette/example/disrupt
 
 (define cloudy (flip 0.5))
 (define rain (if cloudy (flip 0.8) (flip 0.2)))
@@ -9,4 +9,5 @@
 (define temp3 (flip 0.9))
 (define wet-grass (|| (&& temp2 rain) (&& temp3 sprinkler)))
 (observe! wet-grass)
-rain
+
+(benchmark rain)
