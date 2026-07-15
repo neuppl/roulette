@@ -9,7 +9,6 @@
 ;; require
 
 (require (prefix-in base: racket/base)
-         roulette/example/disrupt/private/pmf
          gtp-plot
          gtp-util)
 

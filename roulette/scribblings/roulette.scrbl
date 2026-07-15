@@ -6,6 +6,15 @@
 @title{Roulette}
 @author{Cameron Moy}
 
+@margin-note{
+ Roulette is a research project under active development.
+ Backwards compatibility is not guaranteed.
+ Users who need a stable interface
+ are encouraged to pin Roulette to a specific commit
+ in their @filepath{info.rkt} file.
+ See @secref["concept:source" #:doc '(lib "pkg/scribblings/pkg.scrbl")].
+}
+
 Roulette is an inference-aided host language, built on top of Rosette, that
 provides first-class support for @emph{measurable values}. The programmer-facing
 interface to Roulette is nearly the same as Rosette, except values can be
@@ -24,12 +33,7 @@ Roulette is available on Racket's package server. There are two ways to install 
 $ raco pkg install roulette
 }|}]
 
-@bold{Roulette is currently under active development so expect frequent
-backwards-incompatible changes.}
-
-@defmodule*[(roulette roulette/safe) #:lang]
-@(table-of-contents)
-
 @include-section["examples.scrbl"]
 @include-section["reference.scrbl"]
 @include-section["engines.scrbl"]
+@(table-of-contents)

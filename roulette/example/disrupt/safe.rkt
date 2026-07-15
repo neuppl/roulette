@@ -5,12 +5,16 @@
 
 (provide
  (all-from-out roulette/safe)
- (all-from-out "private/interface.rkt"))
+
+ ;; Safe Rosette does not support hash tables.
+ (except-out
+  (all-from-out "core.rkt")
+  pmf-hash))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require "private/interface.rkt")
+(require "core.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; reader
