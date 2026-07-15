@@ -556,10 +556,19 @@
                    (printf "Ran without timeout at n=~a \n" n)
                    #f))))
 
-         (define max (let loop ([i start])
-                       (if (timeout? i)
-                           (- i step)  ; _previous_ iteration is the last one without timeout
-                           (loop (+ i step)))))
+         ;; Kill safety: `max-arg` hard-kills query threads on timeout (via
+         ;; `with-timeout`), which can leave the rsdd/term-cache state
+         ;; inconsistent. Swap in the `eq?`-based ephemeron term cache for the
+         ;; duration of the search, then restore the `equal?`-based cache
+         ;; afterward (mirrors `cost`).
+         (gc-terms-hack! make-weak-hasheq)
+         (define max
+           (begin0
+             (let loop ([i start])
+               (if (timeout? i)
+                   (- i step)  ; _previous_ iteration is the last one without timeout
+                   (loop (+ i step))))
+             (gc-terms-hack! make-weak-hash)))
 
          (call-with-output-file (path-replace-suffix (file-name-from-path (quote-module-name)) ".json")
           (lambda (out)
