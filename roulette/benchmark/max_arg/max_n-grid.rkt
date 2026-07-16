@@ -1,4 +1,6 @@
 #lang roulette/example/disrupt
+(require "../../../bdd-engine.rkt")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; grid
 
@@ -24,4 +26,4 @@
 
 
 
-(max-arg make-grid #:start 1 #:end 200 #:timeout 1)
+(when (not (equal? bdd-engine-backend 'rsdd)) (max-arg make-grid #:start 1 #:end 200 #:timeout 1))

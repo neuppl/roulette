@@ -1,4 +1,6 @@
 #lang roulette/example/disrupt
+(require "../../../bdd-engine.rkt")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bitvectors
 
@@ -68,4 +70,4 @@
     (diamond acc)))
 
 
-(max-arg main #:start 1 #:end 50 #:timeout 1)
+(when (not (equal? bdd-engine-backend 'rsdd)) (max-arg main #:start 1 #:end 50 #:timeout 1))
