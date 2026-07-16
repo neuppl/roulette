@@ -24,4 +24,4 @@
 
 
 
-(max-arg make-grid #:start 10 #:end 200 #:timeout 1)
+(max-arg make-grid #:start 1 #:end 200 #:timeout 1)

@@ -68,4 +68,4 @@
     (diamond acc)))
 
 
-(max-arg main #:start 1 #:end 40 #:timeout 1)
+(max-arg main #:start 1 #:end 50 #:timeout 1)
