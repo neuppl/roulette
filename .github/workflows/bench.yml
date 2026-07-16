@@ -22,7 +22,7 @@ jobs:
         run: raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot
 
       - name: Run benchmarks
-        run: cd roulette/benchmark && ./run_benchmarks.sh ${{github.sha}}
+        run: cd roulette/benchmark && ./run_benchmarks.sh ${{github.sha}} ${{ github.event.head_commit.message }}
 
       - name: Checkout benchmark data repository
         uses: actions/checkout@v7

@@ -17,3 +17,6 @@ mv *.json "$DIR/"
 if [ -n "$1" ]; then
     echo "$1" > "$DIR/COMMIT_HASH.txt"
 fi
+if [ -n "$2" ]; then
+    echo "$2" > "$DIR/COMMIT_MSG.txt"
+fi
