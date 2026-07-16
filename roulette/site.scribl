@@ -314,9 +314,12 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
                 (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
                 labels))))))))
 
-@;; Y-axis ticks for a max-arg plot: one at every candidate argument value
-@;; start, start+step, start+2*step, ... that falls within the plot's range.
-@(define (make-arg-ticks start step)
+@;; Y-axis ticks for a max-arg plot: the binary search ranges over the integers
+@;; [start, end], so ticks are placed at evenly-spaced candidate argument values
+@;; within that range (a step is derived to keep the tick count reasonable).
+@(define (make-arg-ticks start end)
+   (define span (max 1 (- end start)))
+   (define step (max 1 (quotient span 10)))
    (ticks
     (lambda (lo hi)
       (define first-k (inexact->exact (floor (/ (- lo start) step))))
@@ -331,7 +334,7 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 
 @;; One plot per max-arg benchmark, tracking the "arg-value" (largest feasible
 @;; argument) across runs -- same run-indexed x-axis as the timing plots. The
-@;; y-axis is scaled to the candidate arguments (start, start+step, ...) and the
+@;; y-axis is scaled to the candidate arguments in [start, end] and the
 @;; timeout is shown alongside the heading. Only max-arg benchmarks appear here,
 @;; and they appear nowhere else.
 @(define (max-arg-section)
@@ -340,14 +343,14 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
                #:when (max-arg-file? filename))
       (define recs (records-for filename))
       (define latest (cdr (last recs)))
-      ;; start/step/timeout were added later; older runs may lack them, so we
+      ;; start/end/timeout were added later; older runs may lack them, so we
       ;; degrade gracefully to default y-ticks and no timeout note.
       (define start (hash-ref latest 'start #f))
-      (define step (hash-ref latest 'step #f))
+      (define end (hash-ref latest 'end #f))
       (define timeout (hash-ref latest 'timeout #f))
       (item @bold{@(stem filename)}
             (if timeout
-                (format " (timeout: ~a s, start: ~a, step: ~a)" timeout start step)
+                (format " (timeout: ~a s, start: ~a, end: ~a)" timeout start end)
                 "")
             (linebreak)
             (render-plot
@@ -356,8 +359,8 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
              "Max argument value"
              (list (metric-renderers recs 'arg-value "red" "arg-value"))
              (map car recs)
-             #:y-ticks (if (and start step)
-                           (make-arg-ticks start step)
+             #:y-ticks (if (and start end)
+                           (make-arg-ticks start end)
                            (plot-y-ticks)))))))
 
 @section{Scaling benchmarks}

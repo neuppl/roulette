@@ -77,12 +77,6 @@
                             rkt:kill-signal-box))
 (define (clear-cache!) (if (equal? bdd-engine-backend "rsdd")
                            (set! engine (make-engine))
-                           ;; Reset the global BDD table *and* recreate the engine.
-                           ;; The rbdd engine's `enc` cache maps constants to BDD
-                           ;; pointers into the global table; resetting the table
-                           ;; alone would leave stale pointers behind, so we must
-                           ;; also discard the engine (and its cache) to keep them
-                           ;; in sync (mirrors the rsdd path above).
                            (begin
                              (rkt:reset-bdd!)
                              (set! engine (make-engine)))))
@@ -375,12 +369,6 @@
   (heuristics #f))
 
 
-
-; return an hash from variable assignments (exhaustive; includes every possible assignment) 
-;                to number of recursive calls using that as an environment for query
-#;(define (optimal thnk)
-  (define variables (symbolics (thnk))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; profiler utility functions
 
@@ -453,9 +441,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Benchmarking
 
-;; runtime helpers shared by the `scale` and `make-timing-expr` expansions.
-;; not provided: the macros below reach them via hygiene, so the user's
-;; namespace stays clean.
+;; helpers
 (define (tap x)
   (displayln x)
   x)
@@ -472,10 +458,28 @@
                 (list (~s val) prob))]
     [else (~s r)]))
 
-;; path is computed in each macro's template so (quote-module-name) resolves
-;; in the user's module, naming the output file after their source, not this `main.rkt` module
+
+;; basic timing, recursive calls and bdd size information while running an expression
+(define-syntax (benchmark stx)
+  (syntax-parse stx
+    [(_ ?e) 
+      #'(begin
+        (define-values (res real cpu gc) (time-apply (lambda () (wrap-query ?e)) (list)))
+        (write-benchmark
+          (path-replace-suffix (file-name-from-path (quote-module-name)) ".json")
+          #f
+          (map jsonify-res res)
+          real cpu gc
+          (recursive-calls)
+          (size ?e))
+        (apply values res))]))
+
+
+
+;;There are 2 types of benchmark results: normal, and scaling.
+
 ;; `scaling` is #f for a non-scaling run, or a list of x-axis label strings
-;; (one per scaled expression) for a scaling run.
+;; (one per scaled expression) for a scaling run. all parameters are lists of values for scaling runs. 
 (define (write-benchmark path scaling result real cpu gc rec-calls total-size)
   (call-with-output-file path
     (lambda (out)
@@ -500,7 +504,6 @@
                     (map (lambda (e) (format "~s" (syntax->datum e)))
                          (syntax->list #'(?e ...)))])
      #'(let ()
-         ;; one (result real cpu gc recursive-calls size) entry per expression
          (define entries
            (list
             (let-values ([(res real cpu gc)
@@ -518,32 +521,18 @@
            (map (lambda (e) (list-ref e 5)) entries))))]))
 
 
-
-;;record benchmarking information for multiple expressions together, to see how performance scales
-(define-syntax (benchmark stx)
-  (syntax-parse stx
-    [(_ ?e) 
-      #'(begin
-        (define-values (res real cpu gc) (time-apply (lambda () (wrap-query ?e)) (list)))
-        (write-benchmark
-          (path-replace-suffix (file-name-from-path (quote-module-name)) ".json")
-          #f
-          (map jsonify-res res)
-          real cpu gc
-          (recursive-calls)
-          (size ?e))
-        (apply values res))]))
-
-;; Find the largest argument n (starting at #:start, incrementing by #:step)
-;; for which (fn n) completes within #:timeout seconds, and runs scale benchmark 
-; from start to the max argument 
+;; Okay I lied, there is a third benchmark type that records the maximum value of an argument to a
+;; function. 
+;; Find, by binary search over the range [#:start, #:end], the largest argument n
+;; for which (fn n) completes within #:timeout seconds. Assumes monotonicity:
+;; if (fn n) times out, so does (fn m) for every m > n.
 (define-syntax (max-arg stx)
   (syntax-parse stx
     [(_ ?fn (~alt (~optional (~seq #:start ?start) #:defaults ([?start #'0]))
-                  (~optional (~seq #:step ?step) #:defaults ([?step #'1]))
+                  (~optional (~seq #:end ?end) #:defaults ([?end #'10]))
                   (~optional (~seq #:timeout ?duration) #:defaults ([?duration #'1])))
         ...)
-     #'(let ([fn ?fn] [start ?start] [step ?step] [duration ?duration])
+     #'(let ([fn ?fn] [start ?start] [end ?end] [duration ?duration])
          (define (timeout? n)
            (let ([result (with-timeout duration
                                        (lambda () (wrap-query (fn n)))
@@ -556,19 +545,19 @@
                    (printf "Ran without timeout at n=~a \n" n)
                    #f))))
 
-         ;; Kill safety: `max-arg` hard-kills query threads on timeout (via
-         ;; `with-timeout`), which can leave the rsdd/term-cache state
-         ;; inconsistent. Swap in the `eq?`-based ephemeron term cache for the
-         ;; duration of the search, then restore the `equal?`-based cache
-         ;; afterward (mirrors `cost`).
          (gc-terms-hack! make-weak-hasheq)
          (define max
            (begin0
-             (let loop ([i start])
-               (if (timeout? i)
-                   (- i step)  ; _previous_ iteration is the last one without timeout
-                   (loop (+ i step))))
+             (let loop ([lo start] [hi end] [best (sub1 start)])
+               (if (> lo hi)
+                   best
+                   (let ([mid (quotient (+ lo hi) 2)])
+                     (if (timeout? mid)
+                         (loop lo (sub1 mid) best)     ; mid too big, search lower half
+                         (loop (add1 mid) hi mid)))))  ; mid ok, record and search higher half
              (gc-terms-hack! make-weak-hash)))
+
+         (printf "maximum argument value is ~a\n" max)
 
          (call-with-output-file (path-replace-suffix (file-name-from-path (quote-module-name)) ".json")
           (lambda (out)
@@ -577,7 +566,7 @@
                 'max-arg #t
                 'arg-value max
                 'start start
-                'step step
+                'end end
                 'timeout duration)
               out))
           #:exists 'replace))]))
