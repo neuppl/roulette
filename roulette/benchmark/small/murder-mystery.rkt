@@ -1,4 +1,5 @@
 #lang roulette/example/disrupt
+(provide small-murder-mystery)
 
 (define (mystery)
   (define alice-dunnit (flip 0.3))
@@ -13,4 +14,4 @@
   (observe! obs)
   alice-dunnit)
 
-(benchmark (gun-found-at-scene #true))
+(define (small-murder-mystery) (query (gun-found-at-scene #true)))

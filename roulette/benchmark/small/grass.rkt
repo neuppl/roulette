@@ -1,4 +1,5 @@
 #lang roulette/example/disrupt
+(provide small-grass)
 
 (define cloudy (flip 0.5))
 (define rain (if cloudy (flip 0.8) (flip 0.2)))
@@ -10,4 +11,4 @@
 (define wet-grass (|| (&& temp2 rain) (&& temp3 sprinkler)))
 (observe! wet-grass)
 
-(benchmark rain)
+(define (small-grass) (query rain))

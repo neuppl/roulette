@@ -3,6 +3,7 @@
 ;; bitvector
 
 (require rosette/lib/destruct)
+(provide scaling-hardware)
 
 (define (natural->bv k size)
   (cond
@@ -119,12 +120,4 @@
   (read-total ((tri n) fuel (blank-memory))))
 
 ;; scale all three arguments to main from a single number
-(define (main* k) (main k (+ 1 k) (+ 2 k)))
-
-
-(scale (main* 2)
-       (main* 3)
-       (main* 4)
-       (main* 5)
-       (main* 6)
-       (main* 7))
+(define (scaling-hardware k) (query (main k (+ 1 k) (+ 2 k))))

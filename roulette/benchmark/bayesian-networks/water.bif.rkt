@@ -1,10 +1,10 @@
 #lang roulette/example/disrupt
 
 (require "private/bayes.rkt")
+(provide bn-water)
 
 
-
-(benchmark
+(define (bn-water)
       (main "bayesian-networks/water.bif"
       'CBODD_12_45
       '(C_NI_12_00

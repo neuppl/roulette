@@ -1,5 +1,5 @@
 #lang roulette/example/disrupt
-
+(provide small-alarm)
 (define earthquake (flip 0.0001))
 (define burglary (flip 0.001))
 (define alarm (|| earthquake burglary))
@@ -12,4 +12,5 @@
 (define called (&& mary-wakes phone-working))
 (observe! called)
 
-(benchmark burglary)
+
+(define (small-alarm) (query burglary))

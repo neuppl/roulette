@@ -1,10 +1,10 @@
 #lang roulette/example/disrupt
 
 (require "private/bayes.rkt")
+(provide bn-insurance)
 
 
-
-(benchmark
+(define (bn-insurance)
       (main "bayesian-networks/insurance.bif"
       'PropCost
       '(Age

@@ -1,10 +1,10 @@
 #lang roulette/example/disrupt
 
 (require "private/bayes.rkt")
+(provide bn-munin)
 
 
-
-(benchmark
+(define (bn-munin)
       (main "bayesian-networks/munin.bif"
       'L_SUR_CV_CA
       '(R_LNLW_MED_SEV

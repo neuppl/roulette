@@ -1,10 +1,10 @@
 #lang roulette/example/disrupt
 
 (require "private/bayes.rkt")
+(provide bn-hailfinder)
 
 
-
-(benchmark
+(define (bn-hailfinder)
       (main "bayesian-networks/hailfinder.bif"
       'R5Fcst
       '(N0_7muVerMo

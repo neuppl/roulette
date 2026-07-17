@@ -1,10 +1,10 @@
 #lang roulette/example/disrupt
 
 (require "private/bayes.rkt")
+(provide bn-hepar2)
 
 
-
-(benchmark
+(define (bn-hepar2)
       (main "bayesian-networks/hepar2.bif"
       'itching
       '(alcoholism

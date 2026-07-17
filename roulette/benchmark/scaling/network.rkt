@@ -1,4 +1,6 @@
 #lang roulette/example/disrupt
+(provide scaling-network)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bitvectors
 
@@ -59,8 +61,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; main
 
-(define (main iters)
-  (run iters))
+(define (scaling-network iters)
+  (query (run iters)))
 
 (define (run iters)
   (for/fold ([acc (bv #b1111 SIZE)])
@@ -68,11 +70,3 @@
     (diamond acc)))
 
 
-(scale (main 1) 
-       (main 2) 
-       (main 3) 
-       (main 4) 
-       (main 5) 
-       (main 6) 
-       (main 7) 
-       (main 8))

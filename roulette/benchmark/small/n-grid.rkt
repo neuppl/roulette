@@ -1,4 +1,5 @@
 #lang roulette/example/disrupt
+(provide small-n-grid)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; grid
 
@@ -23,4 +24,4 @@
       (flip 0.4)))
 
 
-(benchmark (make-grid 10))
+(define (small-n-grid n) (query (make-grid n)))

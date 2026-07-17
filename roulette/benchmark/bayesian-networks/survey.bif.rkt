@@ -1,10 +1,11 @@
 #lang roulette/example/disrupt
 
 (require "private/bayes.rkt")
+(provide bn-survey)
 
 
-(benchmark
-      (main "bayesian-networks/survey.bif" 
+(define (bn-survey)
+      (main "bayesian-networks/survey.bif"
             'T
             '(A S E R O T)))
 
