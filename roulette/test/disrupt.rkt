@@ -36,8 +36,9 @@
        #'(check-program-fn run 'prog (hash (~@ val pr) ...))]))
 
   (define (check-program-fn ev prog ht)
-    (with-check-info (['program prog])
-      (check-close (current-ϵ) (pmf-hash (ev prog)) ht)))
+    (define result (pmf-hash (ev prog)))
+    (with-check-info (['program prog] ['result result])
+      (check-close (current-ϵ) result ht)))
 
   (define current-ϵ (make-parameter 0.0000001))
   (define-syntax-rule (check-program-samples body ... expected)

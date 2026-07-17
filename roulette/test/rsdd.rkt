@@ -13,13 +13,9 @@
 
   (require/expose roulette/engine/rsdd
     (mk-bdd-manager-default-order
-     new-wmc-params-f64
-     new-wmc-params-complex
      rsdd-label rsdd-var
      rsdd-and rsdd-or rsdd-not rsdd-ite
      rsdd-true? rsdd-false? rsdd-equal?
-     rsdd-set-real-measure! rsdd-real-wmc
-     rsdd-set-complex-measure! rsdd-complex-wmc
      rsdd-num-recursive-calls rsdd-to-json))
 
   ;; shorthand
@@ -39,8 +35,6 @@
   ;; tests
   (test-case "basic FFI calls"
     (define b (mk-bdd-manager-default-order 0))
-    (define rw (new-wmc-params-f64))
-    (define cw (new-wmc-params-complex))
 
     (define x-lab (rsdd-label b))
     (define x (rsdd-var b x-lab))
@@ -54,19 +48,7 @@
     (define w-lab (rsdd-label b))
     (define w (rsdd-var b w-lab))
 
-    (rsdd-set-real-measure! rw x-lab 0.5 0.5)
-    (rsdd-set-real-measure! rw y-lab 0.5 0.5)
-
-    (rsdd-set-complex-measure! cw z-lab 0 0+1i)
-    (rsdd-set-complex-measure! cw w-lab 0 0+1i)
-
-    (check-equal? (rsdd-real-wmc rw (rsdd-and b x y)) 0.25)
-    (check-equal? (rsdd-complex-wmc cw (rsdd-and b z w)) -1.0+0.0i)
     (check-pred exact-nonnegative-integer? (rsdd-num-recursive-calls b))
-    (check-equal? (rsdd-real-wmc rw (rsdd-or b x y)) 0.75)
-    (check-equal? (rsdd-real-wmc rw (rsdd-not b (rsdd-and b x y))) 0.75)
-    (check-equal? (rsdd-real-wmc rw (rsdd-ite b x x (rsdd-not b x))) 1.0)
-
     (check-equal?
      (string->jsexpr (rsdd-to-json (rsdd-and b x y)))
      #hasheq((nodes . (#hasheq((high . "True") (low . "False") (topvar . 1))
@@ -128,11 +110,12 @@
 
   (test-case "polynomial"
     (let ()
+      (define real-polynomial-semiring (polynomial-semiring real-semiring))
       (define-measurable x
-        (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring polynomial-semiring))
+        (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring real-polynomial-semiring))
       (define-measurable y
-        (bernoulli-measure '(0.2 0.7) '(0.8 0.3) #:semiring polynomial-semiring))
+        (bernoulli-measure '(0.2 0.7) '(0.8 0.3) #:semiring real-polynomial-semiring))
       (define f
-        (density (infer (and x y) #:engine (rsdd-engine #:semiring polynomial-semiring))))
+        (density (infer (and x y) #:engine (rsdd-engine #:semiring real-polynomial-semiring))))
       (check-equal? (f #t) (list (* 0.9 0.8) (+ (* 0.9 0.3) (* 0.4 0.8)) (* 0.4 0.3)))))
   )

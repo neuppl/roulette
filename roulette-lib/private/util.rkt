@@ -7,8 +7,6 @@
          define/cache
          define-encoder
          flatten-symbolic
-         polynomial?
-         polynomial-add
          lift-arity)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -120,21 +118,6 @@
     [(? constant?) #t]
     [(or #t #f) #t]
     [_ #f]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; polynomial
-
-(define (polynomial? v)
-  (and (list? v) (andmap real? v)))
-
-(define (polynomial-add p1 p2)
-  (let go ([p1 p1] [p2 p2])
-    (match* (p1 p2)
-      [('() '()) '()]
-      [('() p2) p2]
-      [(p1 '()) p1]
-      [((cons c1 r1) (cons c2 r2))
-       (cons (+ c1 c2) (go r1 r2))])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; misc

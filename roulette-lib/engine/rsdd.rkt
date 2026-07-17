@@ -3,8 +3,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; provide
 
-(require (except-in racket/contract ->))
+(require (except-in racket/contract ->)
+         (rename-in racket/contract [-> base->]))
 (provide
+ (struct-out semiring)
  (contract-out
   [rename make-rsdd-engine
           rsdd-engine
@@ -17,10 +19,7 @@
                           any)]
   [real-semiring semiring?]
   [complex-semiring semiring?]
-  [polynomial-semiring semiring?]
-  [semiring? predicate/c])
-
- rsdd-kill-signal-box)
+  [polynomial-semiring (base-> semiring? semiring?)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -40,6 +39,7 @@
          racket/lazy-require
          rosette/base/core/bool
          rosette/base/core/term
+         data/gvector
          "../private/engine.rkt"
          "../private/measure.rkt"
          "../private/measurable-space.rkt"
@@ -108,11 +108,11 @@
 
 (define-wrap rsdd-scratch #:from bdd-scratch #:fields x d)
 (define-rsdd bdd-scratch
-  (_fun _rsdd_bdd_ptr _int64 -> _int64))
+  (_fun _rsdd_bdd_ptr _gcpointer -> _gcpointer))
 
 (define-wrap rsdd-set-scratch! #:from bdd-set-scratch #:fields x v)
 (define-rsdd bdd-set-scratch
-  (_fun _rsdd_bdd_ptr _int64 -> _void))
+  (_fun _rsdd_bdd_ptr _gcpointer -> _void))
 
 (define-wrap rsdd-clear-scratch! #:from bdd-clear-scratch #:fields x)
 (define-rsdd bdd-clear-scratch
@@ -134,6 +134,10 @@
 (define-rsdd bdd-is-false
   (_fun _rsdd_bdd_ptr -> _stdbool))
 
+(define-wrap rsdd-neg? #:from bdd-is-neg #:fields x)
+(define-rsdd bdd-is-neg
+  (_fun _rsdd_bdd_ptr -> _stdbool))
+
 (define-wrap rsdd-const? #:from bdd-is-const #:fields x)
 (define-rsdd bdd-is-const
   (_fun _rsdd_bdd_ptr -> _stdbool))
@@ -146,115 +150,9 @@
 (define-rsdd bdd-eq
   (_fun _rsdd_bdd_builder _rsdd_bdd_ptr _rsdd_bdd_ptr -> _stdbool))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; real semiring FFI
-
-(define-cpointer-type _rsdd_wmc_params_r)
-
-(define-rsdd new-wmc-params-f64
-  (_fun -> _rsdd_wmc_params_r))
-
-(define-rsdd free-wmc-params-f64
-  (_fun _rsdd_wmc_params_r -> _void))
-
-(define-wrap rsdd-real-wmc
-  #:from (λ (ws ptr) (bdd-wmc ptr ws))
-  #:fields weights ptr)
-(define-rsdd bdd-wmc
-  (_fun _rsdd_bdd_ptr _rsdd_wmc_params_r -> _double))
-
-(define-wrap rsdd-set-real-measure!
-  #:from (λ (ws lab lo hi)
-           (define lo* (exact->inexact lo))
-           (define hi* (exact->inexact hi))
-           (wmc-param-f64-set-weight ws lab lo* hi*))
-  #:fields weights label lo hi)
-(define-rsdd wmc-param-f64-set-weight
-  (_fun _rsdd_wmc_params_r _uint64 _double _double -> _void))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; complex semiring FFI
-
-(define-cpointer-type _rsdd_wmc_params_c)
-(define-cstruct _complex_c ([re _double] [im _double]))
-
-(define-rsdd new-wmc-params-complex
-  (_fun -> _rsdd_wmc_params_c))
-
-(define-rsdd free-wmc-params-complex
-  (_fun _rsdd_wmc_params_c -> _void))
-
-(define-wrap rsdd-complex-wmc
-  #:from (λ (ws ptr) (_complex->complex (bdd-wmc-complex ptr ws)))
-  #:fields weights ptr)
-(define-rsdd bdd-wmc-complex
-  (_fun _rsdd_bdd_ptr _rsdd_wmc_params_c -> _complex_c))
-
-(define-wrap rsdd-set-complex-measure!
-  #:from (λ (ws lab lo hi)
-           (define lo* (complex->_complex lo))
-           (define hi* (complex->_complex hi))
-           (wmc-param-complex-set-weight ws lab lo* hi*))
-  #:fields weights label lo hi)
-(define-rsdd wmc-param-complex-set-weight
-  (_fun _rsdd_wmc_params_c _uint64 _complex_c _complex_c -> _void))
-
-(define (complex->_complex c)
-  (make-complex_c (exact->inexact (real-part c))
-                  (exact->inexact (imag-part c))))
-
-(define (_complex->complex c)
-  (make-rectangular (complex_c-re c) (complex_c-im c)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; polynomial semiring FFI
-
-(define-cpointer-type _rsdd_poly_weight)
-(define-cpointer-type _rsdd_wmc_params_poly)
-
-(define-cstruct _weight_poly
-  ([low _rsdd_poly_weight]
-   [high _rsdd_poly_weight]))
-
-(define-rsdd new-wmc-params-poly
-  (_fun -> _rsdd_wmc_params_poly))
-
-(define-rsdd destroy_wmc_params_poly
-  (_fun _rsdd_wmc_params_poly -> _void))
-
-(define-wrap rsdd-polynomial-wmc
-  #:from (lambda (ws ptr)
-           (define poly-ptr (bdd-wmc-poly ptr ws))
-           (begin0
-             (polynomial-get-coeffs poly-ptr (polynomial-len poly-ptr))
-             (destroy-polynomial poly-ptr)))
-  #:fields weights ptr)
-(define-rsdd bdd-wmc-poly
-  (_fun _rsdd_bdd_ptr _rsdd_wmc_params_poly -> _rsdd_poly_weight))
-(define-rsdd polynomial-len
-  (_fun _rsdd_poly_weight -> _size))
-(define-rsdd polynomial-get-coeffs
-  (_fun _rsdd_poly_weight
-        [res : (_list o _double len)]
-        [len : _size]
-        -> _size
-        -> res))
-(define-rsdd destroy-polynomial
-  (_fun _rsdd_poly_weight -> _void))
-
-(define-wrap rsdd-set-polynomial-measure!
-  #:from (lambda (ws lab lo hi)
-           (define lo-lst (if (list? lo) lo (list lo)))
-           (define hi-lst (if (list? hi) hi (list hi)))
-           (wmc-param-poly-set-weight ws lab
-                                      lo-lst (length lo-lst)
-                                      hi-lst (length hi-lst)))
-  #:fields weights label lo hi)
-(define-rsdd wmc-param-poly-set-weight
-  (_fun _rsdd_wmc_params_poly _uint64
-        (_list i _double) _size
-        (_list i _double) _size
-        -> _void))
+(define-wrap rsdd-topvar #:from bdd-topvar #:fields x)
+(define-rsdd bdd-topvar
+  (_fun _rsdd_bdd_ptr -> _int64))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
@@ -282,14 +180,17 @@
     (init semi)
     (super-new)
 
-    (match-define (semiring _ zero add var-set! wmc get-map) semi)
+    (define semiring semi)
+    (define zero (semiring-zero semi))
+    (define add (semiring-add semi))
     (define builder (mk-bdd-manager-default-order 0))
     (register-finalizer-and-custodian-shutdown builder free-bdd-manager)
 
-    (define weights (make-weights))
-    (define weight-map (get-map weights))
     (define/cache (const->label _) (rsdd-label builder))
     (define enc (make-enc builder const->label))
+    (define weight-map (make-gvector))
+    (define weight-cache (box '()))
+    (register-finalizer-and-custodian-shutdown weight-cache free-weight-cache)
 
     (define/public (domain)
       (immutable-set/c any/c))
@@ -303,7 +204,8 @@
             #:when (set-member? vars var))
         (define f (measure (set #f)))
         (define t (measure (set #t)))
-        (var-set! weight-map (const->label var) f t))
+        (define label (const->label var))
+        (gvector-set! weight-map label (cons f t)))
 
       ;; Compute measure
       (define ht (flatten-symbolic val))
@@ -315,7 +217,7 @@
         (cond
           [(hash-has-key? ht val)
            (define g (&& assumes (hash-ref ht val)))
-           (wmc weight-map (enc (if env (substitute g env) g)))]
+           (wmc (enc (if env (substitute g env) g)) weight-map weight-cache semiring)]
           [else zero]))
       (define support
         (list->set
@@ -357,58 +259,88 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; weight maps
 
-(struct weights (real complex polynomial))
+(define (wmc val weight-map weight-cache semi)
+  (match-define (semiring _ zero add one mul) semi)
+  (let go ([val val])
+    (define neg? (rsdd-neg? val))
+    (define-values (self other)
+      (let* ([result (rsdd-scratch val #f)]
+             [result (and result (ptr-ref result _racket 0))])
+        (cond
+          [(not result) (values #f #f)]
+          [neg? (values (cdr result) (car result))]
+          [else (values (car result) (cdr result))])))
+    (cond
+      [self self]
+      [(rsdd-true? val) (if neg? zero one)]
+      [(rsdd-false? val) (if neg? one zero)]
+      [else
+       (match-define (cons f t) (gvector-ref weight-map (bdd-topvar val)))
+       (define result
+         (add (mul f (go (rsdd-low val))) (mul t (go (rsdd-high val)))))
+       (define scratch
+         (malloc-immobile-cell
+          (if neg? (cons other result) (cons result other))))
+       (set-box! weight-cache (cons scratch (unbox weight-cache)))
+       (rsdd-set-scratch! val scratch)
+       result])))
 
-(define (make-weights)
-  (define real (new-wmc-params-f64))
-  (define complex (new-wmc-params-complex))
-  (define polynomial (new-wmc-params-poly))
-  (define result (weights real complex polynomial))
-  (define (free _)
-    (free-wmc-params-f64 real)
-    (free-wmc-params-complex complex)
-    (destroy_wmc_params_poly polynomial))
-  (register-finalizer-and-custodian-shutdown weights free)
-  result)
+(define (free-weight-cache cache)
+  (for ([ptr (in-list (unbox cache))])
+    (free-immobile-cell ptr)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; semirings
 
-(struct semiring (predicate zero add set-measure! wmc get-weight-map)
-  #:property prop:procedure 0)
+(struct semiring (predicate zero add one mul)
+  #:property prop:procedure 0
+  #:guard
+  (λ (predicate zero add one mul name)
+    (unless (procedure? predicate)
+      (raise-arguments-error name "invalid predicate"))
+    (unless (and (procedure? add) (procedure-arity-includes? add 2))
+      (raise-arguments-error name "invalid addition"))
+    (unless (and (procedure? mul) (procedure-arity-includes? mul 2))
+      (raise-arguments-error name "invalid multiplication"))
+    (values predicate zero add one mul)))
 
-(define real-semiring
-  (semiring real? 0.0 +
-            rsdd-set-real-measure!
-            rsdd-real-wmc
-            weights-real))
-
-(define complex-semiring
-  (semiring complex? 0.0 +
-            rsdd-set-complex-measure!
-            rsdd-complex-wmc
-            weights-complex))
-
-(define polynomial-semiring
-  (semiring polynomial? '()
-            polynomial-add
-            rsdd-set-polynomial-measure!
-            rsdd-polynomial-wmc
-            weights-polynomial))
+(define real-semiring (semiring real? 0.0 + 1.0 *))
+(define complex-semiring (semiring complex? 0.0 + 1.0 *))
+(define (polynomial-semiring coeff-semi)
+  (match-define (semiring predicate _ add one mul) coeff-semi)
+  (define (polynomial? v)
+    (and (list? v) (andmap predicate v)))
+  (define (polynomial-add p1 p2)
+    (let go ([p1 p1] [p2 p2])
+      (match* (p1 p2)
+        [('() '()) '()]
+        [('() p2) p2]
+        [(p1 '()) p1]
+        [((cons c1 r1) (cons c2 r2))
+         (cons (add c1 c2) (go r1 r2))])))
+  (define (polynomial-mul p1 p2)
+    (cond
+      [(and (null? p1) (null? p2)) '()]
+      [else
+       (define result (make-vector (sub1 (+ (length p1) (length p2)))))
+       (for ([c1 (in-list p1)]
+             [k (in-naturals)]
+             #:when #t
+             [c2 (in-list p2)]
+             [l (in-naturals)])
+         (define index (+ k l))
+         (vector-set! result index (add (vector-ref result index) (mul c1 c2))))
+       (vector->list result)]))
+  (semiring polynomial? '() polynomial-add (list one) polynomial-mul))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
-
-(define rsdd-kill-signal-box (box #f))
 
 (define (make-enc b const->label)
   (define rsdd-true (make-rsdd-true b))
   (define rsdd-false (make-rsdd-false b))
 
   (define/cache (enc v)
-    (let ([return (unbox rsdd-kill-signal-box)])
-      (when return
-        (return)))
     (match v
       [(? expression?) (enc-expr v)]
       [(? constant?)   (enc-const v)]
