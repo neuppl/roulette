@@ -17,8 +17,10 @@
                            [t (s) (if (unsupplied-arg? s) real-semiring s)])
                           (#:semiring [s semiring?])
                           any)]
+  [boolean-semiring semiring?]
   [real-semiring semiring?]
   [complex-semiring semiring?]
+  [log-semiring semiring?]
   [polynomial-semiring (base-> semiring? semiring?)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -304,8 +306,17 @@
       (raise-arguments-error name "invalid multiplication"))
     (values predicate zero add one mul)))
 
-(define real-semiring (semiring real? 0.0 + 1.0 *))
-(define complex-semiring (semiring complex? 0.0 + 1.0 *))
+(define boolean-semiring
+  (semiring boolean? #f (λ (x y) (or x y)) #t (λ (x y) (and x y))))
+(define real-semiring (semiring real? 0 + 1 *))
+(define complex-semiring (semiring complex? 0 + 1 *))
+(define log-semiring
+  (semiring inexact-real?
+            -inf.0
+            (λ (x y) (log (+ (exp x) (exp y))))
+            0
+            +))
+
 (define (polynomial-semiring coeff-semi)
   (match-define (semiring predicate _ add one mul) coeff-semi)
   (define (polynomial? v)

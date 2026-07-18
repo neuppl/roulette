@@ -66,8 +66,10 @@ automatically installs the RSDD backend.
   Applying an instance of this structure applies its predicate.
 }
 
-@deftogether[(@defthing[real-semiring semiring?]
-              @defthing[complex-semiring semiring?])]{
+@deftogether[(@defthing[boolean-semiring semiring?]
+              @defthing[real-semiring semiring?]
+              @defthing[complex-semiring semiring?]
+              @defthing[log-semiring semiring?])]{
   Base semirings that can be used with RSDD.
 }
 
