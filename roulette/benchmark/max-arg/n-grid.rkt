@@ -17,7 +17,7 @@
        (get (- col 1) row)
        (get col (- row 1))))
     (vector-set! grid (+ (* row n) col) node))
-  (get (- n 1) (- n 1)))
+  (query (get (- n 1) (- n 1))))
 
 (define (make-node dep1 dep2)
   (if (and dep1 dep2)
@@ -25,7 +25,7 @@
       (flip 0.4)))
 
 
-(define (main) (benchmark (query (make-grid 40))))
+(define (main) (max-arg make-grid "n-grid.rkt" #:start 1 #:step 5))
 
 
 (module+ main

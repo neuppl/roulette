@@ -1,5 +1,6 @@
 #lang roulette/example/disrupt
-(provide small-two-coins)
+(require "../benchmarking.rkt")
+(provide main)
 
 
 (define first-coin (flip 0.5))
@@ -7,4 +8,8 @@
 (define both-heads (&& first-coin second-coin))
 (observe! (! both-heads))
 
-(define (small-two-coins) (query first-coin))
+(define (main) (benchmark (query first-coin)))
+
+
+(module+ main
+  (main))

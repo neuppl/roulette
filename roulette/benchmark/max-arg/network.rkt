@@ -70,7 +70,8 @@
             ([_ (in-range iters)])
     (diamond acc)))
 
-(define (main) (scale scaling-network (1 2 3 4 5 6 7 8)))
+
+(define (main) (max-arg scaling-network "hardware.rkt" #:start 1 #:step 2))
 
 
 (module+ main

@@ -1,11 +1,12 @@
 #lang roulette/example/disrupt
 
-(require "private/bayes.rkt")
-(provide bn-pigs)
+(require "../private/bayes.rkt" "../benchmarking.rkt")
+(provide main)
 
 
-(define (bn-pigs)
-      (main "bayesian-networks/pigs.bif"
+(define (main)
+  (benchmark
+    (main* "bayesian-networks/pigs.bif"
       'p392115290
       '(p630400490
         p627270088
@@ -447,4 +448,4 @@
         p627320490
         p627367791
         p392150190
-        p392115290)))
+        p392115290))))

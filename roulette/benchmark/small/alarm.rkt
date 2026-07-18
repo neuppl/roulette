@@ -1,5 +1,6 @@
 #lang roulette/example/disrupt
-(provide small-alarm)
+(require "../benchmarking.rkt")
+(provide main)
 (define earthquake (flip 0.0001))
 (define burglary (flip 0.001))
 (define alarm (|| earthquake burglary))
@@ -13,4 +14,8 @@
 (observe! called)
 
 
-(define (small-alarm) (query burglary))
+(define (main) (benchmark (query burglary)))
+
+
+(module+ main
+  (main))

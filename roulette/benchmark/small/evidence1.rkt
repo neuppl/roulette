@@ -1,12 +1,17 @@
 #lang roulette/example/disrupt
-(provide small-evidence1)
+(require "../benchmarking.rkt")
+(provide main)
 
 (define evidence (flip 0.5))
 (define coin (flip 0.5))
 
-(define (small-evidence1)
-  (query (cond
+(define (main)
+  (benchmark (query (cond
            [evidence
             (observe! coin)
             evidence]
-           [else evidence])))
+           [else evidence]))))
+
+
+(module+ main
+  (main))

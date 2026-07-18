@@ -4,8 +4,7 @@
 
 (require rosette/lib/destruct
          "../benchmarking.rkt")
-
-(provide scaling-hardware main)
+(provide main)
 
 (define (natural->bv k size)
   (cond
@@ -125,7 +124,7 @@
 (define (scaling-hardware k) (query (main* k (+ 1 k) (+ 2 k))))
 
 
-(define (main) (scale scaling-hardware (1 2 3 4 5 6 7)))
+(define (main) (max-arg scaling-hardware "hardware.rkt" #:start 1 #:step 1))
 
 
 (module+ main

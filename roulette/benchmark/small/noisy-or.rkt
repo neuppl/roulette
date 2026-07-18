@@ -1,5 +1,6 @@
 #lang roulette/example/disrupt
-(provide small-noisy-or)
+(require "../benchmarking.rkt")
+(provide main)
 
 
 (define n0 (flip 0.5))
@@ -13,4 +14,8 @@
 (define n32 (if n2 (flip 0.8) (flip 0.1)))
 (define n3 (|| n31 n32 n33))
 
-(define (small-noisy-or) (query n3))
+(define (main) (benchmark (query n3)))
+
+
+(module+ main
+  (main))

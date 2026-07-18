@@ -1,8 +1,9 @@
 #lang roulette/example/disrupt
 
-(require "private/bayes.rkt")
-(provide bn-cancer)
+(require "../private/bayes.rkt" "../benchmarking.rkt")
+(provide main)
 
 
-(define (bn-cancer)
-      (main "bayesian-networks/cancer.bif" 'Xray `(Pollution Smoker Cancer Dyspnoea Xray)))
+(define (main)
+  (benchmark
+    (main* "bayesian-networks/cancer.bif" 'Xray `(Pollution Smoker Cancer Dyspnoea Xray))))
