@@ -233,7 +233,7 @@
 	(run-bayesian-networks-benchmarks))
 
 
-(define (save-benchmarking-results)
+(define (save-benchmarking-results #:commit-msg [msg #f] #:commit-hash [hash #f])
 	(date-display-format 'iso-8601) 
 	(define results-dir (build-path "data" 
 																	(string-append "run_" (date->string (current-date) 
@@ -242,8 +242,20 @@
 	(for ([dir benchmarking-dirs])
 		(copy-directory/files dir (build-path results-dir (string-trim dir "-results")))
 		(delete-directory/files dir))
+	;; record the commit hash and message for site.scribl. site.scribl currently
+	;; reads only COMMIT_HASH.txt; COMMIT_MSG.txt is written for potential future use.
+	(when hash
+		(call-with-output-file (build-path results-dir "COMMIT_HASH.txt")
+			(lambda (out) (display hash out))
+			#:exists 'replace))
+	(when msg
+		(call-with-output-file (build-path results-dir "COMMIT_MSG.txt")
+			(lambda (out) (display msg out))
+			#:exists 'replace))
 	(set! benchmarking-dirs (list)))
 
 (module+ main
 	(run-all-benchmarks)
-	(save-benchmarking-results))
+	(define args (current-command-line-arguments))
+	(save-benchmarking-results #:commit-hash (and (>= (vector-length args) 1) (vector-ref args 0))
+														 #:commit-msg (and (>= (vector-length args) 2) (vector-ref args 1))))
