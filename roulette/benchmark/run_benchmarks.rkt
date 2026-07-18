@@ -11,9 +11,8 @@
 
 	(with-benchmarking-dir dir
 		(for ([path (in-directory dir)]
-					#:when (regexp-match? #rx"\\.rkt$" (path->string path)))
-			(define benchmark (dynamic-require path 'main))
-			(benchmark))))
+					#:when (path-has-extension? (path->string path) ".rkt"))
+			((dynamic-require path 'main)))))
 
 (define (save-benchmarking-results #:commit-msg [msg #f] #:commit-hash [hash #f])
 	(date-display-format 'iso-8601) 
@@ -24,8 +23,6 @@
 	(for ([dir results-dirs])
 		(copy-directory/files dir (build-path saved-results-dir (string-trim dir "-results")))
 		(delete-directory/files dir))
-	;; record the commit hash and message for site.scribl. site.scribl currently
-	;; reads only COMMIT_HASH.txt; COMMIT_MSG.txt is written for potential future use.
 	(when hash
 		(call-with-output-file (build-path saved-results-dir "COMMIT_HASH.txt")
 			(lambda (out) (display hash out))

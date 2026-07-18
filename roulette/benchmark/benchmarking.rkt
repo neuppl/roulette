@@ -143,41 +143,51 @@
 ;; function. 
 ;; Find the largest argument n that computes within a fixed recursive call limit, by incrementing arg 
 ;; by `step` each iteration
-(define (max-arg fn name #:start [start 0] #:step [step 10] #:rec-limit [limit 1000000])
-  (format-benchmark "max-arg" name
-		(define (exceeds-limit? n)
-			(define rec-calls
-				(begin (clear-cache!)
-							(fn n)
-							(recursive-calls)))
-			(printf "n=~a:" n)
-			(cond
-				[(>= rec-calls limit)
-				(printf "Ran out of recursive calls: ~a\n" rec-calls)
-				#t]
-				[else
-				(printf "Ran in fewer than ~a recursive calls: ~a \n" limit rec-calls)
-				#f]))
+(define-syntax (max-arg stx)
+  (syntax-parse stx
+    [(_ ?fn (~alt (~optional (~seq #:start ?start) #:defaults ([?start #'0]))
+                  (~optional (~seq #:step ?step) #:defaults ([?step #'10]))
+                  (~optional (~seq #:rec-limit ?limit) #:defaults ([?limit #'1000000])))
+        ...)
+     #'(format-benchmark "max-arg" (module-name)
+         (let ([fn ?fn]
+               [name (module-name)]
+               [start ?start]
+               [step ?step]
+               [limit ?limit])
+           (define (exceeds-limit? n)
+             (define rec-calls
+               (begin (clear-cache!)
+                      (fn n)
+                      (recursive-calls)))
+             (printf "n=~a:" n)
+             (cond
+               [(>= rec-calls limit)
+                (printf "Ran out of recursive calls: ~a\n" rec-calls)
+                #t]
+               [else
+                (printf "Ran in fewer than ~a recursive calls: ~a \n" limit rec-calls)
+                #f]))
 
-		(define max
-			(let loop ([i start])
-				(if (exceeds-limit? i)
-						(- i step)  ; _previous_ iteration is the last one within limit
-						(loop (+ i step)))))
+           (define max
+             (let loop ([i start])
+               (if (exceeds-limit? i)
+                   (- i step)  ; _previous_ iteration is the last one within limit
+                   (loop (+ i step)))))
 
-		(printf "maximum argument value is ~a\n" max)
+           (printf "maximum argument value is ~a\n" max)
 
-		(call-with-output-file (build-path (current-results-dir) (path-replace-extension name ".json"))
-			(lambda (out)
-				(write-json
-				(hash
-					'max-arg #t
-					'arg-value max
-					'start start
-					'step step
-					'rec-limit limit)
-				out))
-			#:exists 'replace)))
+           (call-with-output-file (build-path (current-results-dir) (path-replace-extension name ".json"))
+             (lambda (out)
+               (write-json
+                (hash
+                 'max-arg #t
+                 'arg-value max
+                 'start start
+                 'step step
+                 'rec-limit limit)
+                out))
+             #:exists 'replace)))]))
 
 
 

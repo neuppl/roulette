@@ -71,7 +71,7 @@
     (diamond acc)))
 
 
-(define (main) (max-arg scaling-network "hardware.rkt" #:start 1 #:step 2))
+(define (main) (max-arg scaling-network #:start 1 #:step 2))
 
 
 (module+ main

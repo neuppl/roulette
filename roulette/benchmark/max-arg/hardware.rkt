@@ -124,7 +124,7 @@
 (define (scaling-hardware k) (query (main* k (+ 1 k) (+ 2 k))))
 
 
-(define (main) (max-arg scaling-hardware "hardware.rkt" #:start 1 #:step 1))
+(define (main) (max-arg scaling-hardware #:start 1 #:step 1))
 
 
 (module+ main

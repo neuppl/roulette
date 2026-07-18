@@ -25,7 +25,7 @@
       (flip 0.4)))
 
 
-(define (main) (max-arg make-grid "n-grid.rkt" #:start 1 #:step 5))
+(define (main) (max-arg make-grid #:start 1 #:step 5 #:rec-limit 500000))
 
 
 (module+ main
