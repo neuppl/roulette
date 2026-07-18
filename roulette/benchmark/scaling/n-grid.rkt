@@ -1,12 +1,10 @@
 #lang roulette/example/disrupt
 (require "../benchmarking.rkt"
-         "../shared/network.rkt")
+         "../shared/n-grid.rkt")
 
 (provide main)
 
-(define (main) (scale network (1 2 3 4 5 6 7 8)))
+(define (main) (scale make-grid (10 15 20 25 30 35 40 45)))
 
 (module+ main
   (main))
-
-
