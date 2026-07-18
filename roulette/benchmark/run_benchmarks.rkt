@@ -22,8 +22,7 @@
 				 "bayesian-networks/munin.bif.rkt"
 				 "bayesian-networks/pigs.bif.rkt"
 				 "bayesian-networks/survey.bif.rkt"
-				 "bayesian-networks/water.bif.rkt"
-				 rackunit)
+				 "bayesian-networks/water.bif.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; helpers
@@ -176,7 +175,7 @@
 
 		(printf "maximum argument value is ~a\n" max)
 
-		(call-with-output-file (build-path current-benchmarking-dir name)
+		(call-with-output-file (build-path current-benchmarking-dir (path-replace-extension name ".json"))
 			(lambda (out)
 				(write-json
 				(hash
@@ -240,9 +239,10 @@
 																	(string-append "run_" (date->string (current-date) 
 																																			(current-milliseconds)))))
 	(make-directory* results-dir)
-	(for ([dir (list "scaling-results" "small-results" "max-arg-results")])
+	(for ([dir benchmarking-dirs])
 		(copy-directory/files dir (build-path results-dir (string-trim dir "-results")))
-		(delete-directory/files dir)))
+		(delete-directory/files dir))
+	(set! benchmarking-dirs (list)))
 
 (module+ main
 	(run-all-benchmarks)

@@ -14,23 +14,29 @@
 @margin-note{These plots were generated on @(date->string (current-date))@(let ([c (latest-commit-link)]) (if c @elem{, from commit @|c|} ""))}
 
 
-There are currently 3 parameters on which benchmarks are collected: timing
-(which includes real time, cpu time and gc time), number of recursive calls, and
-total size. You can find plots for each parameter in the seperate sections of this
-document. The plots are generated from the data in the @tt{data/} directory.
+Benchmarks are organized into groups, one per subdirectory of a run's data
+folder. Each group gets its own section below, and within a section every
+benchmark that group produced is shown. The plots are generated from the data in
+the @tt{data/} directory.
 
-Scaling benchmarks (those produced by the @tt{scale} form) are reported
-separately in the Scaling benchmarks section, with timing, recursive calls and
-total size shown side-by-side per benchmark; they do not appear in the
-per-parameter sections above.
+Each ordinary benchmark is shown with three plots side-by-side --- timing (real,
+cpu and gc time), number of recursive calls, and total size --- each tracked
+across benchmark runs.
 
-Max-argument benchmarks (those produced by the @tt{max-arg} form) are reported
-in the Maximum argument section, one plot per benchmark tracking the largest
-feasible argument across runs; they too are excluded from the per-parameter
-sections.
+Scaling benchmarks (those produced by the @tt{scale} form) are rendered
+differently: their metrics are reported across a series of expressions from the 
+most recent run rather than across runs. They appear inline within whichever
+group they belong to, mixed among the ordinary benchmarks, and are flagged 
+with a @tt{(scaling benchmark)} tag next to their name.
 
-Additionally, there are also benchmarks for the code profiler in the Extra plots section.
-These are generated from the files in the @tt{extra} directory.
+Maximum-argument benchmarks (those produced by the @tt{max-arg} form) are also
+rendered specially: a single plot tracking the largest feasible argument across
+runs. They too appear inline within their group, flagged with a
+@tt{(max-arg benchmark)} tag.
+
+Additionally, there are benchmarks for the code profiler in the Extra plots
+section. These are generated from the files in the @tt{extra} directory and are
+not part of the normal benchmarking data.
 
 You can find these files and data in the @hyperlink["https://github.com/Smaran-Teja/roulette-bench-data"]{roulette-bench-data} repository.
 
@@ -39,8 +45,11 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; Data loading
 @;;
 @;; The benchmark runner writes one directory per run under data/, named
-@;; run_YYYY-MM-DD_HH-MM-SS. Because that naming sorts lexicographically in
-@;; chronological order, we can sort the run directories by name.
+@;; run_<ISO-8601 timestamp> (e.g. run_2026-07-17T19:22:07). Because that naming
+@;; sorts lexicographically in chronological order, we can sort the run
+@;; directories by name. Within each run directory the JSON results live inside
+@;; per-group subdirectories (e.g. small/, scaling/, max-arg/) rather than at the
+@;; run's root.
 @;; ---------------------------------------------------------------------------
 
 @(define data-dir "benchmark/data")
@@ -88,25 +97,75 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
         (commit-hash-full (last runs))
         (commit-hyperlink (last runs))))
 
-@;; A "record" is a (cons run-label jsexpr) pair. records-for gathers, in run
-@;; order, every run that produced results for the given benchmark file.
-@(define (records-for filename)
-   (for*/list ([d (in-list (run-dirs))]
-               [f (in-value (build-path d filename))]
-               #:when (file-exists? f))
-     (cons (commit-label d)
-           (call-with-input-file f read-json))))
+@;; ---------------------------------------------------------------------------
+@;; Group and benchmark discovery.
+@;;
+@;; A "group" is a subdirectory name (e.g. "small") that appears inside one or
+@;; more run directories. Within a group, a "benchmark" is a result file. Result
+@;; files are discovered extension-agnostically: every regular file inside the
+@;; group subdirectory is treated as a benchmark result and parsed as JSON. (The
+@;; max-arg form currently writes files with a .rkt extension though their
+@;; contents are JSON, so we cannot key off the extension.)
+@;; ---------------------------------------------------------------------------
 
-@;; Every distinct benchmark JSON filename seen across all runs.
-@(define (all-benchmark-files)
+@;; Every distinct group (subdirectory) name seen across all runs, in name order.
+@(define (groups)
    (sort
     (remove-duplicates
      (append*
       (for/list ([d (in-list (run-dirs))])
-        (for/list ([p (in-list (directory-list d))]
-                   #:when (regexp-match? #rx"\\.json$" (path->string p)))
-          (path->string p)))))
+        (for/list ([p (in-list (directory-list d #:build? #t))]
+                   #:when (directory-exists? p))
+          (path->string (file-name-from-path p))))))
     string<?))
+
+@;; Every distinct result-file name seen within `group` across all runs, in name
+@;; order.
+@(define (group-files group)
+   (sort
+    (remove-duplicates
+     (append*
+      (for/list ([d (in-list (run-dirs))])
+        (define gd (build-path d group))
+        (if (directory-exists? gd)
+            (for/list ([p (in-list (directory-list gd))]
+                       #:when (file-exists? (build-path gd p)))
+              (path->string p))
+            '()))))
+    string<?))
+
+@;; A "record" is a (cons run-label jsexpr) pair. records-for gathers, in run
+@;; order, every run that produced `filename` within `group`.
+@(define (records-for group filename)
+   (for*/list ([d (in-list (run-dirs))]
+               [f (in-value (build-path d group filename))]
+               #:when (file-exists? f))
+     (cons (commit-label d)
+           (call-with-input-file f read-json))))
+
+@;; ---------------------------------------------------------------------------
+@;; Benchmark-type classification. We key off the most recent run's record, so a
+@;; benchmark that only recently changed shape is classified by its current
+@;; shape.
+@;; ---------------------------------------------------------------------------
+
+@;; Is this record a scaling record? The `scale` form tags its JSON "scaling"
+@;; with a list of x-axis labels (one per scaled expression) and reports each
+@;; metric as a list, whereas ordinary benchmarks set "scaling" to #f and report
+@;; scalar metrics.
+@(define (scaling-record? rec)
+   (list? (hash-ref rec 'scaling #f)))
+
+@;; Is this record a max-arg record? The `max-arg` form writes a minimal json
+@;; tagged "max-arg": true whose sole metric is "arg-value" (the largest feasible
+@;; argument found that run).
+@(define (max-arg-record? rec)
+   (eq? #t (hash-ref rec 'max-arg #f)))
+
+@;; The x-axis labels for a scaling benchmark: the source syntax of each scaled
+@;; expression, as recorded under "scaling".
+@(define (scale-labels rec)
+   (hash-ref rec 'scaling))
 
 @;; ---------------------------------------------------------------------------
 @;; Plotting helpers
@@ -139,49 +198,23 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
               [r (in-list recs)])
      (vector i (hash-ref (cdr r) key))))
 
-@;; Does every record for this benchmark carry the given key?
-@(define (has-key? recs key)
-   (and (pair? recs)
-        (for/and ([r (in-list recs)])
-          (hash-has-key? (cdr r) key))))
-
-@;; Is this a scaling benchmark? The `scale` macro tags its JSON "scaling" with
-@;; a list of x-axis labels (one per scaled expression) and reports each metric
-@;; as a list, whereas ordinary benchmarks set "scaling" to #f and report scalar
-@;; metrics. We key off the most recent run, so a benchmark that only recently
-@;; became a scaling one is classified by its current shape.
-@(define (scaling-file? filename)
-   (define recs (records-for filename))
-   (and (pair? recs)
-        (list? (hash-ref (cdr (last recs)) 'scaling #f))))
-
-@;; The x-axis labels for a scaling benchmark: the source syntax of each scaled
-@;; expression, as recorded under "scaling".
-@(define (scale-labels rec)
-   (hash-ref rec 'scaling))
-
-@;; Is this a max-arg benchmark? The `max-arg` form writes a minimal json tagged
-@;; "max-arg": true whose sole metric is "arg-value" (the largest feasible
-@;; argument found that run). Classified off the most recent run.
-@(define (max-arg-file? filename)
-   (define recs (records-for filename))
-   (and (pair? recs)
-        (eq? #t (hash-ref (cdr (last recs)) 'max-arg #f))))
-
 @;; A line + marker renderer for a single metric (matches matplotlib marker="o").
 @(define (metric-renderers recs key color label)
    (define pts (series recs key))
    (list (lines pts #:color color #:label label #:width 2)
          (points pts #:color color #:sym 'fullcircle #:size 6)))
 
-@;; Render a plot to an SVG file and return an @image element for it. The SVG
-@;; is filed under plots/<subdir>/ so each parameter's plots stay grouped
-@;; together. renderers is a list of renderer lists (one per metric).
-@(define (render-plot filename subdir title y-label renderers labels
-                      #:y-ticks [y-ticks (plot-y-ticks)])
-   (define out-dir (build-path plots-dir subdir))
+@;; Render a run-indexed plot to plots/<group>/<out-stem>.svg and return an
+@;; @image element for it. renderers is a list of renderer lists (one per
+@;; metric). The default size is sized to fit three plots side-by-side; the
+@;; single-plot callers (max-arg) widen it.
+@(define (render-plot group out-stem title y-label renderers labels
+                      #:y-ticks [y-ticks (plot-y-ticks)]
+                      #:width [width 460]
+                      #:height [height 380])
+   (define out-dir (build-path plots-dir group))
    (make-directory* out-dir)
-   (define out (build-path out-dir (string-append (stem filename) ".svg")))
+   (define out (build-path out-dir (string-append out-stem ".svg")))
    (parameterize ([plot-x-ticks (make-run-ticks labels)]
                   [plot-y-ticks y-ticks]
                   [plot-x-label "Run"]
@@ -189,8 +222,8 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
                   [plot-title title]
                   [plot-x-tick-label-angle 45]
                   [plot-x-tick-label-anchor 'top-right]
-                  [plot-width 800]
-                  [plot-height 480])
+                  [plot-width width]
+                  [plot-height height])
      (plot-file (append* renderers) out 'svg))
    (image #:scale 1 (path->string out)))
 
@@ -224,10 +257,10 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
    (list (lines pts #:color color #:label label #:width 2)
          (points pts #:color color #:sym 'fullcircle #:size 6)))
 
-@;; Render one scaling plot to plots/scaling/<stem>-<suffix>.svg. labels are the
+@;; Render one scaling plot to plots/<group>/<stem>-<suffix>.svg. labels are the
 @;; per-expression x-axis labels.
-@(define (render-scale-plot filename suffix title y-label renderers labels)
-   (define out-dir (build-path plots-dir "scaling"))
+@(define (render-scale-plot group filename suffix title y-label renderers labels)
+   (define out-dir (build-path plots-dir group))
    (make-directory* out-dir)
    (define out (build-path out-dir
                            (string-append (stem filename) "-" suffix ".svg")))
@@ -242,84 +275,9 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
      (plot-file (append* renderers) out 'svg))
    (image #:scale 1 (path->string out)))
 
-@;; ---------------------------------------------------------------------------
-@;; Per-parameter plot builders. Each returns an itemlist with one titled plot
-@;; per benchmark that has the relevant metric.
-@;; ---------------------------------------------------------------------------
-
-@(define (timing-section)
-   (itemlist
-    (for/list ([filename (in-list (all-benchmark-files))]
-               #:unless (or (scaling-file? filename) (max-arg-file? filename)))
-      (define recs (records-for filename))
-      (item @bold{@(stem filename)}
-            (linebreak)
-            (render-plot
-             filename "timing"
-             (format "Timing for ~a" (stem filename))
-             "Time (ms)"
-             (list (metric-renderers recs 'real_time_ms "blue" "real_time_ms")
-                   (metric-renderers recs 'cpu_time_ms "orange" "cpu_time_ms")
-                   (metric-renderers recs 'gc_time_ms "green" "gc_time_ms"))
-             (map car recs))))))
-
-@(define (single-metric-section subdir key title-fmt y-label color)
-   (itemlist
-    (append*
-     (for/list ([filename (in-list (all-benchmark-files))]
-                #:unless (or (scaling-file? filename) (max-arg-file? filename)))
-       (define recs (records-for filename))
-       (if (has-key? recs key)
-           (list
-            (item @bold{@(stem filename)}
-                  (linebreak)
-                  (render-plot
-                   filename subdir
-                   (format title-fmt (stem filename))
-                   y-label
-                   (list (metric-renderers recs key color (symbol->string key)))
-                   (map car recs))))
-           '())))))
-
-@;; One benchmark per file: three plots (timing, recursive calls, total size)
-@;; laid out side-by-side, plotted against the scale-step index. Only scaling
-@;; benchmarks appear here, and they appear nowhere else.
-@(define (scaling-section)
-   (itemlist
-    (for/list ([filename (in-list (all-benchmark-files))]
-               #:when (scaling-file? filename))
-      (define latest (cdr (last (records-for filename))))
-      (define labels (scale-labels latest))
-      (item @bold{@(stem filename)}
-            (linebreak)
-            (tabular
-             #:sep (hspace 3)
-             (list
-              (list
-               (render-scale-plot
-                filename "timing"
-                (format "Timing for ~a" (stem filename)) "Time (ms)"
-                (list (scale-metric-renderers (hash-ref latest 'real_time_ms) "blue" "real_time_ms")
-                      (scale-metric-renderers (hash-ref latest 'cpu_time_ms) "orange" "cpu_time_ms")
-                      (scale-metric-renderers (hash-ref latest 'gc_time_ms) "green" "gc_time_ms"))
-                labels)
-               (render-scale-plot
-                filename "recursive-calls"
-                (format "Recursive Calls for ~a" (stem filename)) "Number of Recursive Calls"
-                (list (scale-metric-renderers (hash-ref latest 'recursive-calls) "green" "recursive-calls"))
-                labels)
-               (render-scale-plot
-                filename "total-size"
-                (format "Total Size for ~a" (stem filename)) "Total Size"
-                (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
-                labels))))))))
-
-@;; Y-axis ticks for a max-arg plot: the binary search ranges over the integers
-@;; [start, end], so ticks are placed at evenly-spaced candidate argument values
-@;; within that range (a step is derived to keep the tick count reasonable).
-@(define (make-arg-ticks start end)
-   (define span (max 1 (- end start)))
-   (define step (max 1 (quotient span 10)))
+@;; Y-axis ticks for a max-arg plot: one at every candidate argument value
+@;; start, start+step, start+2*step, ... that falls within the plot's range.
+@(define (make-arg-ticks start step)
    (ticks
     (lambda (lo hi)
       (define first-k (inexact->exact (floor (/ (- lo start) step))))
@@ -332,63 +290,120 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
       (for/list ([pt (in-list pts)])
         (number->string (pre-tick-value pt))))))
 
-@;; One plot per max-arg benchmark, tracking the "arg-value" (largest feasible
-@;; argument) across runs -- same run-indexed x-axis as the timing plots. The
-@;; y-axis is scaled to the candidate arguments in [start, end] and the
-@;; timeout is shown alongside the heading. Only max-arg benchmarks appear here,
-@;; and they appear nowhere else.
-@(define (max-arg-section)
-   (itemlist
-    (for/list ([filename (in-list (all-benchmark-files))]
-               #:when (max-arg-file? filename))
-      (define recs (records-for filename))
-      (define latest (cdr (last recs)))
-      ;; start/end/timeout were added later; older runs may lack them, so we
-      ;; degrade gracefully to default y-ticks and no timeout note.
-      (define start (hash-ref latest 'start #f))
-      (define end (hash-ref latest 'end #f))
-      (define timeout (hash-ref latest 'timeout #f))
-      (item @bold{@(stem filename)}
-            (if timeout
-                (format " (timeout: ~a s, start: ~a, end: ~a)" timeout start end)
-                "")
-            (linebreak)
+@;; ---------------------------------------------------------------------------
+@;; Per-benchmark item builders. Each returns an itemlist item rendered
+@;; according to the benchmark's type.
+@;; ---------------------------------------------------------------------------
+
+@;; An ordinary benchmark: three run-indexed plots (timing, recursive calls,
+@;; total size) laid out side-by-side.
+@(define (regular-item group filename recs)
+   (define labels (map car recs))
+   (define name (stem filename))
+   (item @bold{@name}
+         (linebreak)
+         (tabular
+          #:sep (hspace 3)
+          (list
+           (list
             (render-plot
-             filename "max-arg"
-             (format "Max argument for ~a" (stem filename))
-             "Max argument value"
-             (list (metric-renderers recs 'arg-value "red" "arg-value"))
-             (map car recs)
-             #:y-ticks (if (and start end)
-                           (make-arg-ticks start end)
-                           (plot-y-ticks)))))))
+             group (string-append name "-timing")
+             (format "Timing for ~a" name) "Time (ms)"
+             (list (metric-renderers recs 'real_time_ms "blue" "real_time_ms")
+                   (metric-renderers recs 'cpu_time_ms "orange" "cpu_time_ms")
+                   (metric-renderers recs 'gc_time_ms "green" "gc_time_ms"))
+             labels)
+            (render-plot
+             group (string-append name "-recursive-calls")
+             (format "Recursive Calls for ~a" name) "Number of Recursive Calls"
+             (list (metric-renderers recs 'recursive-calls "green" "recursive-calls"))
+             labels)
+            (render-plot
+             group (string-append name "-total-size")
+             (format "Total Size for ~a" name) "Total Size"
+             (list (metric-renderers recs 'total-size "purple" "total-size"))
+             labels))))))
 
-@section{Scaling benchmarks}
-These benchmarks are produced by the @tt{scale} form, which records each metric
-across a series of expressions to show how performance scales. For each
-benchmark the timing, recursive-call and total-size plots are shown
-side-by-side, with the x-axis labelled by each expression's source syntax
-(e.g. @tt{(main 2)}) from the most recent run.
-@(linebreak)
-@(scaling-section)
+@;; A scaling benchmark: three scale-indexed plots side-by-side, flagged with a
+@;; "(scaling benchmark)" tag. Plotted from the most recent run.
+@(define (scaling-item group filename recs latest)
+   (define labels (scale-labels latest))
+   (define name (stem filename))
+   (item @bold{@name} " (scaling benchmark)"
+         (linebreak)
+         (tabular
+          #:sep (hspace 3)
+          (list
+           (list
+            (render-scale-plot
+             group filename "timing"
+             (format "Timing for ~a" name) "Time (ms)"
+             (list (scale-metric-renderers (hash-ref latest 'real_time_ms) "blue" "real_time_ms")
+                   (scale-metric-renderers (hash-ref latest 'cpu_time_ms) "orange" "cpu_time_ms")
+                   (scale-metric-renderers (hash-ref latest 'gc_time_ms) "green" "gc_time_ms"))
+             labels)
+            (render-scale-plot
+             group filename "recursive-calls"
+             (format "Recursive Calls for ~a" name) "Number of Recursive Calls"
+             (list (scale-metric-renderers (hash-ref latest 'recursive-calls) "green" "recursive-calls"))
+             labels)
+            (render-scale-plot
+             group filename "total-size"
+             (format "Total Size for ~a" name) "Total Size"
+             (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
+             labels))))))
 
-@section{Maximum argument}
-These benchmarks are produced by the @tt{max-arg} form, which finds the largest
-argument for which a computation completes within a timeout. Each plot shows how
-that maximum argument changes across benchmark runs.
-@(linebreak)
-@(max-arg-section)
+@;; A max-arg benchmark: a single run-indexed plot of the largest feasible
+@;; argument, flagged with a "(max-arg benchmark)" tag. start/step/rec-limit were
+@;; added later; older runs may lack them, so we degrade gracefully to default
+@;; y-ticks and no rec-limit note.
+@(define (max-arg-item group filename recs latest)
+   (define name (stem filename))
+   (define start (hash-ref latest 'start #f))
+   (define step (hash-ref latest 'step #f))
+   (define rec-limit (hash-ref latest 'rec-limit #f))
+   (item @bold{@name} " (max-arg benchmark)"
+         (if rec-limit
+             (format " (rec-limit: ~a, start: ~a, step: ~a)" rec-limit start step)
+             "")
+         (linebreak)
+         (render-plot
+          group (string-append name "-max-arg")
+          (format "Max argument for ~a" name)
+          "Max argument value"
+          (list (metric-renderers recs 'arg-value "red" "arg-value"))
+          (map car recs)
+          #:y-ticks (if (and start step)
+                        (make-arg-ticks start step)
+                        (plot-y-ticks))
+          #:width 800 #:height 480)))
 
-@section{Timing}
-@(timing-section)
+@;; Dispatch a single benchmark file to the right item builder, returning a
+@;; one-element list (or '() when the file produced no records).
+@(define (benchmark-item group filename)
+   (define recs (records-for group filename))
+   (cond
+     [(null? recs) '()]
+     [else
+      (define latest (cdr (last recs)))
+      (cond
+        [(scaling-record? latest) (list (scaling-item group filename recs latest))]
+        [(max-arg-record? latest) (list (max-arg-item group filename recs latest))]
+        [else (list (regular-item group filename recs))])]))
 
-@section{Number of recursive calls}
-@(single-metric-section "recursive-calls" 'recursive-calls
-                        "Recursive Calls for ~a" "Number of Recursive Calls" "green")
+@;; The itemlist of every benchmark in a group.
+@(define (group-section group)
+   (itemlist
+    (append*
+     (for/list ([filename (in-list (group-files group))])
+       (benchmark-item group filename)))))
 
-@section{Total size}
-@(single-metric-section "total-size" 'total-size
-                        "Total Size for ~a" "Total Size" "purple")
+@;; One @section per group (titled by the group's subdirectory name), each
+@;; followed by that group's benchmarks.
+@(append*
+  (for/list ([group (in-list (groups))])
+    (list (section group)
+          (group-section group))))
 
 @;; ---------------------------------------------------------------------------
 @;; Extra plots. Every .rkt file in extra/ may provide any number of
