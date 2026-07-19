@@ -14,7 +14,7 @@
   (require/expose roulette/engine/rsdd
     (mk-bdd-manager-default-order
      rsdd-label rsdd-var
-     rsdd-and rsdd-or rsdd-not rsdd-ite
+     rsdd-and rsdd-or rsdd-not
      rsdd-true? rsdd-false? rsdd-equal?
      rsdd-num-recursive-calls rsdd-to-json))
 
@@ -23,14 +23,14 @@
     (syntax-parser
       [(_ ([x:id rx:expr] ...) def:expr ... body:expr ([y:expr ry:expr] ...))
        (syntax/loc this-syntax
-         (check-close 0.0000001
-                      (let ()
-                        (define-measurable x (bernoulli-measure (- 1 rx) rx)) ...
-                        def ...
-                        (define inferred (infer body))
-                        (for/hash ([elem (in-set (support inferred))])
-                          (values elem ((density inferred) elem))))
-                      (hash (~@ y ry) ...)))]))
+         (check-equal?
+          (let ()
+            (define-measurable x (bernoulli-measure (- 1 rx) rx)) ...
+            def ...
+            (define inferred (infer body))
+            (for/hash ([elem (in-set (support inferred))])
+              (values elem ((density inferred) elem))))
+          (hash (~@ y ry) ...)))]))
 
   ;; tests
   (test-case "basic FFI calls"
@@ -61,61 +61,62 @@
     (check-true (rsdd-false? (rsdd-and b x (rsdd-not b x)))))
 
   (test-case "conditionals over atomic data"
-    (check-program ([x0 0.1] [y0 0.5])
+    (check-program ([x0 1/10] [y0 1/2])
       (= (if x0 1 2) (if y0 1 3))
-      ([#t 0.05] [#f 0.95]))
+      ([#t 1/20] [#f 19/20]))
 
-    (check-program ([x1 0.5] [y1 0.2])
+    (check-program ([x1 1/2] [y1 1/5])
       (if x1 (if y1 1 2) (if y1 3 4))
-      ([1 0.1] [2 0.4] [3 0.1] [4 0.4]))
+      ([1 1/10] [2 2/5] [3 1/10] [4 2/5]))
 
-    (check-program ([x2 0.5] [y2 0.2])
+    (check-program ([x2 1/2] [y2 1/5])
       (if x2 y2 (cond [y2 #t] [else 'b]))
-      ([#t 0.2] [#f 0.4] ['b 0.4])))
+      ([#t 1/5] [#f 2/5] ['b 2/5])))
 
   (test-case "conditionals over lists"
-    (check-program ([x1 0.3] [y1 0.1])
+    (check-program ([x1 3/10] [y1 1/10])
       (if x1 (list (if y1 'a 'b)) '())
-      (['(a) 0.03] ['(b) 0.27] ['() 0.7]))
+      (['(a) #e0.03] ['(b) #e0.27] ['() #e0.7]))
 
-    (check-program ([x2 0.3] [y2 0.1])
+    (check-program ([x2 3/10] [y2 1/10])
       (if x2 (list (if y2 'a 'b)) (list (if y2 'b 'a)))
-      (['(a) 0.66] ['(b) 0.34])))
+      (['(a) #e0.66] ['(b) #e0.34])))
 
   (test-case "conditionals inside operations"
-    (check-program ([x1 0.3] [y1 0.1])
+    (check-program ([x1 3/10] [y1 1/10])
       (+ (if x1 1 2) (if y1 3 4))
-      ([4 0.03] [5 0.34] [6 0.63])))
+      ([4 #e0.03] [5 #e0.34] [6 #e0.63])))
 
   (test-case "recursive function over symbolic lists"
-    (check-program ([x1 0.1] [y1 0.2] [z1 0.5])
+    (check-program ([x1 1/10] [y1 1/2] [z1 1/2])
       (define (sum xs)
         (if (empty? xs) 0 (+ (first xs) (sum (rest xs)))))
       (define xs (cons 1 (if x1 '() (list (if y1 2 3) 4))))
       (define ys '(5 6 7))
       (sum (if z1 xs ys))
 
-      ([18 0.5]
-       [1 (* 0.5 0.1)]
-       [7 (* 0.5 (- 1 0.1) 0.2)]
-       [8 (* 0.5 (- 1 0.1) (- 1 0.2))])))
+      ([18 1/2]
+       [1 (* 1/2 1/10)]
+       [7 (* 1/2 (- 1 1/10) 1/2)]
+       [8 (* 1/2 (- 1 1/10) (- 1 1/2))])))
 
   (test-case "mutation"
-    (check-program ([x1 0.5])
+    (check-program ([x1 1/2])
       (define y 10)
       (when x1 (set! y 12))
       y
-
-      ([10 0.5] [12 0.5])))
+      ([10 1/2] [12 1/2])))
 
   (test-case "polynomial"
     (let ()
       (define real-polynomial-semiring (polynomial-semiring real-semiring))
       (define-measurable x
-        (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring real-polynomial-semiring))
+        (bernoulli-measure '(#e0.1 #e0.6) '(#e0.9 #e0.4)
+                           #:semiring real-polynomial-semiring))
       (define-measurable y
-        (bernoulli-measure '(0.2 0.7) '(0.8 0.3) #:semiring real-polynomial-semiring))
+        (bernoulli-measure '(#e0.2 #e0.7) '(#e0.8 #e0.3)
+                           #:semiring real-polynomial-semiring))
       (define f
         (density (infer (and x y) #:engine (rsdd-engine #:semiring real-polynomial-semiring))))
-      (check-equal? (f #t) (list (* 0.9 0.8) (+ (* 0.9 0.3) (* 0.4 0.8)) (* 0.4 0.3)))))
+      (check-equal? (f #t) (list (* #e0.9 #e0.8) (+ (* #e0.9 #e0.3) (* #e0.4 #e0.8)) (* #e0.4 #e0.3)))))
   )
