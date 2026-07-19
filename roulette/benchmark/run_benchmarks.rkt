@@ -1,15 +1,18 @@
 #lang racket
 (require racket/date 
-				 (only-in "benchmarking.rkt" with-benchmarking-dir make-results-dir))
+				 (only-in "benchmarking.rkt" with-benchmarking-results-dir))
+
+
+(define result-extension "-results")
+(define (make-results-dir bench-dir) (string-append bench-dir result-extension))
 
 
 (define benchmarking-dirs (list "small" "scaling" "max-arg" "bayesian-networks"))
-(define results-dirs (map make-results-dir benchmarking-dirs))
 
 (define (run-benchmarks dir)
 	(printf "\033[1mRunning benchmarks in ~a\n\033[0m" dir)
 
-	(with-benchmarking-dir dir
+	(with-benchmarking-results-dir (make-results-dir dir)
 		(for ([path (in-directory dir)]
 					#:when (path-has-extension? (path->string path) ".rkt"))
 			((dynamic-require path 'main)))))
@@ -20,7 +23,7 @@
 																	(string-append "run_" (date->string (current-date) 
 																																			(current-milliseconds)))))
 	(make-directory* saved-results-dir)
-	(for ([dir results-dirs])
+	(for ([dir (map make-results-dir benchmarking-dirs)])
 		(copy-directory/files dir (build-path saved-results-dir (string-trim dir "-results")))
 		(delete-directory/files dir))
 	(when hash

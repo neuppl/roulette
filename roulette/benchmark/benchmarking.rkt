@@ -7,11 +7,10 @@
 				 syntax/location)
 
 
-(provide with-benchmarking-dir
+(provide with-benchmarking-results-dir
 				 benchmark
 				 scale
-				 max-arg
-         make-results-dir)
+				 max-arg)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -36,16 +35,15 @@
   (syntax-parse stx
     [(_) #'(file-name-from-path (quote-module-name))]))
 
-(define current-benchmarking-dir (make-parameter #f))
-(define result-extension "-results")
-(define (make-results-dir bench-dir) (string-append bench-dir result-extension))
-(define (current-results-dir) (make-results-dir (current-benchmarking-dir)))
+(define benchmarking-results-dir (make-parameter #f))
 
-(define-syntax (with-benchmarking-dir stx)
+
+(define-syntax (with-benchmarking-results-dir stx)
   (syntax-parse stx
-    [(_ ?dir ?e ...) #'(begin (parameterize ([current-benchmarking-dir ?dir])
-                                (make-directory (current-results-dir))
-																?e ...))]))
+    [(_ ?dir ?e ...) #'(begin
+                          (make-directory ?dir) 
+                          (parameterize ([benchmarking-results-dir ?dir])
+                              ?e ...))]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; individual benchmark runs and writing results
 
@@ -54,7 +52,7 @@
 ;; `scaling` is #f for a non-scaling run, or a list of x-axis label strings
 ;; (one per scaled expression) for a scaling run. all parameters are lists of values for scaling runs. 
 (define (write-benchmark path scaling result real cpu gc rec-calls total-size)
-  (call-with-output-file (build-path (current-results-dir) path)
+  (call-with-output-file (build-path (benchmarking-results-dir) path)
     (lambda (out)
       (write-json
         (hash
@@ -177,7 +175,7 @@
 
            (printf "maximum argument value is ~a\n" max)
 
-           (call-with-output-file (build-path (current-results-dir) (path-replace-extension name ".json"))
+           (call-with-output-file (build-path (benchmarking-results-dir) (path-replace-extension name ".json"))
              (lambda (out)
                (write-json
                 (hash
