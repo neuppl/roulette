@@ -14,7 +14,7 @@
 (observe! called)
 
 
-(define (main) (benchmark (query burglary)))
+(define (main) (benchmark burglary))
 
 
 (module+ main

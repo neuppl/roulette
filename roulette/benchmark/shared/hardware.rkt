@@ -122,4 +122,4 @@
   (read-total ((tri n) fuel (blank-memory))))
 
 ;; scale all three arguments to main from a single number
-(define (hardware k) (query (main k (+ 1 k) (+ 2 k))))
+(define (hardware k) (main k (+ 1 k) (+ 2 k)))

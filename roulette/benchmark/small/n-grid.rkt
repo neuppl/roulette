@@ -25,7 +25,7 @@
       (flip 0.4)))
 
 
-(define (main) (benchmark (query (make-grid 40))))
+(define (main) (benchmark (make-grid 40)))
 
 
 (module+ main

@@ -15,7 +15,7 @@
   (observe! obs)
   alice-dunnit)
 
-(define (main) (benchmark (query (gun-found-at-scene #true))))
+(define (main) (benchmark (gun-found-at-scene #true)))
 
 
 (module+ main

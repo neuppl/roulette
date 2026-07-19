@@ -16,10 +16,9 @@
        (get (- col 1) row)
        (get col (- row 1))))
     (vector-set! grid (+ (* row n) col) node))
-  (query (get (- n 1) (- n 1))))
+  (get (- n 1) (- n 1)))
 
 (define (make-node dep1 dep2)
   (if (and dep1 dep2)
       (flip 0.5)
       (flip 0.4)))
-

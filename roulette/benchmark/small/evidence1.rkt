@@ -6,11 +6,11 @@
 (define coin (flip 0.5))
 
 (define (main)
-  (benchmark (query (cond
+  (benchmark (cond
            [evidence
             (observe! coin)
             evidence]
-           [else evidence]))))
+           [else evidence])))
 
 
 (module+ main

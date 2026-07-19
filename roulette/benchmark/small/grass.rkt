@@ -12,7 +12,7 @@
 (define wet-grass (|| (&& temp2 rain) (&& temp3 sprinkler)))
 (observe! wet-grass)
 
-(define (main) (benchmark (query rain)))
+(define (main) (benchmark rain))
 
 
 (module+ main

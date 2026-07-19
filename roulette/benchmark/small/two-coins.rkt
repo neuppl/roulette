@@ -8,7 +8,7 @@
 (define both-heads (&& first-coin second-coin))
 (observe! (! both-heads))
 
-(define (main) (benchmark (query first-coin)))
+(define (main) (benchmark first-coin))
 
 
 (module+ main

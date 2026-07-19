@@ -63,6 +63,6 @@
 ;; main
 
 (define (network iters)
-  (query (for/fold ([acc (bv #b1111 SIZE)])
-                   ([_ (in-range iters)])
-    				(diamond acc))))
+  (for/fold ([acc (bv #b1111 SIZE)])
+            ([_ (in-range iters)])
+    (diamond acc)))

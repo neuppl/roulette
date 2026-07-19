@@ -4,7 +4,7 @@
 
 (provide main)
 
-(define (main) (scale network (1 2 3 4 5 6 7 8)))
+(define (main) (scale network (1 5 10 15 20 25 30 35)))
 
 (module+ main
   (main))

@@ -35,8 +35,13 @@
   (syntax-parse stx
     [(_) #'(file-name-from-path (quote-module-name))]))
 
-(define benchmarking-results-dir (make-parameter #f))
+(define benchmarking-results-dir (make-parameter "test"))
 
+
+; Run before every benchmark
+(define (setup-benchmark-run)
+  (clear-cache!)
+  (collect-garbage 'major))
 
 (define-syntax (with-benchmarking-results-dir stx)
   (syntax-parse stx
@@ -70,7 +75,7 @@
 (struct bench-run (result real cpu gc rec-calls size))
 
 (define (run-benchmark make-e)
-  (clear-cache!)
+  (setup-benchmark-run)
   (define e #f) ; to contain result of running expression _before_ querying 
 								; (to avoid duplicate computation when calling size)
   (define-values (res real cpu gc)
@@ -155,8 +160,8 @@
                [limit ?limit])
            (define (exceeds-limit? n)
              (define rec-calls
-               (begin (clear-cache!)
-                      (fn n)
+               (begin (setup-benchmark-run)
+                      (wrap-query (fn n))
                       (recursive-calls)))
              (printf "n=~a:" n)
              (cond

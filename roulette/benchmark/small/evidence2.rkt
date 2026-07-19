@@ -5,13 +5,13 @@
 (define evidence (flip 0.5))
 
 (define (main)
-  (benchmark (query
+  (benchmark
    (cond
      [evidence
       (define coin1 (flip 0.5))
       (observe! coin1)
       coin1]
-     [else (flip 0.5)]))))
+     [else (flip 0.5)])))
 
 
 (module+ main
