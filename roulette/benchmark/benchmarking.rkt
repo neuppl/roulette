@@ -184,7 +184,7 @@
 
            (printf "maximum argument value is ~a\n" max)
 
-           (call-with-output-file (build-path current-benchmarking-results-dir (path-replace-extension name ".json"))
+           (call-with-output-file (build-path (current-benchmarking-results-dir) (path-replace-extension name ".json"))
              (lambda (out)
                (write-json
                 (hash
