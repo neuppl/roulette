@@ -1,38 +1,41 @@
-#lang roulette
-(require roulette/engine/rsdd)
+#lang roulette/example/disrupt
+(require "../../benchmarking.rkt")
+(provide main)
 
 ;; RAW ROULETTE EXTRACTION
-(define p-clean 0.010000000000000009)
 (define p-faulty (- 1.0 0.010000000000000009))
 
 ;; --- PRIMARY INPUTS ---
-(define in_wire0_bit0 (bernoulli-measure p-clean p-faulty))
-(define in_wire1_bit0 (bernoulli-measure p-clean p-faulty))
-(define in_wire1_bit1 (bernoulli-measure p-clean p-faulty))
+(define in_wire0_bit0 (flip p-faulty))
+(define in_wire1_bit0 (flip p-faulty))
+(define in_wire1_bit1 (flip p-faulty))
 
 ;; --- GATE LEVEL LOGIC ---
 (define g_0 (|| in_wire1_bit0 in_wire1_bit1))
-(define f_0 (bernoulli-measure p-clean p-faulty))
+(define f_0 (flip p-faulty))
 (define g_1 (xor g_0 #t))
 (define g_2 (&& f_0 g_1))
 (define g_3 (! f_0))
 (define g_4 (&& g_3 g_0))
 (define g_5 (|| g_2 g_4))
 (define g_6 (! in_wire1_bit0))
-(define f_1 (bernoulli-measure p-clean p-faulty))
+(define f_1 (flip p-faulty))
 (define g_7 (xor g_6 #t))
 (define g_8 (&& f_1 g_7))
 (define g_9 (! f_1))
 (define g_10 (&& g_9 g_6))
 (define g_11 (|| g_8 g_10))
 (define g_12 (&& g_11 in_wire1_bit1))
-(define f_2 (bernoulli-measure p-clean p-faulty))
+(define f_2 (flip p-faulty))
 (define g_13 (xor g_12 #t))
 (define g_14 (&& f_2 g_13))
 (define g_15 (! f_2))
 (define g_16 (&& g_15 g_12))
 (define g_17 (|| g_14 g_16))
-(define f_3 (bernoulli-measure p-clean p-faulty))
+(define f_3 (flip p-faulty))
 (define g_18 (! f_3))
 (define g_19 (&& g_5 g_17))
 (define g_20 (! g_5))
+
+(define (main) (benchmark g_20))
+(module+ main (main))

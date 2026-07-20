@@ -16,8 +16,9 @@
 
 Benchmarks are organized into groups, one per subdirectory of a run's data
 folder. Each group gets its own section below, and within a section every
-benchmark that group produced is shown. The plots are generated from the data in
-the @tt{data/} directory.
+benchmark that group produced is shown --- including any nested in subdirectories
+of the group, which are flattened in and identified by file name. The plots are
+generated from the data in the @tt{data/} directory.
 
 Each ordinary benchmark is shown with three plots side-by-side --- timing (real,
 cpu and gc time), number of recursive calls, and total size --- each tracked
@@ -49,7 +50,7 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; sorts lexicographically in chronological order, we can sort the run
 @;; directories by name. Within each run directory the JSON results live inside
 @;; per-group subdirectories (e.g. small/, scaling/, max-arg/) rather than at the
-@;; run's root.
+@;; run's root, and may be nested further within those group subdirectories.
 @;; ---------------------------------------------------------------------------
 
 @(define data-dir "benchmark/data")
@@ -100,12 +101,14 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; ---------------------------------------------------------------------------
 @;; Group and benchmark discovery.
 @;;
-@;; A "group" is a subdirectory name (e.g. "small") that appears inside one or
-@;; more run directories. Within a group, a "benchmark" is a result file. Result
-@;; files are discovered extension-agnostically: every regular file inside the
-@;; group subdirectory is treated as a benchmark result and parsed as JSON. (The
-@;; max-arg form currently writes files with a .rkt extension though their
-@;; contents are JSON, so we cannot key off the extension.)
+@;; A "group" is a subdirectory name (e.g. "small") that appears directly inside
+@;; one or more run directories; each group becomes one section. Within a group,
+@;; a "benchmark" is a result file. Result files may be nested in arbitrary
+@;; subdirectories of the group; we flatten that subtree and identify each
+@;; benchmark by its bare file name. Files are discovered extension-agnostically:
+@;; every regular file in the subtree is treated as a benchmark result and parsed
+@;; as JSON. (The max-arg form currently writes files with a .rkt extension though
+@;; their contents are JSON, so we cannot key off the extension.)
 @;; ---------------------------------------------------------------------------
 
 @;; Every distinct group (subdirectory) name seen across all runs, in name order.
@@ -119,29 +122,53 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
           (path->string (file-name-from-path p))))))
     string<?))
 
+@;; Every result file (recursively) inside `group` within run dir `d`, as full
+@;; paths in name order. Result files may be nested in arbitrary subdirectories
+@;; of the group; we walk the whole group subtree, treating every regular file as
+@;; a result. Sorting keeps discovery and lookup deterministic regardless of
+@;; filesystem order.
+@(define (group-result-paths d group)
+   (define gd (build-path d group))
+   (if (directory-exists? gd)
+       (sort
+        (for/list ([p (in-directory gd)]
+                   #:when (file-exists? p))
+          p)
+        string<?
+        #:key path->string)
+       '()))
+
+@;; The full path of the result file named `filename` (a bare file name, since
+@;; the group subtree is flattened) within `group` of run `d`, or #f when that
+@;; run produced no such file. When two nested files share a name the first in
+@;; name order wins.
+@(define (find-result-file d group filename)
+   (for/first ([p (in-list (group-result-paths d group))]
+               #:when (string=? (path->string (file-name-from-path p)) filename))
+     p))
+
 @;; Every distinct result-file name seen within `group` across all runs, in name
-@;; order.
+@;; order. Nested files are identified by their bare file name (the group subtree
+@;; is flattened).
 @(define (group-files group)
    (sort
     (remove-duplicates
      (append*
       (for/list ([d (in-list (run-dirs))])
-        (define gd (build-path d group))
-        (if (directory-exists? gd)
-            (for/list ([p (in-list (directory-list gd))]
-                       #:when (file-exists? (build-path gd p)))
-              (path->string p))
-            '()))))
+        (for/list ([p (in-list (group-result-paths d group))])
+          (path->string (file-name-from-path p))))))
     string<?))
 
-@;; A "record" is a (cons run-label jsexpr) pair. records-for gathers, in run
-@;; order, every run that produced `filename` within `group`.
-@(define (records-for group filename)
-   (for*/list ([d (in-list (run-dirs))]
-               [f (in-value (build-path d group filename))]
-               #:when (file-exists? f))
+@;; A "record" is a (cons run-label jsexpr) pair. aligned-records returns one
+@;; entry per run, in run order, pairing each run's label with its parsed record
+@;; --- or with #f when that run did not produce `filename` within `group`. Keeping
+@;; the missing runs (rather than dropping them) lets run-indexed plots leave a
+@;; visible break at the gap instead of collapsing it.
+@(define (aligned-records group filename)
+   (for/list ([d (in-list (run-dirs))])
+     (define f (find-result-file d group filename))
      (cons (commit-label d)
-           (call-with-input-file f read-json))))
+           (and f (call-with-input-file f read-json)))))
 
 @;; ---------------------------------------------------------------------------
 @;; Benchmark-type classification. We key off the most recent run's record, so a
@@ -192,11 +219,15 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @(define (stem filename)
    (path->string (path-replace-suffix filename "")))
 
-@;; Build the (vector x y) data points for one metric across the runs.
+@;; Build the (vector x y) data points for one metric across the runs. recs is
+@;; aligned to every run (see aligned-records); a run with no record contributes
+@;; a +nan.0 y-value, which plot omits from the markers and treats as a break in
+@;; the connecting line --- so an interior run missing this benchmark shows as a
+@;; gap rather than a bridged segment.
 @(define (series recs key)
    (for/list ([i (in-naturals)]
               [r (in-list recs)])
-     (vector i (hash-ref (cdr r) key))))
+     (vector i (if (cdr r) (hash-ref (cdr r) key) +nan.0))))
 
 @;; A line + marker renderer for a single metric (matches matplotlib marker="o").
 @(define (metric-renderers recs key color label)
@@ -381,15 +412,16 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; Dispatch a single benchmark file to the right item builder, returning a
 @;; one-element list (or '() when the file produced no records).
 @(define (benchmark-item group filename)
-   (define recs (records-for group filename))
+   (define aligned (aligned-records group filename))
+   (define present (filter cdr aligned))
    (cond
-     [(null? recs) '()]
+     [(null? present) '()]
      [else
-      (define latest (cdr (last recs)))
+      (define latest (cdr (last present)))
       (cond
-        [(scaling-record? latest) (list (scaling-item group filename recs latest))]
-        [(max-arg-record? latest) (list (max-arg-item group filename recs latest))]
-        [else (list (regular-item group filename recs))])]))
+        [(scaling-record? latest) (list (scaling-item group filename present latest))]
+        [(max-arg-record? latest) (list (max-arg-item group filename aligned latest))]
+        [else (list (regular-item group filename aligned))])]))
 
 @;; The itemlist of every benchmark in a group.
 @(define (group-section group)

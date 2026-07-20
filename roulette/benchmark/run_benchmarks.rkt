@@ -7,7 +7,7 @@
 (define (make-results-dir bench-dir) (string-append bench-dir result-extension))
 
 
-(define benchmarking-dirs (list "small" "scaling" "max-arg" "bayesian-networks"))
+(define benchmarking-dirs (list "small" "scaling" "max-arg" "bayesian-networks" "sandia/fast/"))
 
 (define (run-benchmarks dir)
 	(printf "\033[1mRunning benchmarks in ~a\n\033[0m" dir)
@@ -25,12 +25,7 @@
 	(make-directory* saved-results-dir)
 	(for ([dir (map make-results-dir benchmarking-dirs)])
 		(define dest (build-path saved-results-dir (string-trim dir "-results")))
-
-		;this is to generate all intermediate dirs between . and dest, without creating dest itself. 
-		(make-directory* dest)
-		(delete-directory/files dest)
-
-
+		(make-parent-directory* dest)
 		(copy-directory/files dir dest)
 		(delete-directory/files dir))
 	(when hash
