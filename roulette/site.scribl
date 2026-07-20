@@ -13,7 +13,7 @@
           racket/date)
 
 @title{Benchmarking results summary}
-@margin-note{These plots were generated on @(date->string (current-date))@(let ([c (latest-commit-link)]) (if c @elem{, from commit @|c|} ""))}
+@margin-note{These plots were generated on @(date->string (current-date))@(let ([c (latest-commit-link)]) (if c @elem{, from commit @|c|} ""))@(let ([m (latest-commit-msg)]) (if m @elem{: @|m|} ""))}
 
 
 Benchmarks are organized into groups, one per subdirectory of a run's data
@@ -92,6 +92,12 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
                   (commit-label d))
        (commit-label d)))
 
+@;; The commit message recorded in COMMIT_MSG.txt in a run's directory, or #f
+@;; for runs that predate the commit-message file.
+@(define (commit-msg d)
+   (define f (build-path d "COMMIT_MSG.txt"))
+   (and (file-exists? f) (string-trim (file->string f))))
+
 @;; The most recent run's commit as a short hyperlinked label, or #f when there
 @;; are no runs or the latest run predates the commit-hash file.
 @(define (latest-commit-link)
@@ -99,6 +105,12 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
    (and (pair? runs)
         (commit-hash-full (last runs))
         (commit-hyperlink (last runs))))
+
+@;; The most recent run's commit message, or #f when there are no runs or the
+@;; latest run predates the commit-message file.
+@(define (latest-commit-msg)
+   (define runs (run-dirs))
+   (and (pair? runs) (commit-msg (last runs))))
 
 @;; ---------------------------------------------------------------------------
 @;; Group and benchmark discovery.
