@@ -46,7 +46,7 @@
 (define-syntax (with-benchmarking-results-dir stx)
   (syntax-parse stx
     [(_ ?dir ?e ...) #'(begin
-                          (make-directory ?dir) 
+                          (make-directory* ?dir) 
                           (parameterize ([benchmarking-results-dir ?dir])
                               ?e ...))]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

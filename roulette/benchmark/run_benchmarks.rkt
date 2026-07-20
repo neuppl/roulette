@@ -24,7 +24,14 @@
 																																			(current-milliseconds)))))
 	(make-directory* saved-results-dir)
 	(for ([dir (map make-results-dir benchmarking-dirs)])
-		(copy-directory/files dir (build-path saved-results-dir (string-trim dir "-results")))
+		(define dest (build-path saved-results-dir (string-trim dir "-results")))
+
+		;this is to generate all intermediate dirs between . and dest, without creating dest itself. 
+		(make-directory* dest)
+		(delete-directory/files dest)
+
+
+		(copy-directory/files dir dest)
 		(delete-directory/files dir))
 	(when hash
 		(call-with-output-file (build-path saved-results-dir "COMMIT_HASH.txt")
@@ -39,7 +46,7 @@
 
 (module+ main
 	(for ([dir benchmarking-dirs])
-		(run-benchmarks dir))
-	  (define args (current-command-line-arguments))
-	  (save-benchmarking-results #:commit-hash (and (>= (vector-length args) 1) (vector-ref args 0))
-														 	 #:commit-msg (and (>= (vector-length args) 2) (vector-ref args 1))))
+			 (run-benchmarks dir))
+	(define args (current-command-line-arguments))
+	(save-benchmarking-results #:commit-hash (and (>= (vector-length args) 1) (vector-ref args 0))
+															#:commit-msg (and (>= (vector-length args) 2) (vector-ref args 1))))

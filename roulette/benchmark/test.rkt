@@ -2,4 +2,4 @@
 
 (require "shared/n-grid.rkt")
 
-(size (query (make-grid 100)))
+(size (make-grid 30))
