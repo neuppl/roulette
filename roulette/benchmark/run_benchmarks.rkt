@@ -7,12 +7,13 @@
 (define (make-results-dir bench-dir) (string-append bench-dir result-extension))
 
 
-(define benchmarking-dirs (list "small" "scaling" "max-arg" "bayesian-networks" "sandia/fast/"))
+(define benchmarking-dirs (list "small" "scaling"));"max-arg" "bayesian-networks" "sandia/fast"))
 
 (define (run-benchmarks dir)
 	(printf "\033[1mRunning benchmarks in ~a\n\033[0m" dir)
-
+	
 	(with-benchmarking-results-dir (make-results-dir dir)
+		(copy-readme dir)
 		(for ([path (in-directory dir)]
 					#:when (path-has-extension? (path->string path) ".rkt"))
 			((dynamic-require path 'main)))))
@@ -39,6 +40,10 @@
 	(set! benchmarking-dirs (list)))
 
 
+(define (copy-readme dir)
+	(define src (build-path dir "README.md"))
+	(when (file-exists? src)
+		(copy-file src (build-path (make-results-dir dir) "README.md") #t)))
 (module+ main
 	(for ([dir benchmarking-dirs])
 			 (run-benchmarks dir))

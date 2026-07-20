@@ -19,7 +19,7 @@ jobs:
           version: "current"
 
       - name: Install dependencies
-        run: raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot
+        run: raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot markdown
 
       - name: Run benchmarks
         run: cd roulette/benchmark && racket run_benchmarks.rkt ${{github.sha}} ${{ github.event.head_commit.message }}

@@ -3,7 +3,9 @@
           racket/file
           racket/list
           racket/string
+          racket/match
           json
+          markdown
           plot/no-gui
           plot/utils
           file/convertible
@@ -132,11 +134,17 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
    (if (directory-exists? gd)
        (sort
         (for/list ([p (in-directory gd)]
-                   #:when (file-exists? p))
+                   #:when (and (file-exists? p) (not (readme-file? p))))
           p)
         string<?
         #:key path->string)
        '()))
+
+@;; A README.md file (case-insensitive) --- these are rendered as section prose
+@;; rather than parsed as benchmark results, so they are excluded from result
+@;; discovery.
+@(define (readme-file? p)
+   (string-ci=? (path->string (file-name-from-path p)) "README.md"))
 
 @;; The full path of the result file named `filename` (a bare file name, since
 @;; the group subtree is flattened) within `group` of run `d`, or #f when that
@@ -430,12 +438,105 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
      (for/list ([filename (in-list (group-files group))])
        (benchmark-item group filename)))))
 
+@;; ---------------------------------------------------------------------------
+@;; Group READMEs. Each group directory may carry a README.md (copied there per
+@;; run alongside the results); we render it as prose at the top of the group's
+@;; section. Scribble has no native Markdown reader, so we parse the file with
+@;; the `markdown` package (yielding xexprs) and convert that subset of HTML to
+@;; Scribble content.
+@;; ---------------------------------------------------------------------------
+
+@;; The README.md for `group`, taken from the most recent run that carries one.
+@;; We prefer a README at the group root but fall back to the first (in name
+@;; order) found anywhere in the group subtree, mirroring how result files are
+@;; flattened --- this covers groups like "sandia" whose data lives in a nested
+@;; subdirectory. Returns #f when no run supplied a README.
+@(define (group-readme-path group)
+   (for/or ([d (in-list (reverse (run-dirs)))])
+     (define gd (build-path d group))
+     (and (directory-exists? gd)
+          (let ([direct (build-path gd "README.md")])
+            (if (file-exists? direct)
+                direct
+                (for/first ([p (in-list (sort (for/list ([p (in-directory gd)]
+                                                          #:when (readme-file? p))
+                                                p)
+                                              string<? #:key path->string))])
+                  p))))))
+
+@;; The HTML attribute value for `key` in an xexpr attribute list, or `default`.
+@(define (md-attr attrs key default)
+   (cond [(assq key attrs) => cadr] [else default]))
+
+@;; HTML entities the markdown parser may emit as bare symbols, mapped to their
+@;; literal characters. Unknown entities are dropped.
+@(define (md-entity sym)
+   (case sym
+     [(mdash) "—"] [(ndash) "–"] [(hellip) "…"]
+     [(amp) "&"] [(lt) "<"] [(gt) ">"] [(quot) "\""] [(nbsp) " "]
+     [(lsquo) "‘"] [(rsquo) "’"]
+     [(ldquo) "“"] [(rdquo) "”"]
+     [else ""]))
+
+@;; Every string buried anywhere under an xexpr (skipping tag and attributes),
+@;; used to recover the text of a code block.
+@(define (md-strings x)
+   (cond [(string? x) (list x)]
+         [(and (pair? x) (list? x)) (append-map md-strings (cddr x))]
+         [else '()]))
+
+@(define (md-inlines xs) (map md->scribble xs))
+
+@;; Convert one markdown xexpr to Scribble content. Block elements become
+@;; paragraphs/lists/verbatim blocks; inline elements become the corresponding
+@;; elements. Unknown tags degrade to their rendered children.
+@(define (md->scribble x)
+   (match x
+     [(? string? s) s]
+     [(? symbol? s) (md-entity s)]
+     [(list 'p _ body ...) (para (md-inlines body))]
+     [(list (or 'h1 'h2 'h3 'h4 'h5 'h6) _ body ...)
+      (para (bold (md-inlines body)))]
+     [(list 'strong _ body ...) (bold (md-inlines body))]
+     [(list 'em _ body ...) (italic (md-inlines body))]
+     [(list 'code _ body ...) (tt (md-inlines body))]
+     [(list 'a attrs body ...)
+      (hyperlink (md-attr attrs 'href "") (md-inlines body))]
+     [(list 'img attrs _ ...) (md-attr attrs 'alt "")]
+     [(list 'br _ ...) (linebreak)]
+     [(list 'li _ body ...) (apply item (md-inlines body))]
+     [(list 'ul _ items ...)
+      (apply itemlist (md-inlines (filter (lambda (i) (and (pair? i) (eq? (car i) 'li))) items)))]
+     [(list 'ol _ items ...)
+      (keyword-apply itemlist (list '#:style) (list 'ordered)
+                     (md-inlines (filter (lambda (i) (and (pair? i) (eq? (car i) 'li))) items)))]
+     [(list (or 'pre 'blockquote) _ _ ...)
+      (let ([strs (md-strings x)])
+        (apply verbatim (if (null? strs) (list "") strs)))]
+     [(list 'hr _ ...) (para "")]
+     [(list _ _ body ...) (md-inlines body)]
+     [_ ""]))
+
+@;; The README file `f` rendered as a list of Scribble blocks, suitable for
+@;; splicing into a section flow. Returns '() when `f` is #f or missing.
+@(define (render-readme f)
+   (if (and f (file-exists? f))
+       (map md->scribble (parse-markdown (file->string f)))
+       '()))
+
+@;; The rendered README for `group` (empty when the group has no README).
+@(define (group-readme-blocks group)
+   (render-readme (group-readme-path group)))
+
 @;; One @section per group (titled by the group's subdirectory name), each
-@;; followed by that group's benchmarks.
+@;; followed by that group's README and then its benchmarks. Groups without a
+@;; README are skipped entirely.
 @(append*
-  (for/list ([group (in-list (groups))])
-    (list (section group)
-          (group-section group))))
+  (for/list ([group (in-list (groups))]
+             #:when (group-readme-path group))
+    (append (list (section group))
+            (group-readme-blocks group)
+            (list (group-section group)))))
 
 @;; ---------------------------------------------------------------------------
 @;; Extra plots. Every .rkt file in extra/ may provide any number of
@@ -480,6 +581,5 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
               '())))))))
 
 @section{Extra plots}
-These are additional benchmarking plots that are used to visualize the performance of the profiling tool for Roulette.
-@(linebreak)
+@(render-readme (build-path extra-dir "README.md"))
 @(other-plots-section)

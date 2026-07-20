@@ -35,8 +35,12 @@
   (syntax-parse stx
     [(_) #'(file-name-from-path (quote-module-name))]))
 
-(define benchmarking-results-dir (make-parameter "test"))
+(define benchmarking-results-dir (make-parameter #f))
 
+(define (current-benchmarking-results-dir)
+  (if (benchmarking-results-dir) 
+      (benchmarking-results-dir)
+      "."))
 
 ; Run before every benchmark
 (define (setup-benchmark-run)
@@ -57,7 +61,7 @@
 ;; `scaling` is #f for a non-scaling run, or a list of x-axis label strings
 ;; (one per scaled expression) for a scaling run. all parameters are lists of values for scaling runs. 
 (define (write-benchmark path scaling result real cpu gc rec-calls total-size)
-  (call-with-output-file (build-path (benchmarking-results-dir) path)
+  (call-with-output-file (build-path (current-benchmarking-results-dir) path)
     (lambda (out)
       (write-json
         (hash
@@ -180,7 +184,7 @@
 
            (printf "maximum argument value is ~a\n" max)
 
-           (call-with-output-file (build-path (benchmarking-results-dir) (path-replace-extension name ".json"))
+           (call-with-output-file (build-path current-benchmarking-results-dir (path-replace-extension name ".json"))
              (lambda (out)
                (write-json
                 (hash
