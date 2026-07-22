@@ -35,7 +35,8 @@ automatically installs the RSDD backend.
   is freed.
   @examples[#:eval evaluator #:label #f
   (define complex-engine (rsdd-engine #:semiring complex-semiring))
-  (define polynomial-engine (rsdd-engine #:semiring polynomial-semiring))]
+  (define real-poly-semiring (polynomial-semiring real-semiring))
+  (define real-poly-engine (rsdd-engine #:semiring real-poly-semiring))]
 }
 
 @defproc[(bernoulli-measure [f s]
@@ -52,16 +53,26 @@ automatically installs the RSDD backend.
       (bernoulli-measure 0+i 1 #:semiring complex-semiring))
     ((infer x #:engine complex-engine) (set #f #t))
     (define-measurable y
-      (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring polynomial-semiring))
-    ((infer y #:engine polynomial-engine) (set #f #t))]
+      (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring real-poly-semiring))
+    ((infer y #:engine real-poly-engine) (set #f #t))]
 }
 
-@defproc[(semiring? [v any/c]) boolean?]{
-  Recognizes a semiring instance. A semiring acts like a contract that recognizes elements of the semiring.
+@defstruct*[semiring ([predicate predicate/c]
+                      [zero any/c]
+                      [add (-> any/c any/c any/c)]
+                      [one any/c]
+                      [mul (-> any/c any/c any/c)])]{
+  A struct type for semirings.
+  Applying an instance of this structure applies its predicate.
 }
 
-@deftogether[(@defthing[real-semiring semiring?]
+@deftogether[(@defthing[boolean-semiring semiring?]
+              @defthing[real-semiring semiring?]
               @defthing[complex-semiring semiring?]
-	      @defthing[polynomial-semiring semiring?])]{
-  Semirings that can be used with RSDD.
+              @defthing[log-semiring semiring?])]{
+  Base semirings that can be used with RSDD.
+}
+
+@defproc[(polynomial-semiring [s semiring?]) semiring?]{
+  Constructs a polynomial semiring where coefficients are members of @racket[s].
 }

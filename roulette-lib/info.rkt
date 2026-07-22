@@ -22,10 +22,7 @@
     ["roulette-x86_64-win32" #:platform "win32\\x86_64"
                              #:version ,version]
     "base"
-    "ddict"
-    "gui-lib"
-    "pict-lib"
-    "rosette"
-    "text-table"))
+    "data-lib"
+    "rosette"))
 
 (define build-deps '())
