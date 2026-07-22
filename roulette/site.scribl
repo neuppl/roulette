@@ -261,6 +261,11 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
    (list (lines pts #:color color #:label label #:width 2)
          (points pts #:color color #:sym 'fullcircle #:size 6)))
 
+@;; Does run `r` carry the make/query real-time split (a two-element list)? False
+@;; for runs missing this benchmark or predating the split (a bare scalar).
+@(define (has-real-split? r)
+   (pair? (and (cdr r) (hash-ref (cdr r) 'real_time_ms))))
+
 @;; (vector i y) points for one component of the real_time_ms (make query) pair
 @;; across runs; `pick` selects/combines the components. Missing runs --- and
 @;; older runs that predate the split and stored a bare scalar --- contribute
@@ -271,22 +276,44 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
      (define v (and (cdr r) (hash-ref (cdr r) 'real_time_ms)))
      (vector i (if (pair? v) (pick v) +nan.0))))
 
+@;; Stacked-bar renderers for the make-vs-query split: a filled make bar (0..make)
+@;; and a query bar (make..make+query) at each run's index. Used as the fallback
+@;; when only one run carries data, since a stacked area needs at least two
+@;; x-values to fill (a lone point would show only markers). Bars are half a unit
+@;; wide, centred on the run index so they line up with the run ticks.
+@(define (real-split-bar-renderers recs)
+   (define half 0.3)
+   (define (bars y-lo y-hi color label)
+     (rectangles
+      (for/list ([i (in-naturals)] [r (in-list recs)] #:when (has-real-split? r))
+        (define v (hash-ref (cdr r) 'real_time_ms))
+        (vector (ivl (- i half) (+ i half)) (ivl (y-lo v) (y-hi v))))
+      #:color color #:line-color color #:alpha 0.5 #:label label))
+   (list
+    (list (bars (lambda (v) 0) first "blue" "make (real)"))
+    (list (bars first (lambda (v) (+ (first v) (second v))) "orange" "query (real)"))))
+
 @;; Stacked-area renderers for the make-vs-query real-time split across runs: a
 @;; lower band from 0 to make time, and an upper band from make to make+query
 @;; (so the top edge is the total real time). Each band is a filled interval
-@;; between two curves plus a marked total line on top for readability.
+@;; between two curves plus a marked total line on top for readability. Falls
+@;; back to stacked bars when fewer than two runs carry data, since an area can't
+@;; fill a single x-value.
 @(define (real-split-renderers recs)
-   (define zero (for/list ([i (in-naturals)] [r (in-list recs)]) (vector i 0)))
-   (define mk (real-split-series recs first))
-   (define tot (real-split-series recs (lambda (v) (+ (first v) (second v)))))
-   (list
-    (list (lines-interval zero mk #:color "blue" #:alpha 0.5
-                          #:line1-style 'transparent #:line2-color "blue"
-                          #:label "make (real)"))
-    (list (lines-interval mk tot #:color "orange" #:alpha 0.5
-                          #:line1-style 'transparent #:line2-color "orange"
-                          #:label "query (real)")
-          (points tot #:color "orange" #:sym 'fullcircle #:size 6))))
+   (cond
+     [(< (count has-real-split? recs) 2) (real-split-bar-renderers recs)]
+     [else
+      (define zero (for/list ([i (in-naturals)] [r (in-list recs)]) (vector i 0)))
+      (define mk (real-split-series recs first))
+      (define tot (real-split-series recs (lambda (v) (+ (first v) (second v)))))
+      (list
+       (list (lines-interval zero mk #:color "blue" #:alpha 0.5
+                             #:line1-style 'transparent #:line2-color "blue"
+                             #:label "make (real)"))
+       (list (lines-interval mk tot #:color "orange" #:alpha 0.5
+                             #:line1-style 'transparent #:line2-color "orange"
+                             #:label "query (real)")
+             (points tot #:color "orange" #:sym 'fullcircle #:size 6)))]))
 
 @;; Render a run-indexed plot to plots/<group>/<out-stem>.svg and return an
 @;; @image element for it. renderers is a list of renderer lists (one per
