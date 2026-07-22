@@ -235,7 +235,7 @@
 
     (define/public (size v)
       (for/sum ([f (in-hash-values (flatten-symbolic v))])
-        (bdd-size (enc f))))
+        (rsdd-nodes (enc f))))
 
     (define/public (show val)
       (for/list ([(val expr) (in-hash (flatten-symbolic val))])
@@ -453,16 +453,6 @@
     [else (expression @||
                       (expression @&& (expression @! g) e1)
                       (expression @&& g e2))]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; size
-
-(define/cache (bdd-size v)
-  (cond
-    [(or (rsdd-const? v) (= 1 (rsdd-scratch v 0))) 0]
-    [else
-     (rsdd-set-scratch! v 1)
-     (+ 1 (bdd-size (rsdd-low v)) (bdd-size (rsdd-high v)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; visualization
