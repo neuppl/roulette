@@ -58,36 +58,47 @@
 
 ;;There are 2 types of benchmark results: normal, and scaling.
 
+;; the metrics collected for a single benchmarked call
+(struct bench-run (result real cpu gc rec-calls size))
+
 ;; `scaling` is #f for a non-scaling run, or a list of x-axis label strings
-;; (one per scaled expression) for a scaling run. all parameters are lists of values for scaling runs. 
-(define (write-benchmark path scaling result real cpu gc rec-calls total-size)
+;; (one per scaled expression) for a scaling run. `runs` is a single `bench-run`
+;; struct for a non-scaling run, or a list of `bench-run` structs (one per scaled
+;; expression) for a scaling run, in which case each field is written as a list.
+(define (write-benchmark path scaling runs)
+  (define (field get) (if scaling (map get runs) (get runs)))
   (call-with-output-file (build-path (current-benchmarking-results-dir) path)
     (lambda (out)
       (write-json
         (hash
           'scaling scaling
-          'result result
-          'real_time_ms real
-          'cpu_time_ms cpu
-          'gc_time_ms gc
-          'recursive-calls rec-calls
-          'total-size total-size)
+          'result (field bench-run-result)
+          'real_time_ms (field bench-run-real)
+          'cpu_time_ms (field bench-run-cpu)
+          'gc_time_ms (field bench-run-gc)
+          'recursive-calls (field bench-run-rec-calls)
+          'total-size (field bench-run-size))
         out))
     #:exists 'replace))
-
-;; the metrics collected for a single benchmarked call
-(struct bench-run (result real cpu gc rec-calls size))
 
 (define (run-benchmark make-e)
   (setup-benchmark-run)
   (define e #f) ; to contain result of running expression _before_ querying 
-								; (to avoid duplicate computation when calling size)
-  (define-values (res real cpu gc)
+  (define-values (_ make-cpu make-real make-gc)
     (time-apply (lambda ()
-                  (set! e (make-e))
-                  (tap (wrap-query e)))
+                  (set! e (make-e)))
                 (list)))
-  (values res (bench-run (map jsonify-res res) real cpu gc (recursive-calls) (size e))))
+
+  (define-values (res query-cpu query-real query-gc)
+    (time-apply (lambda ()
+                  (tap (query e)))
+                (list)))
+  (values res (bench-run (map jsonify-res res) 
+                         (list make-real query-real) 
+                         (list make-cpu query-cpu) 
+                         (list make-gc query-gc) 
+                         (recursive-calls) 
+                         (size e))))
 
 
 (define-syntax (format-benchmark stx)
@@ -113,10 +124,7 @@
 								(write-benchmark
 									(path-replace-extension (module-name) ".json")
 									#f
-									(bench-run-result run)
-									(bench-run-real run) (bench-run-cpu run) (bench-run-gc run)
-									(bench-run-rec-calls run)
-									(bench-run-size run))
+									run)
 								(apply values res)))]))
 
 ;; 2) record benchmarking information for calling `?fn` on each of `?arg ...`
@@ -138,12 +146,7 @@
              (write-benchmark
                (path-replace-extension (module-name) ".json")
                (list ?label ...)
-               (map bench-run-result runs)
-               (map bench-run-real runs)
-               (map bench-run-cpu runs)
-               (map bench-run-gc runs)
-               (map bench-run-rec-calls runs)
-               (map bench-run-size runs)))))]))
+               runs))))]))
 
 
 ;; 3) Okay I lied, there is a third benchmark type that records the maximum value of an argument to a

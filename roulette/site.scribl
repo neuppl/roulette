@@ -239,6 +239,12 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @(define (stem filename)
    (path->string (path-replace-suffix filename "")))
 
+@;; The timing metrics (real/cpu/gc) are now recorded as a (make-time
+@;; query-time) pair --- the cost of building the expression and of querying it.
+@;; For now we report their total (make + query). Non-timing metrics are scalars
+@;; and pass through unchanged.
+@(define (total v) (if (list? v) (apply + v) v))
+
 @;; Build the (vector x y) data points for one metric across the runs. recs is
 @;; aligned to every run (see aligned-records); a run with no record contributes
 @;; a +nan.0 y-value, which plot omits from the markers and treats as a break in
@@ -247,13 +253,40 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @(define (series recs key)
    (for/list ([i (in-naturals)]
               [r (in-list recs)])
-     (vector i (if (cdr r) (hash-ref (cdr r) key) +nan.0))))
+     (vector i (if (cdr r) (total (hash-ref (cdr r) key)) +nan.0))))
 
 @;; A line + marker renderer for a single metric (matches matplotlib marker="o").
 @(define (metric-renderers recs key color label)
    (define pts (series recs key))
    (list (lines pts #:color color #:label label #:width 2)
          (points pts #:color color #:sym 'fullcircle #:size 6)))
+
+@;; (vector i y) points for one component of the real_time_ms (make query) pair
+@;; across runs; `pick` selects/combines the components. Missing runs --- and
+@;; older runs that predate the split and stored a bare scalar --- contribute
+@;; +nan.0 so the stacked bands break at the gap rather than bridging it.
+@(define (real-split-series recs pick)
+   (for/list ([i (in-naturals)]
+              [r (in-list recs)])
+     (define v (and (cdr r) (hash-ref (cdr r) 'real_time_ms)))
+     (vector i (if (pair? v) (pick v) +nan.0))))
+
+@;; Stacked-area renderers for the make-vs-query real-time split across runs: a
+@;; lower band from 0 to make time, and an upper band from make to make+query
+@;; (so the top edge is the total real time). Each band is a filled interval
+@;; between two curves plus a marked total line on top for readability.
+@(define (real-split-renderers recs)
+   (define zero (for/list ([i (in-naturals)] [r (in-list recs)]) (vector i 0)))
+   (define mk (real-split-series recs first))
+   (define tot (real-split-series recs (lambda (v) (+ (first v) (second v)))))
+   (list
+    (list (lines-interval zero mk #:color "blue" #:alpha 0.5
+                          #:line1-style 'transparent #:line2-color "blue"
+                          #:label "make (real)"))
+    (list (lines-interval mk tot #:color "orange" #:alpha 0.5
+                          #:line1-style 'transparent #:line2-color "orange"
+                          #:label "query (real)")
+          (points tot #:color "orange" #:sym 'fullcircle #:size 6))))
 
 @;; Render a run-indexed plot to plots/<group>/<out-stem>.svg and return an
 @;; @image element for it. renderers is a list of renderer lists (one per
@@ -308,6 +341,27 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
    (list (lines pts #:color color #:label label #:width 2)
          (points pts #:color color #:sym 'fullcircle #:size 6)))
 
+@;; Stacked-area renderers for the make-vs-query real-time split across scale
+@;; steps. `pairs` is the list of (make query) real-time pairs, one per step
+@;; (i.e. the raw real_time_ms of a scaling record). Lower band 0..make, upper
+@;; band make..make+query, mirroring real-split-renderers for the run axis. A
+@;; step from an older record that lacks the split (a bare scalar) breaks the
+@;; band with +nan.0.
+@(define (scale-real-split-renderers pairs)
+   (define (mk-part p) (if (pair? p) (first p) +nan.0))
+   (define (tot-part p) (if (pair? p) (+ (first p) (second p)) +nan.0))
+   (define zero (for/list ([i (in-naturals)] [p (in-list pairs)]) (vector i 0)))
+   (define mk (for/list ([i (in-naturals)] [p (in-list pairs)]) (vector i (mk-part p))))
+   (define tot (for/list ([i (in-naturals)] [p (in-list pairs)]) (vector i (tot-part p))))
+   (list
+    (list (lines-interval zero mk #:color "blue" #:alpha 0.5
+                          #:line1-style 'transparent #:line2-color "blue"
+                          #:label "make (real)"))
+    (list (lines-interval mk tot #:color "orange" #:alpha 0.5
+                          #:line1-style 'transparent #:line2-color "orange"
+                          #:label "query (real)")
+          (points tot #:color "orange" #:sym 'fullcircle #:size 6))))
+
 @;; Render one scaling plot to plots/<group>/<stem>-<suffix>.svg. labels are the
 @;; per-expression x-axis labels.
 @(define (render-scale-plot group filename suffix title y-label renderers labels)
@@ -347,7 +401,8 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; ---------------------------------------------------------------------------
 
 @;; An ordinary benchmark: three run-indexed plots (timing, recursive calls,
-@;; total size) laid out side-by-side.
+@;; total size) side-by-side, with a stacked make-vs-query real-time plot on a
+@;; second row.
 @(define (regular-item group filename recs)
    (define labels (map car recs))
    (define name (stem filename))
@@ -373,10 +428,18 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
              group (string-append name "-total-size")
              (format "Total Size for ~a" name) "Total Size"
              (list (metric-renderers recs 'total-size "purple" "total-size"))
-             labels))))))
+             labels))
+           (list
+            (render-plot
+             group (string-append name "-real-split")
+             (format "Real time (make vs query) for ~a" name) "Real time (ms)"
+             (real-split-renderers recs)
+             labels)
+            "" "")))))
 
-@;; A scaling benchmark: three scale-indexed plots side-by-side, flagged with a
-@;; "(scaling benchmark)" tag. Plotted from the most recent run.
+@;; A scaling benchmark: three scale-indexed plots side-by-side, with a stacked
+@;; make-vs-query real-time plot on a second row. Flagged with a "(scaling
+@;; benchmark)" tag. Plotted from the most recent run.
 @(define (scaling-item group filename recs latest)
    (define labels (scale-labels latest))
    (define name (stem filename))
@@ -389,9 +452,9 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
             (render-scale-plot
              group filename "timing"
              (format "Timing for ~a" name) "Time (ms)"
-             (list (scale-metric-renderers (hash-ref latest 'real_time_ms) "blue" "real_time_ms")
-                   (scale-metric-renderers (hash-ref latest 'cpu_time_ms) "orange" "cpu_time_ms")
-                   (scale-metric-renderers (hash-ref latest 'gc_time_ms) "green" "gc_time_ms"))
+             (list (scale-metric-renderers (map total (hash-ref latest 'real_time_ms)) "blue" "real_time_ms")
+                   (scale-metric-renderers (map total (hash-ref latest 'cpu_time_ms)) "orange" "cpu_time_ms")
+                   (scale-metric-renderers (map total (hash-ref latest 'gc_time_ms)) "green" "gc_time_ms"))
              labels)
             (render-scale-plot
              group filename "recursive-calls"
@@ -402,7 +465,14 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
              group filename "total-size"
              (format "Total Size for ~a" name) "Total Size"
              (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
-             labels))))))
+             labels))
+           (list
+            (render-scale-plot
+             group filename "real-split"
+             (format "Real time (make vs query) for ~a" name) "Real time (ms)"
+             (scale-real-split-renderers (hash-ref latest 'real_time_ms))
+             labels)
+            "" "")))))
 
 @;; A max-arg benchmark: a single run-indexed plot of the largest feasible
 @;; argument, flagged with a "(max-arg benchmark)" tag. start/step/rec-limit were

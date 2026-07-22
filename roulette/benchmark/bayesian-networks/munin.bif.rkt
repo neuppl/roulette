@@ -5,8 +5,7 @@
 
 
 (define (main)
-  (benchmark
-    (main* "bayesian-networks/munin.bif"
+    (main* "munin.bif"
       'L_SUR_CV_CA
       '(R_LNLW_MED_SEV
         R_LNLW_MED_PATHO
@@ -1048,4 +1047,4 @@
         L_SUR_DIFSLOW_CA
         L_SUR_DSLOW_CA
         L_SUR_ALLCV_CA
-        L_SUR_CV_CA))))
+        L_SUR_CV_CA)))

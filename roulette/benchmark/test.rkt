@@ -1,7 +1,8 @@
 #lang roulette/example/disrupt
 
-;(require "shared/n-grid.rkt")
+(require "shared/n-grid.rkt")
 
-(build-path "test/a.rkt")
-;(time (query (make-grid 150)))
-;(time (size (make-grid 150)))
+(define tmp (make-grid 150))
+
+;(time (query tmp))
+(time (size tmp))
