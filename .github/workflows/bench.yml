@@ -6,20 +6,20 @@ on:
 name: benchmark
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@master
       #
       # Racket
       #
-      - uses: Bogdanp/setup-racket@v1.15
-        with:
-          architecture: "x64"
-          distribution: "full"
-          version: "current"
+      # - uses: Bogdanp/setup-racket@v1.15
+      #   with:
+      #     architecture: "x64"
+      #     distribution: "full"
+      #     version: "current"
 
       - name: Install dependencies
-        run: raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot markdown
+        run: ./install.sh #raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot markdown
 
       - name: Run benchmarks
         run: cd roulette/benchmark && racket run_benchmarks.rkt ${{github.sha}} "${{ github.event.head_commit.message }}"
