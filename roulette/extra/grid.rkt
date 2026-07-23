@@ -1,11 +1,6 @@
 #lang roulette/example/disrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; require
-
-(require "lattice.rkt")
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; grid
 
 (define (make-grid n)
@@ -27,12 +22,3 @@
   (if (and dep1 dep2)
       (flip 0.5)
       (flip 0.4)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; tests
-
-;; lattice test
-#;(cost-lattice (make-grid 2) #:iterations 10)
-
-;; cost test
-#;(cost (make-grid 200) '() #:budget 2500000 #:wait 0.2 #:iterations 10)

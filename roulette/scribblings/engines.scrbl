@@ -34,7 +34,6 @@ automatically installs the RSDD backend.
   (i.e., BDDs and weights)
   is freed.
   @examples[#:eval evaluator #:label #f
-  (define complex-engine (rsdd-engine #:semiring complex-semiring))
   (define real-poly-semiring (polynomial-semiring real-semiring))
   (define real-poly-engine (rsdd-engine #:semiring real-poly-semiring))]
 }
@@ -49,9 +48,6 @@ automatically installs the RSDD backend.
   @racket[(set #t)] gets @racket[t],
   and @racket[(set #f #t)] gets @racket[((semiring-plus s) f t)].
   @examples[#:eval evaluator #:label #f
-    (define-measurable x
-      (bernoulli-measure 0+i 1 #:semiring complex-semiring))
-    ((infer x #:engine complex-engine) (set #f #t))
     (define-measurable y
       (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring real-poly-semiring))
     ((infer y #:engine real-poly-engine) (set #f #t))]

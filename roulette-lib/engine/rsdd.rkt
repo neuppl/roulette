@@ -26,7 +26,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (only-in rosette/base/core/reflect symbolics)
+(require (only-in rosette define-symbolic* [boolean? @boolean?])
+         (only-in rosette/base/core/reflect symbolics)
          ffi/unsafe
          ffi/unsafe/custodian
          ffi/unsafe/define
@@ -185,6 +186,7 @@
     (define semiring semi)
     (define zero (semiring-zero semi))
     (define add (semiring-add semi))
+    (define one (semiring-one semi))
     (define builder (mk-bdd-manager-default-order 0))
     (register-finalizer-and-custodian-shutdown builder free-bdd-manager)
 
@@ -197,17 +199,25 @@
     (define/public (domain)
       (immutable-set/c any/c))
 
-    (define/public (infer val path-aware? lazy? env)
+    (define/public (infer val path-aware? lazy?)
       (define assumes (if path-aware? (vc-assumes (vc)) #t))
-      (define vars (list->set (append (symbolics val) (symbolics assumes))))
+      (define smoothing #t)
 
       ;; Use `in-measures` for "program order" as the variable order.
-      (for ([(var measure) (in-measures)]
-            #:when (set-member? vars var))
+      (for ([(var measure pc) (in-measures)]
+            #:do [(define label (const->label var))]
+            #:unless (< label (gvector-count weight-map)))
         (define f (measure (set #f)))
         (define t (measure (set #t)))
-        (define label (const->label var))
-        (gvector-set! weight-map label (cons f t)))
+        (cond
+          [(or (eq? pc #f) (equal? (add f t) one))
+           (gvector-set! weight-map label (cons f t))]
+          [else
+           (define-symbolic* weight @boolean?)
+           (define weight-label (const->label weight))
+           (set! smoothing (@&& smoothing (@=> pc (@<=> var weight))))
+           (gvector-set! weight-map label (cons one one))
+           (gvector-set! weight-map weight-label (cons f t))]))
 
       ;; Compute measure
       (define ht (flatten-symbolic val))
@@ -216,11 +226,9 @@
                   ([elem (in-set elems)])
           (add acc (density elem))))
       (define/cache (density val)
-        (cond
-          [(hash-has-key? ht val)
-           (define g (&& assumes (hash-ref ht val)))
-           (wmc (enc (if env (substitute g env) g)) weight-map weight-cache semiring)]
-          [else zero]))
+        (if (hash-has-key? ht val)
+            (wmc (enc (&& assumes smoothing (hash-ref ht val))) weight-map weight-cache semiring)
+            zero))
       (define support
         (list->set
          (if lazy?
@@ -395,43 +403,6 @@
       [_ (error 'enc "expected a boolean?, or number?, given ~a" v)]))
 
   enc)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; substitution
-
-(define (substitute v env)
-  (define/cache (go v)
-    (match v
-      [(? expression?) (go-expr v)]
-      [(? constant?)   (hash-ref env v v)]
-      [_               v]))
-
-  (define (go-expr v)
-    (match v
-      [(or (expression (== @||)
-                       (expression (== @&&) (expression (== @!) g) e1)
-                       (expression (== @&&) g e2))
-           (expression (== @||)
-                       (expression (== @&&) g e2)
-                       (expression (== @&&) (expression (== @!) g) e1)))
-       (if-then-else (go g) (go e1) (go e2))]
-
-      [(expression (? procedure? $op) es ...)
-       (apply $op (map go es))]))
-
-  (go v))
-
-(define (if-then-else g e1 e2)
-  (cond
-    [(eq? g #t) e1]
-    [(eq? g #f) e2]
-    [(eq? e1 #t) (|| g e2)]
-    [(eq? e1 #f) (&& (! g) e2)]
-    [(eq? e2 #t) (|| g e1)]
-    [(eq? e2 #f) (&& (! g) e1)]
-    [else (expression @||
-                      (expression @&& (expression @! g) e1)
-                      (expression @&& g e2))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; size
