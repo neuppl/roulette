@@ -44,6 +44,11 @@ not part of the normal benchmarking data.
 You can find these files and data in the @hyperlink["https://github.com/Smaran-Teja/roulette-bench-data"]{roulette-bench-data} repository.
 
 These benchmarks are re-generated with each commit to the @hyperlink["https://github.com/neuppl/roulette"]{roulette} repository.
+
+@section{Change since previous run}
+
+@(summary-blocks)
+
 @;; ---------------------------------------------------------------------------
 @;; Data loading
 @;;
@@ -213,6 +218,177 @@ These benchmarks are re-generated with each commit to the @hyperlink["https://gi
 @;; expression, as recorded under "scaling".
 @(define (scale-labels rec)
    (hash-ref rec 'scaling))
+
+@;; ---------------------------------------------------------------------------
+@;; Run-to-run comparison, for the "change since previous run" summary at the
+@;; top of the page. This compares only the latest two runs (not the full
+@;; history the plots below cover), so it answers "did the most recent commit
+@;; help or hurt" rather than "how have things trended over time".
+@;; ---------------------------------------------------------------------------
+
+@;; Up to the last `n` elements of `lst`, preserving order. Unlike take-right,
+@;; tolerates fewer than `n` elements so callers can handle "not enough runs
+@;; yet" instead of crashing.
+@(define (last-up-to lst n)
+   (define len (length lst))
+   (if (<= len n) lst (list-tail lst (- len n))))
+
+@;; The parsed record for `filename` within `group` of run `d`, or #f when that
+@;; run produced no such file. Like aligned-records, but for one specific run
+@;; rather than every run.
+@(define (record-in d group filename)
+   (define f (find-result-file d group filename))
+   (and f (call-with-input-file f read-json)))
+
+@;; (list group filename prev-rec latest-rec) for every benchmark --- in a
+@;; group that gets its own section below --- present in both `prev-dir` and
+@;; `latest-dir`. A benchmark missing from either run (new, removed, or a gap)
+@;; is left out rather than reaching further back, since the point is
+@;; specifically "vs. the run immediately before".
+@(define (paired-benchmarks prev-dir latest-dir)
+   (filter values
+    (for*/list ([group (in-list (groups))]
+                #:when (group-readme-path group)
+                [filename (in-list (group-files group))])
+      (define prev (record-in prev-dir group filename))
+      (define latest (record-in latest-dir group filename))
+      (and prev latest (list group filename prev latest)))))
+
+@;; The entries of `paired` classified as ordinary benchmarks, keyed off the
+@;; latest run's record shape (consistent with benchmark-item's dispatch).
+@(define (regular-comparisons paired)
+   (filter (lambda (c) (not (or (scaling-record? (fourth c)) (max-arg-record? (fourth c)))))
+           paired))
+
+@;; The entries of `paired` classified as max-arg benchmarks. Scaling
+@;; benchmarks have no analogous helper: they report a per-run profile across
+@;; scaled inputs rather than a single value, so a run-to-run percent change
+@;; isn't meaningful the way it is for the other two kinds, and they're left
+@;; out of this summary entirely.
+@(define (max-arg-comparisons paired)
+   (filter (lambda (c) (max-arg-record? (fourth c))) paired))
+
+@;; (list group filename pct) for every comparison in `comparisons` whose
+@;; previous value under `key` is positive. A percent change from a zero
+@;; baseline is undefined, so those benchmarks are left out rather than
+@;; reported as an infinite swing.
+@(define (metric-pct-changes comparisons key)
+   (filter values
+    (for/list ([c (in-list comparisons)])
+      (define prev-v (exact->inexact (total (hash-ref (third c) key))))
+      (define latest-v (exact->inexact (total (hash-ref (fourth c) key))))
+      (and (> prev-v 0) (list (first c) (second c) (* 100.0 (/ (- latest-v prev-v) prev-v)))))))
+
+@;; Percent-point threshold below which a change counts as "about the same"
+@;; rather than better/worse --- run-to-run timing jitter alone can easily
+@;; cross a fraction of a percent, so treating every nonzero change as a real
+@;; regression would be reporting noise as signal.
+@(define noise-threshold-pct 1.0)
+
+@;; The aggregate percent change across `pcts` (each a per-benchmark percent
+@;; change from metric-pct-changes), as a geometric mean of the underlying
+@;; ratios rather than an arithmetic mean of the percentages themselves. This
+@;; matters because percentage changes are asymmetric: a benchmark that
+@;; doubles and then halves nets to +25% under an arithmetic mean of the two
+@;; percentages, even though it ended up unchanged, whereas the geometric mean
+@;; correctly nets that to 0%. Returns #f for an empty list.
+@(define (geometric-mean-pct-change pcts)
+   (and (pair? pcts)
+        (* 100.0
+           (sub1 (expt (for/fold ([acc 1.0]) ([p (in-list pcts)]) (* acc (+ 1.0 (/ p 100.0))))
+                       (/ 1.0 (length pcts)))))))
+
+@;; Render a percent change with an explicit sign, e.g. "+12.3%" or "-4.0%".
+@(define (format-pct p)
+   (format "~a~a%" (if (>= p 0) "+" "") (real->decimal-string p 1)))
+
+@;; One itemlist entry summarizing `key`'s change across `comparisons`: the
+@;; aggregate percent change and how many benchmarks moved in each direction
+@;; beyond noise-threshold-pct. `better`/`worse` name the direction in this
+@;; metric's own terms (e.g. "faster"/"slower" for time, "fewer"/"more" for a
+@;; call count).
+@(define (metric-change-item label comparisons key better worse)
+   (define changes (metric-pct-changes comparisons key))
+   (define pcts (map third changes))
+   (cond
+     [(null? pcts) (item (bold label) ": no benchmarks comparable across both runs.")]
+     [else
+      (define worse-n (count (lambda (p) (> p noise-threshold-pct)) pcts))
+      (define better-n (count (lambda (p) (< p (- noise-threshold-pct))) pcts))
+      (define same-n (- (length pcts) worse-n better-n))
+      (item (bold label)
+            (format ": typical change ~a across ~a benchmarks --- ~a ~a, ~a ~a, ~a about the same."
+                    (format-pct (geometric-mean-pct-change pcts)) (length pcts)
+                    worse-n worse better-n better same-n))]))
+
+@;; A short "largest regression / largest improvement" callout naming the
+@;; single most-changed benchmark (by real time) in each direction. Omitted
+@;; when fewer than two benchmarks are comparable, since with only one there's
+@;; nothing to contrast it against.
+@(define (biggest-movers-item comparisons)
+   (define changes (metric-pct-changes comparisons 'real_time_ms))
+   (cond
+     [(< (length changes) 2) '()]
+     [else
+      (define worst (argmax third changes))
+      (define best (argmin third changes))
+      (list
+       (item "Largest real-time regression: " (tt (second worst)) (format " (~a)" (format-pct (third worst))))
+       (item "Largest real-time improvement: " (tt (second best)) (format " (~a)" (format-pct (third best)))))]))
+
+@;; One itemlist entry summarizing max-arg benchmarks: how many found a larger
+@;; vs. smaller feasible argument in the latest run. Higher is better here
+@;; (finding a larger argument within the same recursive-call limit) --- the
+@;; opposite sense from the timing/size/call-count metrics above --- so it's
+@;; reported on its own rather than folded into metric-change-item.
+@(define (max-arg-summary-item comparisons)
+   (cond
+     [(null? comparisons) '()]
+     [else
+      (define deltas
+        (for/list ([c (in-list comparisons)])
+          (- (hash-ref (fourth c) 'arg-value) (hash-ref (third c) 'arg-value))))
+      (define grew (count positive? deltas))
+      (define shrank (count negative? deltas))
+      (define same (- (length deltas) grew shrank))
+      (list (item (bold "Max-arg benchmarks")
+                  (format ": ~a of ~a increased their maximum feasible argument, ~a decreased, ~a unchanged."
+                          grew (length deltas) shrank same)))]))
+
+@;; The full "change since previous run" section body: a sentence naming the
+@;; two runs being compared, followed by an itemlist of aggregate stats. Falls
+@;; back to a one-line note when there aren't yet two runs to compare.
+@(define (summary-blocks)
+   (define runs (last-up-to (run-dirs) 2))
+   (cond
+     [(null? runs) (list (para (italic "No benchmark runs recorded yet.")))]
+     [(< (length runs) 2)
+      (list (para (italic "Only one benchmark run recorded so far --- performance comparisons will appear starting with the next run.")))]
+     [else
+      (define prev-dir (first runs))
+      (define latest-dir (second runs))
+      (define paired (paired-benchmarks prev-dir latest-dir))
+      (define regular (regular-comparisons paired))
+      (define max-arg-pairs (max-arg-comparisons paired))
+      (define excluded-n (- (length paired) (length regular) (length max-arg-pairs)))
+      (append
+       (list
+        (para "Comparing the latest run (" (commit-hyperlink latest-dir)
+              (let ([m (commit-msg latest-dir)]) (if m (format ": ~a" m) ""))
+              ") to the previous run (" (commit-hyperlink prev-dir)
+              (let ([m (commit-msg prev-dir)]) (if m (format ": ~a" m) ""))
+              ").")
+        (itemlist
+         (append
+          (list (metric-change-item "Real time" regular 'real_time_ms "faster" "slower"))
+          (biggest-movers-item regular)
+          (list (metric-change-item "Recursive calls" regular 'recursive-calls "fewer" "more"))
+          (list (metric-change-item "Total size" regular 'total-size "smaller" "larger"))
+          (max-arg-summary-item max-arg-pairs))))
+       (if (zero? excluded-n)
+           '()
+           (list (para (italic (format "~a scaling benchmark~a not included above --- they report a profile across scaled inputs within a single run rather than a single value to compare across runs."
+                                        excluded-n (if (= excluded-n 1) "" "s")))))))]))
 
 @;; ---------------------------------------------------------------------------
 @;; Plotting helpers
