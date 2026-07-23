@@ -9,17 +9,31 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@master
-      #
+
       # Racket
       #
-      # - uses: Bogdanp/setup-racket@v1.15
-      #   with:
-      #     architecture: "x64"
-      #     distribution: "full"
-      #     version: "current"
+      # setup-racket normally installs into a system tool-cache dir and uses
+      # sudo for parts of the install. The self-hosted runner has no sudo, so
+      # instead we install into a workspace-local directory and wipe it first
+      # to guarantee a fresh Racket + package set on every run (this runner's
+      # workspace persists across jobs, unlike GitHub-hosted runners).
+
+      - name: Clean previous Racket install
+        run: rm -rf "${{ github.workspace }}/.racket" "${{ github.workspace }}/.racket-addon"
+
+      - uses: Bogdanp/setup-racket@v1.15
+        with:
+          architecture: "x64"
+          distribution: "full"
+          version: "current"
+          dest: "${{ github.workspace }}/.racket"
+          sudo: never
+
+      - name: Point package installs at a fresh addon dir
+        run: echo "PLTADDONDIR=${{ github.workspace }}/.racket-addon" >> "$GITHUB_ENV"
 
       - name: Install dependencies
-        run: ./install.sh #raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot markdown
+        run: raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot markdown
 
       - name: Run benchmarks
         run: cd roulette/benchmark && racket run_benchmarks.rkt ${{github.sha}} "${{ github.event.head_commit.message }}"
