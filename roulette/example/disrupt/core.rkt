@@ -145,13 +145,16 @@
        (define-measurable* x (bernoulli-measure (- 1 pr) pr))
        x)]))
 
-(define (query e #:evidence [evidence (and o-evidence s-evidence)])
+(define (query e
+               #:evidence [evidence (and o-evidence s-evidence)]
+               #:environment [env #f])
   (define ⊥ (unreachable))
   (define unnormalized
     (infer (if evidence e ⊥)
            #:engine engine
            #:path-aware? #t
-           #:lazy? #f))
+           #:lazy? #f
+           #:environment env))
   (define prob (density unnormalized))
   (define normalizer
     (for/sum ([value (in-set (support unnormalized))]
@@ -172,9 +175,7 @@
   (define result (hash-sample ht))
   (define pr (hash-ref ht result))
   (when o-evidence
-    (define-measurable* γ
-      #:affine? #t
-      (bernoulli-measure 1 (/ 1 pr)))
+    (define-measurable* γ (bernoulli-measure 1 (/ 1 pr)))
     (set! s-evidence (&& (equal? e result) γ s-evidence)))
   result)
 

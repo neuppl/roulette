@@ -26,7 +26,7 @@ automatically installs the RSDD backend.
 
 @defmodule[roulette/engine/rsdd]
 
-@defproc[(rsdd-engine [#:semiring s semiring? number-semiring])
+@defproc[(rsdd-engine [#:semiring s semiring? real-semiring])
 	 (engine/c (immutable-set/c any/c) s)]{
   Performs inference over the @racket[s] semiring using RSDD.
   When an engine is garbage collected,
@@ -34,13 +34,14 @@ automatically installs the RSDD backend.
   (i.e., BDDs and weights)
   is freed.
   @examples[#:eval evaluator #:label #f
-  (define poly-semiring (polynomial-semiring number-semiring))
-  (define poly-engine (rsdd-engine #:semiring poly-semiring))]
+  (define complex-engine (rsdd-engine #:semiring complex-semiring))
+  (define real-poly-semiring (polynomial-semiring real-semiring))
+  (define real-poly-engine (rsdd-engine #:semiring real-poly-semiring))]
 }
 
 @defproc[(bernoulli-measure [f s]
 			    [t s]
-			    [#:semiring s semiring? number-semiring])
+			    [#:semiring s semiring? real-semiring])
 	 (measure/c (immutable-set/c boolean?) s)]{
   Returns a measure such that
   @racket[(set)] gets @racket[(semiring-zero s)],
@@ -48,9 +49,12 @@ automatically installs the RSDD backend.
   @racket[(set #t)] gets @racket[t],
   and @racket[(set #f #t)] gets @racket[((semiring-plus s) f t)].
   @examples[#:eval evaluator #:label #f
+    (define-measurable x
+      (bernoulli-measure 0+i 1 #:semiring complex-semiring))
+    ((infer x #:engine complex-engine) (set #f #t))
     (define-measurable y
-      (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring poly-semiring))
-    ((infer y #:engine poly-engine) (set #f #t))]
+      (bernoulli-measure '(0.1 0.6) '(0.9 0.4) #:semiring real-poly-semiring))
+    ((infer y #:engine real-poly-engine) (set #f #t))]
 }
 
 @defstruct*[semiring ([predicate predicate/c]
@@ -63,18 +67,12 @@ automatically installs the RSDD backend.
 }
 
 @deftogether[(@defthing[boolean-semiring semiring?]
-              @defthing[number-semiring semiring?]
+              @defthing[real-semiring semiring?]
               @defthing[complex-semiring semiring?]
-              @defthing[log-semiring semiring?]
-              @defthing[expectation-semiring semiring?])]{
+              @defthing[log-semiring semiring?])]{
   Base semirings that can be used with RSDD.
 }
 
 @defproc[(polynomial-semiring [s semiring?]) semiring?]{
   Constructs a polynomial semiring where coefficients are members of @racket[s].
-}
-
-@defproc[(pointwise-semiring [s semiring?] ...) semiring?]{
-  This semiring is represented as a list containing elements from the given semirings @racket[s].
-  Addition and multiplication operate pointwise.
 }

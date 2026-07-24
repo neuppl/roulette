@@ -18,7 +18,8 @@
   [infer (->i ([val (eng) (measurable-space-point (send (if (unsupplied-arg? eng) default-engine eng) domain))])
               (#:engine [eng (is-a?/c engine<%>)]
                #:path-aware? [path-aware? boolean?]
-               #:lazy? [lazy? boolean?])
+               #:lazy? [lazy? boolean?]
+               #:environment [env (or/c #f hash?)])
               any)])
 
  ;; `private/measure.rkt`
@@ -60,19 +61,19 @@
 
 (define-syntax -define-measurable
   (syntax-parser
-    [(_ x:id ...+ (~optional (~seq #:affine? n:expr) #:defaults ([n #'#f])) e:expr)
+    [(_ x:id ...+ e:expr)
      #'(begin
          (define m e)
          (define-symbolic x ... (measure-point m))
-         (measures-set! x m n) ...)]))
+         (measures-set! x m) ...)]))
 
 (define-syntax -define-measurable*
   (syntax-parser
-    [(_ x:id ...+ (~optional (~seq #:affine? n:expr) #:defaults ([n #'#f])) e:expr)
+    [(_ x:id ...+ e:expr)
      #'(begin
          (define m e)
          (define-symbolic* x ... (measure-point m))
-         (measures-set! x m n) ...)]))
+         (measures-set! x m) ...)]))
 
 (define (measure-point m)
   (measurable-space-point (measure-domain m)))
@@ -80,5 +81,6 @@
 (define (infer val
                #:engine [eng default-engine]
                #:path-aware? [path-aware? #f]
-               #:lazy? [lazy? #f])
-  (send eng infer val path-aware? lazy?))
+               #:lazy? [lazy? #f]
+               #:environment [env #f])
+  (send eng infer val path-aware? lazy? env))

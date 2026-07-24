@@ -109,14 +109,14 @@
 
   (test-case "polynomial"
     (let ()
-      (define number-polynomial-semiring (polynomial-semiring number-semiring))
+      (define real-polynomial-semiring (polynomial-semiring real-semiring))
       (define-measurable x
         (bernoulli-measure '(#e0.1 #e0.6) '(#e0.9 #e0.4)
-                           #:semiring number-polynomial-semiring))
+                           #:semiring real-polynomial-semiring))
       (define-measurable y
         (bernoulli-measure '(#e0.2 #e0.7) '(#e0.8 #e0.3)
-                           #:semiring number-polynomial-semiring))
+                           #:semiring real-polynomial-semiring))
       (define f
-        (density (infer (and x y) #:engine (rsdd-engine #:semiring number-polynomial-semiring))))
+        (density (infer (and x y) #:engine (rsdd-engine #:semiring real-polynomial-semiring))))
       (check-equal? (f #t) (list (* #e0.9 #e0.8) (+ (* #e0.9 #e0.3) (* #e0.4 #e0.8)) (* #e0.4 #e0.3)))))
   )
