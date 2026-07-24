@@ -194,16 +194,11 @@
     (define enc (make-enc builder const->label))
     (define weight-map (make-gvector))
     (define weight-cache (box '()))
+    (define smoothing #t)
     (register-finalizer-and-custodian-shutdown weight-cache free-weight-cache)
 
-    (define/public (domain)
-      (immutable-set/c any/c))
-
-    (define/public (infer val path-aware? lazy?)
-      (define assumes (if path-aware? (vc-assumes (vc)) #t))
-      (define smoothing #t)
-
-      ;; Use `in-measures` for "program order" as the variable order.
+    ;; Use `in-measures` for "program order" as the variable order.
+    (define (ensure-labels-exist!)
       (for ([(var measure pc) (in-measures)]
             #:do [(define label (const->label var))]
             #:unless (< label (gvector-count weight-map)))
@@ -213,11 +208,18 @@
           [(or (eq? pc #f) (equal? (add f t) one))
            (gvector-set! weight-map label (cons f t))]
           [else
-           (define-symbolic* weight @boolean?)
-           (define weight-label (const->label weight))
-           (set! smoothing (@&& smoothing (@=> pc (@<=> var weight))))
-           (gvector-set! weight-map label (cons one one))
-           (gvector-set! weight-map weight-label (cons f t))]))
+           (define-symbolic* dummy @boolean?)
+           (define dummy-label (const->label dummy))
+           (set! smoothing (@&& smoothing (@=> pc (@<=> var dummy))))
+           (gvector-set! weight-map label (cons f t))
+           (gvector-set! weight-map dummy-label (cons one one))])))
+
+    (define/public (domain)
+      (immutable-set/c any/c))
+
+    (define/public (infer val path-aware? lazy?)
+      (define assumes (if path-aware? (vc-assumes (vc)) #t))
+      (ensure-labels-exist!)
 
       ;; Compute measure
       (define ht (flatten-symbolic val))
@@ -240,7 +242,8 @@
       (rsdd-num-recursive-calls builder))
 
     (define/public (size v)
-      (for/sum ([f (in-hash-values (flatten-symbolic v))])
+      (ensure-labels-exist!)
+      (for/sum ([f (in-hash-values (flatten-symbolic (&& v smoothing)))])
         (bdd-size (enc f))))
 
     (define/public (show val)
@@ -408,11 +411,16 @@
 ;; size
 
 (define/cache (bdd-size v)
-  (cond
-    [(or (rsdd-const? v) (= 1 (rsdd-scratch v 0))) 0]
-    [else
-     (rsdd-set-scratch! v 1)
-     (+ 1 (bdd-size (rsdd-low v)) (bdd-size (rsdd-high v)))]))
+  (define DONE (malloc-immobile-cell #t))
+  (begin0
+    (let go ([v v])
+      (cond
+        [(or (rsdd-const? v) (eq? DONE (rsdd-scratch v #f))) 0]
+        [else
+         (rsdd-set-scratch! v DONE)
+         (+ 1 (go (rsdd-low v)) (go (rsdd-high v)))]))
+    (free-immobile-cell DONE)
+    (rsdd-clear-scratch! v)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; visualization
