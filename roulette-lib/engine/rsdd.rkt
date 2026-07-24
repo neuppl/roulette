@@ -181,13 +181,9 @@
 
 (define rsdd-engine%
   (class* object% (engine<%>)
-    (init semi)
+    (init-field semi)
     (super-new)
 
-    (define semiring semi)
-    (define zero (semiring-zero semi))
-    (define add (semiring-add semi))
-    (define one (semiring-one semi))
     (define builder (mk-bdd-manager-default-order 0))
     (register-finalizer-and-custodian-shutdown builder free-bdd-manager)
 
@@ -203,22 +199,26 @@
       (for ([(var measure pc) (in-measures)]
             #:do [(define label (const->label var))]
             #:unless (< label (gvector-count weight-map)))
-        (define f (measure (set #f)))
-        (define t (measure (set #t)))
+        (match-define (semiring _ zero add one mul)
+          (measure-codomain measure))
+        (define d (measure-density measure))
+        (define f (d #f))
+        (define t (d #t))
         (cond
           [(or (eq? pc #f) (equal? (add f t) one))
-           (gvector-set! weight-map label (cons f t))]
+           (gvector-set! weight-map label (list f t add mul))]
           [else
            (define-symbolic* dummy @boolean?)
            (define dummy-label (const->label dummy))
            (set! smoothing (@&& smoothing (@=> pc (@<=> var dummy))))
-           (gvector-set! weight-map label (cons f t))
-           (gvector-set! weight-map dummy-label (cons one one))])))
+           (gvector-set! weight-map label (list f t add mul))
+           (gvector-set! weight-map dummy-label (list one one add mul))])))
 
     (define/public (domain)
       (immutable-set/c any/c))
 
     (define/public (infer val path-aware? lazy?)
+      (match-define (semiring _ zero add _ _) semi)
       (define assumes (if path-aware? (vc-assumes (vc)) #t))
       (ensure-labels-exist!)
 
@@ -230,14 +230,14 @@
           (add acc (density elem))))
       (define/cache (density val)
         (if (hash-has-key? ht val)
-            (wmc (enc (&& assumes smoothing (hash-ref ht val))) weight-map weight-cache semiring)
+            (wmc (enc (&& assumes smoothing (hash-ref ht val))) weight-map weight-cache semi)
             zero))
       (define support
         (list->set
          (if lazy?
              (hash-keys ht)
              (filter (λ (k) (not (equal? (density k) zero))) (hash-keys ht)))))
-      (measure procedure support density (immutable-set/c any/c)))
+      (measure procedure support density (immutable-set/c any/c) semi))
 
     (define/public (recursive-calls)
       (rsdd-num-recursive-calls builder))
@@ -268,7 +268,7 @@
     (for/set ([val '(#f #t)]
               #:unless (equal? (density val) zero))
       val))
-  (measure proc support density (immutable-set/c @boolean?)))
+  (measure proc support density (immutable-set/c @boolean?) s))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; weight maps
@@ -289,7 +289,8 @@
       [(rsdd-true? val) (if neg? zero one)]
       [(rsdd-false? val) (if neg? one zero)]
       [else
-       (match-define (cons f t) (gvector-ref weight-map (bdd-topvar val)))
+       (match-define (list f t add mul)
+         (gvector-ref weight-map (bdd-topvar val)))
        (define result
          (add (mul f (go (rsdd-low val))) (mul t (go (rsdd-high val)))))
        (define scratch

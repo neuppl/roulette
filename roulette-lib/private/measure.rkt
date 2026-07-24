@@ -19,7 +19,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; defns
 
-(struct measure (procedure support density domain)
+(struct measure (procedure support density domain codomain)
   #:property prop:procedure 0)
 
 (define (measure/c dom cod)
