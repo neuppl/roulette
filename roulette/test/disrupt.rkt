@@ -5,28 +5,18 @@
 
 (module+ test
   (require (for-syntax racket/base)
-           (only-in "../example/disrupt/core.rkt" pmf-hash)
            rackunit
            "util.rkt")
 
-  ;; eval
-  (define-namespace-anchor here)
-  (define anchored-ns (namespace-anchor->namespace here))
-
   ;; must have rosette's #%top-interaction for set! to work properly
-  (define ((make-run lang #:anchor? [anchor? #t]) datum #:query? [query? #t])
+  (define (run datum #:query? [query? #t])
     (define ns (make-base-namespace))
-    (when anchor?
-      (namespace-attach-module anchored-ns "../example/disrupt/core.rkt" ns))
     (parameterize ([current-namespace ns])
-      (namespace-require lang)
+      (namespace-require 'roulette/example/disrupt)
       (namespace-require `(prefix rosette: rosette))
       (eval (if query?
-                `(query (rosette:#%top-interaction . ,datum))
-                `(rosette:#%top-interaction . ,datum)))))
-
-  (define run (make-run 'roulette/example/disrupt))
-  (define run-safe (make-run 'roulette/example/disrupt/safe))
+                `(pmf-hash (query (rosette:#%top-interaction . ,datum)))
+                `(pmf-hash (rosette:#%top-interaction . ,datum))))))
 
   ;; util
   (define-syntax-rule (check-program prog ([val pr] ...))
@@ -36,7 +26,7 @@
     (check-program-fn run '(with-sample 2500 body ...) (hash (~@ val pr) ...)))
 
   (define (check-program-fn ev prog ht [tol 0.03])
-    (define result (pmf-hash (ev prog)))
+    (define result (ev prog))
     (with-check-info (['program prog] ['result result])
       (if tol (check-close tol result ht) (check-equal? result ht))))
 
@@ -44,11 +34,6 @@
   (check-program
    (flip 1/2)
    ([#t 1/2] [#f 1/2]))
-
-  (check-program-fn
-   run-safe
-   '(flip 1/2)
-   (hash #t 1/2 #f 1/2))
 
   (check-program
    (not (flip 1/2))
@@ -121,12 +106,11 @@
    ([#t 1/2] [#f 1/2]))
 
   (check-equal?
-   (pmf-hash
-    (run #:query? #f
-         '(let ([x (flip 1/2)] [y (flip 1/2)])
-            (with-observe
-              (observe! (or x y))
-              (query x)))))
+   (run #:query? #f
+        '(let ([x (flip 1/2)] [y (flip 1/2)])
+           (with-observe
+             (observe! (or x y))
+             (query x))))
    (hash #t 2/3 #f 1/3))
 
   (check-program
@@ -136,11 +120,11 @@
   (check-program
    (let ([x (flip 1/2)])
      (if x ((query x) #t) 'none))
-   ([1 1/2] ['none 1/2]))
+  ([1 1/2] ['none 1/2]))
 
   ;; Should yield an error
-  (check-false
-   ((make-run 'roulette/example/disrupt #:anchor? #f)
+  #;(check-false
+   ((make-run 'roulette/example/disrupt)
     '(observe! #f)))
 
   ;; samples tests

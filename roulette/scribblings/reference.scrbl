@@ -27,7 +27,10 @@ section use the @secref{RSDD} backend.
 
 @section{Measures}
 
-@defform[(define-measurable id ...+ measure)
+@defform[(define-measurable id ...+ maybe-option measure)
+         #:grammar
+         [(maybe-option (code:line)
+                        (code:line #:affine? bool-expr))]
 	 #:contracts
 	 ([measure (measure/c dom cod)])]{
   Binds each provided identifier to a value of type @racket[(measurable-space-point dom)] with the given measure.
@@ -36,6 +39,10 @@ section use the @secref{RSDD} backend.
   @examples[#:eval evaluator #:label #f
   (require roulette/engine/rsdd)
   (define-measurable x (bernoulli-measure 0.4 0.6))]
+  If @racket[#:affine?] is set,
+  then dropping the newly generated value is forced to be
+  equivalent to not generating the value at all.
+  This option should be considered unsafe.
 }
 
 @defform[(define-measurable* id ...+ measure)

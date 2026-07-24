@@ -13,14 +13,15 @@
           (->* ()
                (#:semiring semiring?)
                (is-a?/c engine<%>))]
-  [bernoulli-measure (->i ([f (s) (if (unsupplied-arg? s) real-semiring s)]
-                           [t (s) (if (unsupplied-arg? s) real-semiring s)])
+  [bernoulli-measure (->i ([f (s) (if (unsupplied-arg? s) number-semiring s)]
+                           [t (s) (if (unsupplied-arg? s) number-semiring s)])
                           (#:semiring [s semiring?])
                           any)]
   [boolean-semiring semiring?]
-  [real-semiring semiring?]
-  [complex-semiring semiring?]
+  [number-semiring semiring?]
   [log-semiring semiring?]
+  [expectation-semiring semiring?]
+  [pointwise-semiring (base-> semiring? ... semiring?)]
   [polynomial-semiring (base-> semiring? semiring?)])
  enc-instrumentation
  kill-signal-box)
@@ -28,7 +29,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (only-in rosette/base/core/reflect symbolics)
+(require (only-in rosette define-symbolic* [boolean? @boolean?])
+         (only-in rosette/base/core/reflect symbolics)
          ffi/unsafe
          ffi/unsafe/custodian
          ffi/unsafe/define
@@ -176,17 +178,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; engine
 
-(define (make-rsdd-engine #:semiring [semi real-semiring])
+(define (make-rsdd-engine #:semiring [semi number-semiring])
   (new rsdd-engine% [semi semi]))
 
 (define rsdd-engine%
   (class* object% (engine<%>)
-    (init semi)
+    (init-field semi)
     (super-new)
 
-    (define semiring semi)
-    (define zero (semiring-zero semi))
-    (define add (semiring-add semi))
     (define builder (mk-bdd-manager-default-order 0))
     (register-finalizer-and-custodian-shutdown builder free-bdd-manager)
 
@@ -194,22 +193,36 @@
     (define enc (make-enc builder const->label))
     (define weight-map (make-gvector))
     (define weight-cache (box '()))
+    (define smoothing #t)
     (register-finalizer-and-custodian-shutdown weight-cache free-weight-cache)
+
+    ;; Use `in-measures` for "program order" as the variable order.
+    (define (ensure-labels-exist!)
+      (for ([(var measure pc) (in-measures)]
+            #:do [(define label (const->label var))]
+            #:unless (< label (gvector-count weight-map)))
+        (match-define (semiring _ zero add one mul)
+          (measure-codomain measure))
+        (define d (measure-density measure))
+        (define f (d #f))
+        (define t (d #t))
+        (cond
+          [(or (eq? pc #f) (equal? (add f t) one))
+           (gvector-set! weight-map label (list f t add mul))]
+          [else
+           (define-symbolic* dummy @boolean?)
+           (define dummy-label (const->label dummy))
+           (set! smoothing (@&& smoothing (@=> pc (@<=> var dummy))))
+           (gvector-set! weight-map label (list f t add mul))
+           (gvector-set! weight-map dummy-label (list one one add mul))])))
 
     (define/public (domain)
       (immutable-set/c any/c))
 
-    (define/public (infer val path-aware? lazy? env)
+    (define/public (infer val path-aware? lazy?)
+      (match-define (semiring _ zero add _ _) semi)
       (define assumes (if path-aware? (vc-assumes (vc)) #t))
-      (define vars (list->set (append (symbolics val) (symbolics assumes))))
-
-      ;; Use `in-measures` for "program order" as the variable order.
-      (for ([(var measure) (in-measures)]
-            #:when (set-member? vars var))
-        (define f (measure (set #f)))
-        (define t (measure (set #t)))
-        (define label (const->label var))
-        (gvector-set! weight-map label (cons f t)))
+      (ensure-labels-exist!)
 
       ;; Compute measure
       (define ht (flatten-symbolic val))
@@ -218,24 +231,23 @@
                   ([elem (in-set elems)])
           (add acc (density elem))))
       (define/cache (density val)
-        (cond
-          [(hash-has-key? ht val)
-           (define g (&& assumes (hash-ref ht val)))
-           (wmc (enc (if env (substitute g env) g)) weight-map weight-cache semiring)]
-          [else zero]))
+        (if (hash-has-key? ht val)
+            (wmc (enc (&& assumes smoothing (hash-ref ht val))) weight-map weight-cache semi)
+            zero))
       (define support
         (list->set
          (if lazy?
              (hash-keys ht)
              (filter (λ (k) (not (equal? (density k) zero))) (hash-keys ht)))))
-      (measure procedure support density (immutable-set/c any/c)))
+      (measure procedure support density (immutable-set/c any/c) semi))
 
     (define/public (recursive-calls)
       (rsdd-num-recursive-calls builder))
 
     (define/public (size v)
-      (for/sum ([f (in-hash-values (flatten-symbolic v))])
-        (rsdd-nodes (enc f))))
+      (ensure-labels-exist!)
+      (for/sum ([f (in-hash-values (flatten-symbolic (&& v smoothing)))])
+        (bdd-size (enc f))))
 
     (define/public (show val)
       (for/list ([(val expr) (in-hash (flatten-symbolic val))])
@@ -246,7 +258,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bernoulli
 
-(define (bernoulli-measure f t #:semiring [s real-semiring])
+(define (bernoulli-measure f t #:semiring [s number-semiring])
   (define zero (semiring-zero s))
   (define add (semiring-add s))
   (define (proc val)
@@ -258,7 +270,7 @@
     (for/set ([val '(#f #t)]
               #:unless (equal? (density val) zero))
       val))
-  (measure proc support density (immutable-set/c @boolean?)))
+  (measure proc support density (immutable-set/c @boolean?) s))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; weight maps
@@ -279,7 +291,8 @@
       [(rsdd-true? val) (if neg? zero one)]
       [(rsdd-false? val) (if neg? one zero)]
       [else
-       (match-define (cons f t) (gvector-ref weight-map (bdd-topvar val)))
+       (match-define (list f t add mul)
+         (gvector-ref weight-map (bdd-topvar val)))
        (define result
          (add (mul f (go (rsdd-low val))) (mul t (go (rsdd-high val)))))
        (define scratch
@@ -310,14 +323,44 @@
 
 (define boolean-semiring
   (semiring boolean? #f (λ (x y) (or x y)) #t (λ (x y) (and x y))))
-(define real-semiring (semiring real? 0 + 1 *))
-(define complex-semiring (semiring complex? 0 + 1 *))
+(define number-semiring
+  (semiring number? 0 + 1 *))
 (define log-semiring
   (semiring inexact-real?
             -inf.0
             (λ (x y) (log (+ (exp x) (exp y))))
             0
             +))
+(define expectation-semiring
+  (semiring (list/c (real-in 0 1) real?)
+            (list 0 0)
+            (match-λ**
+             [((list p u) (list q v))
+              (list (+ p q) (+ u v))])
+            (list 1 0)
+            (match-λ**
+             [((list p u) (list q v))
+              (list (* p q) (+ (* p v) (* q u)))])))
+
+(define (pointwise-semiring . semis)
+  (define (ok? xs)
+    (and (= (length xs) (length semis))
+         (for/and ([semi (in-list semis)]
+                   [x (in-list xs)])
+           (semi x))))
+  (define zero (map semiring-zero semis))
+  (define (add xs ys)
+    (for/list ([semi (in-list semis)]
+               [x (in-list xs)]
+               [y (in-list ys)])
+      ((semiring-add semi) x y)))
+  (define one (map semiring-one semis))
+  (define (mul xs ys)
+    (for/list ([semi (in-list semis)]
+               [x (in-list xs)]
+               [y (in-list ys)])
+      ((semiring-mul semi) x y)))
+  (semiring ok? zero add one mul))
 
 (define (polynomial-semiring coeff-semi)
   (match-define (semiring predicate _ add one mul) coeff-semi)
@@ -418,41 +461,19 @@
   enc)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; substitution
+;; size
 
-(define (substitute v env)
-  (define/cache (go v)
-    (match v
-      [(? expression?) (go-expr v)]
-      [(? constant?)   (hash-ref env v v)]
-      [_               v]))
-
-  (define (go-expr v)
-    (match v
-      [(or (expression (== @||)
-                       (expression (== @&&) (expression (== @!) g) e1)
-                       (expression (== @&&) g e2))
-           (expression (== @||)
-                       (expression (== @&&) g e2)
-                       (expression (== @&&) (expression (== @!) g) e1)))
-       (if-then-else (go g) (go e1) (go e2))]
-
-      [(expression (? procedure? $op) es ...)
-       (apply $op (map go es))]))
-
-  (go v))
-
-(define (if-then-else g e1 e2)
-  (cond
-    [(eq? g #t) e1]
-    [(eq? g #f) e2]
-    [(eq? e1 #t) (|| g e2)]
-    [(eq? e1 #f) (&& (! g) e2)]
-    [(eq? e2 #t) (|| g e1)]
-    [(eq? e2 #f) (&& (! g) e1)]
-    [else (expression @||
-                      (expression @&& (expression @! g) e1)
-                      (expression @&& g e2))]))
+(define/cache (bdd-size v)
+  (define DONE (malloc-immobile-cell #t))
+  (begin0
+    (let go ([v v])
+      (cond
+        [(or (rsdd-const? v) (eq? DONE (rsdd-scratch v #f))) 0]
+        [else
+         (rsdd-set-scratch! v DONE)
+         (+ 1 (go (rsdd-low v)) (go (rsdd-high v)))]))
+    (free-immobile-cell DONE)
+    (rsdd-clear-scratch! v)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; visualization
