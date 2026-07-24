@@ -13,14 +13,15 @@
           (->* ()
                (#:semiring semiring?)
                (is-a?/c engine<%>))]
-  [bernoulli-measure (->i ([f (s) (if (unsupplied-arg? s) real-semiring s)]
-                           [t (s) (if (unsupplied-arg? s) real-semiring s)])
+  [bernoulli-measure (->i ([f (s) (if (unsupplied-arg? s) number-semiring s)]
+                           [t (s) (if (unsupplied-arg? s) number-semiring s)])
                           (#:semiring [s semiring?])
                           any)]
   [boolean-semiring semiring?]
-  [real-semiring semiring?]
-  [complex-semiring semiring?]
+  [number-semiring semiring?]
   [log-semiring semiring?]
+  [expectation-semiring semiring?]
+  [pointwise-semiring (base-> semiring? ... semiring?)]
   [polynomial-semiring (base-> semiring? semiring?)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -175,7 +176,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; engine
 
-(define (make-rsdd-engine #:semiring [semi real-semiring])
+(define (make-rsdd-engine #:semiring [semi number-semiring])
   (new rsdd-engine% [semi semi]))
 
 (define rsdd-engine%
@@ -255,7 +256,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bernoulli
 
-(define (bernoulli-measure f t #:semiring [s real-semiring])
+(define (bernoulli-measure f t #:semiring [s number-semiring])
   (define zero (semiring-zero s))
   (define add (semiring-add s))
   (define (proc val)
@@ -319,14 +320,44 @@
 
 (define boolean-semiring
   (semiring boolean? #f (λ (x y) (or x y)) #t (λ (x y) (and x y))))
-(define real-semiring (semiring real? 0 + 1 *))
-(define complex-semiring (semiring complex? 0 + 1 *))
+(define number-semiring
+  (semiring number? 0 + 1 *))
 (define log-semiring
   (semiring inexact-real?
             -inf.0
             (λ (x y) (log (+ (exp x) (exp y))))
             0
             +))
+(define expectation-semiring
+  (semiring (list/c (real-in 0 1) real?)
+            (list 0 0)
+            (match-λ**
+             [((list p u) (list q v))
+              (list (+ p q) (+ u v))])
+            (list 1 0)
+            (match-λ**
+             [((list p u) (list q v))
+              (list (* p q) (+ (* p v) (* q u)))])))
+
+(define (pointwise-semiring . semis)
+  (define (ok? xs)
+    (and (= (length xs) (length semis))
+         (for/and ([semi (in-list semis)]
+                   [x (in-list xs)])
+           (semi x))))
+  (define zero (map semiring-zero semis))
+  (define (add xs ys)
+    (for/list ([semi (in-list semis)]
+               [x (in-list xs)]
+               [y (in-list ys)])
+      ((semiring-add semi) x y)))
+  (define one (map semiring-one semis))
+  (define (mul xs ys)
+    (for/list ([semi (in-list semis)]
+               [x (in-list xs)]
+               [y (in-list ys)])
+      ((semiring-mul semi) x y)))
+  (semiring ok? zero add one mul))
 
 (define (polynomial-semiring coeff-semi)
   (match-define (semiring predicate _ add one mul) coeff-semi)
