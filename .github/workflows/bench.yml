@@ -12,14 +12,17 @@ jobs:
 
       # Racket
       #
-      # setup-racket normally installs into a system tool-cache dir and uses
-      # sudo for parts of the install. The self-hosted runner has no sudo, so
-      # instead we install into a workspace-local directory and wipe it first
-      # to guarantee a fresh Racket + package set on every run (this runner's
-      # workspace persists across jobs, unlike GitHub-hosted runners).
+      # We always wipe and reinstall Racket itself to pick up the latest
+      # "current" snapshot, since it's cheap and the whole point of "current"
+      # is to track upstream HEAD. Packages are a separate story: building
+      # roulette-lib/roulette/gtp-util/etc. from scratch is the expensive
+      # part, so we cache the package addon dir via actions/cache. This works
+      # whether the job runs on an ephemeral GitHub-hosted runner or a
+      # persistent self-hosted one, since the cache lives in GitHub's cache
+      # service rather than relying on the runner's local disk.
 
       - name: Clean previous Racket install
-        run: rm -rf "${{ github.workspace }}/.racket" "${{ github.workspace }}/.racket-addon"
+        run: rm -rf "${{ github.workspace }}/.racket"
 
       - uses: Bogdanp/setup-racket@v1.15
         with:
@@ -29,11 +32,19 @@ jobs:
           dest: "${{ github.workspace }}/.racket"
           sudo: never
 
-      - name: Point package installs at a fresh addon dir
+      - name: Point package installs at the addon dir
         run: echo "PLTADDONDIR=${{ github.workspace }}/.racket-addon" >> "$GITHUB_ENV"
 
-      - name: Install dependencies
-        run: raco pkg install --auto roulette-lib/ roulette/ gtp-util gtp-plot markdown
+      - name: Cache Racket packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.racket-addon
+          key: racket-pkgs-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            racket-pkgs-${{ runner.os }}-
+
+      - name: Update dependencies
+        run: sh update.sh
 
       - name: Run benchmarks
         run: cd roulette/benchmark && racket run_benchmarks.rkt ${{github.sha}} "${{ github.event.head_commit.message }}"
