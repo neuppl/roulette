@@ -10,6 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@master
 
+      - name: Report runner resources
+        run: |
+          echo "--- memory ---"
+          free -h || true
+          echo "--- cpus ---"
+          nproc || true
+          echo "--- disk ---"
+          df -h "${{ github.workspace }}" || true
+
       # Racket
       #
       # setup-racket normally installs into a system tool-cache dir and uses
