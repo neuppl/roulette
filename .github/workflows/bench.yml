@@ -6,7 +6,7 @@ on:
 name: benchmark
 jobs:
   benchmark:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
 
