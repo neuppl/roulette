@@ -6,7 +6,7 @@ on:
 name: benchmark
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@master
 
@@ -48,7 +48,7 @@ jobs:
         run: sh update.sh
 
       - name: Run benchmarks
-        run: cd roulette/benchmark && racket run_benchmarks.rkt ${{github.sha}} "${{ github.event.head_commit.message }}"
+        run: cd roulette/benchmark && timeout --kill-after=10s 5m racket run_benchmarks.rkt ${{github.sha}} "${{ github.event.head_commit.message }}"
 
       - name: Checkout benchmark data repository
         uses: actions/checkout@v7
