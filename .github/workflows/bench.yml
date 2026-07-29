@@ -12,14 +12,15 @@ jobs:
 
       # Racket
       #
-      # We always wipe and reinstall Racket itself to pick up the latest
-      # "current" snapshot, since it's cheap and the whole point of "current"
-      # is to track upstream HEAD. Packages are a separate story: building
-      # roulette-lib/roulette/gtp-util/etc. from scratch is the expensive
-      # part, so we cache the package addon dir via actions/cache. This works
-      # whether the job runs on an ephemeral GitHub-hosted runner or a
-      # persistent self-hosted one, since the cache lives in GitHub's cache
-      # service rather than relying on the runner's local disk.
+      # Pinned to a fixed release (rather than "current") so that a
+      # performance change in the benchmark results can be attributed to a
+      # roulette commit, not to Racket itself changing underneath us.
+      # Packages are a separate story: building roulette-lib/roulette/
+      # gtp-util/etc. from scratch is the expensive part, so we cache the
+      # package addon dir via actions/cache. This works whether the job runs
+      # on an ephemeral GitHub-hosted runner or a persistent self-hosted one,
+      # since the cache lives in GitHub's cache service rather than relying
+      # on the runner's local disk.
 
       - name: Clean previous Racket install
         run: rm -rf "${{ github.workspace }}/.racket"
@@ -28,7 +29,7 @@ jobs:
         with:
           architecture: "x64"
           distribution: "full"
-          version: "current"
+          version: "9.2"
           dest: "${{ github.workspace }}/.racket"
           sudo: never
 
