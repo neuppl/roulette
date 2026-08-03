@@ -4,7 +4,7 @@
 
 (provide main)
 
-(define (main) (scale hardware (1 2 3 4 5 6 7)))
+(define (main) (scale hardware (1 2 3 4 5 6 7 8 9 10)))
 
 (module+ main
   (main))

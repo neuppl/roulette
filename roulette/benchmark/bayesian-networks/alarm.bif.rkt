@@ -45,3 +45,6 @@
               MINVOL
               EXPCO2
               PRESS))))
+
+(module+ main
+  (main))

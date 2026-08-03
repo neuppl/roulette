@@ -9,3 +9,6 @@
     (main* "bayesian-networks/survey.bif"
            'T
            '(A S E R O T))))
+
+(module+ main
+  (main))

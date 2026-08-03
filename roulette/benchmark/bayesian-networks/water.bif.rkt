@@ -40,3 +40,7 @@
              CBODN_12_45
              CNOD_12_45
              CBODD_12_45))))
+
+(module+ main
+  (main))
+  

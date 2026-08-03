@@ -1049,3 +1049,6 @@
         L_SUR_DSLOW_CA
         L_SUR_ALLCV_CA
         L_SUR_CV_CA))))
+
+(module+ main
+  (main))
