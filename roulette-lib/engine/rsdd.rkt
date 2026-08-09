@@ -6,7 +6,6 @@
 (require (except-in racket/contract ->)
          (rename-in racket/contract [-> base->]))
 (provide
- (struct-out semiring)
  (contract-out
   [rename make-rsdd-engine
           rsdd-engine
@@ -17,11 +16,23 @@
                            [t (s) (if (unsupplied-arg? s) number-semiring s)])
                           (#:semiring [s semiring?])
                           any)]
+  [rename make-semiring
+          semiring
+          (->i ([p predicate/c]
+                [zero (p) p]
+                [add (p) (base-> p p p)]
+                [one (p) p]
+                [mul (p) (base-> p p p)])
+               [_ semiring?])]
+  [semiring? predicate/c]
+  [semiring-zero (base-> semiring? any/c)]
+  [semiring-add (base-> semiring? procedure?)]
+  [semiring-one (base-> semiring? any/c)]
+  [semiring-mul (base-> semiring? procedure?)]
   [boolean-semiring semiring?]
   [number-semiring semiring?]
   [log-semiring semiring?]
   [expectation-semiring semiring?]
-  [pointwise-semiring (base-> semiring? ... semiring?)]
   [polynomial-semiring (base-> semiring? semiring?)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -257,24 +268,26 @@
 ;; bernoulli
 
 (define (bernoulli-measure f t #:semiring [s number-semiring])
-  (define zero (semiring-zero s))
   (define add (semiring-add s))
+  (define zero (semiring-zero s))
   (define (proc val)
     (add (if (set-member? val #f) f zero)
          (if (set-member? val #t) t zero)))
   (define (density val)
     (if val t f))
-  (define support
+  (define support-value
     (for/set ([val '(#f #t)]
               #:unless (equal? (density val) zero))
       val))
-  (measure proc support density (immutable-set/c @boolean?) s))
+  (measure proc (const support-value) density (immutable-set/c @boolean?) s))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; weight maps
 
-(define (wmc val weight-map weight-cache semi)
-  (match-define (semiring _ zero add one mul) semi)
+(define (wmc val kept-map weight-map weight-cache semi)
+  (match-define (semiring _ add mul) semi)
+  (define zero (semiring-zero semi))
+  (define one (semiring-one semi))
   (let go ([val val])
     (define neg? (rsdd-neg? val))
     (define-values (self other)
@@ -307,61 +320,43 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; semirings
 
-(struct semiring (predicate zero add one mul)
-  #:property prop:procedure 0
-  #:guard
-  (λ (predicate zero add one mul name)
-    (unless (procedure? predicate)
-      (raise-arguments-error name "invalid predicate"))
-    (unless (and (procedure? add) (procedure-arity-includes? add 2))
-      (raise-arguments-error name "invalid addition"))
-    (unless (and (procedure? mul) (procedure-arity-includes? mul 2))
-      (raise-arguments-error name "invalid multiplication"))
-    (values predicate zero add one mul)))
+(struct semiring (predicate add mul)
+  #:property prop:procedure 0)
 
-(define boolean-semiring
-  (semiring boolean? #f (λ (x y) (or x y)) #t (λ (x y) (and x y))))
-(define number-semiring
-  (semiring number? 0 + 1 *))
-(define log-semiring
-  (semiring inexact-real?
-            -inf.0
-            (λ (x y) (log (+ (exp x) (exp y))))
-            0
-            +))
+(define (semiring-zero s) ((semiring-add s)))
+(define (semiring-one s) ((semiring-mul s)))
+
+(define (make-semiring p z a u m)
+  (semiring p (lift-op z a) (lift-op u m)))
+
+(define (lift-op u op)
+  (case-λ
+   [() u]
+   [args (foldl op u args)]))
+
+(define boolean-semiring (semiring boolean? || &&))
+(define number-semiring (semiring number? + *))
+
+(define log-add
+  (case-λ
+   [() -inf.0]
+   [args (log (apply + (map exp args)))]))
+(define log-semiring (semiring real? log-add +))
+
 (define expectation-semiring
-  (semiring (list/c (real-in 0 1) real?)
-            (list 0 0)
-            (match-λ**
-             [((list p u) (list q v))
-              (list (+ p q) (+ u v))])
-            (list 1 0)
-            (match-λ**
-             [((list p u) (list q v))
-              (list (* p q) (+ (* p v) (* q u)))])))
+  (make-semiring
+   (list/c (real-in 0 1) real?)
+   (list 0 0)
+   (match-λ**
+    [((list p u) (list q v))
+     (list (+ p q) (+ u v))])
+   (list 1 0)
+   (match-λ**
+    [((list p u) (list q v))
+     (list (* p q) (+ (* p v) (* q u)))])))
 
-(define (pointwise-semiring . semis)
-  (define (ok? xs)
-    (and (= (length xs) (length semis))
-         (for/and ([semi (in-list semis)]
-                   [x (in-list xs)])
-           (semi x))))
-  (define zero (map semiring-zero semis))
-  (define (add xs ys)
-    (for/list ([semi (in-list semis)]
-               [x (in-list xs)]
-               [y (in-list ys)])
-      ((semiring-add semi) x y)))
-  (define one (map semiring-one semis))
-  (define (mul xs ys)
-    (for/list ([semi (in-list semis)]
-               [x (in-list xs)]
-               [y (in-list ys)])
-      ((semiring-mul semi) x y)))
-  (semiring ok? zero add one mul))
-
-(define (polynomial-semiring coeff-semi)
-  (match-define (semiring predicate _ add one mul) coeff-semi)
+(define (polynomial-semiring semi)
+  (match-define (semiring predicate add mul) semi)
   (define (polynomial? v)
     (and (list? v) (andmap predicate v)))
   (define (polynomial-add p1 p2)
@@ -385,7 +380,9 @@
          (define index (+ k l))
          (vector-set! result index (add (vector-ref result index) (mul c1 c2))))
        (vector->list result)]))
-  (semiring polynomial? '() polynomial-add (list one) polynomial-mul))
+  (make-semiring polynomial?
+                 '() polynomial-add
+                 (list (mul)) polynomial-mul))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding

@@ -53,13 +53,16 @@ automatically installs the RSDD backend.
     ((infer y #:engine poly-engine) (set #f #t))]
 }
 
-@defstruct*[semiring ([predicate predicate/c]
-                      [zero any/c]
-                      [add (-> any/c any/c any/c)]
-                      [one any/c]
-                      [mul (-> any/c any/c any/c)])]{
-  A struct type for semirings.
-  Applying an instance of this structure applies its predicate.
+@deftogether[(@defproc[(semiring [pred predicate/c]
+                                 [zero any/c] [add (-> any/c any/c any/c)]
+                                 [one any/c] [mul (-> any/c any/c any/c)]) semiring?]
+              @defproc[(semiring? [v any/c]) boolean?]
+              @defproc[(semiring-zero [s semiring?]) any/c]
+              @defproc[(semiring-add [s semiring?]) procedure?]
+              @defproc[(semiring-one [s semiring?]) any/c]
+              @defproc[(semiring-mul [s semiring?]) procedure?])]{
+  Constructor, predicate, and accessors for semirings.
+  Addition and multiplication are guaranteed to have variable arity.
 }
 
 @deftogether[(@defthing[boolean-semiring semiring?]
@@ -67,14 +70,9 @@ automatically installs the RSDD backend.
               @defthing[complex-semiring semiring?]
               @defthing[log-semiring semiring?]
               @defthing[expectation-semiring semiring?])]{
-  Base semirings that can be used with RSDD.
+  Base semirings.
 }
 
 @defproc[(polynomial-semiring [s semiring?]) semiring?]{
   Constructs a polynomial semiring where coefficients are members of @racket[s].
-}
-
-@defproc[(pointwise-semiring [s semiring?] ...) semiring?]{
-  This semiring is represented as a list containing elements from the given semirings @racket[s].
-  Addition and multiplication operate pointwise.
 }
