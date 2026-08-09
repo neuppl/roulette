@@ -11,12 +11,8 @@
  ;; operations
  flip
  query
-
- observe!
- with-observe
-
  sample
- with-sample
+ observe!
 
  ;; debug
  clear-cache!
@@ -42,12 +38,17 @@
          text-table)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; parameters
+;; constants and data
 
 (gc-terms!)
+
 (define engine (rsdd-engine))
-(define o-evidence #t)
-(define s-evidence #t)
+(define previous-flips (make-parameter (set)))
+(define current-flips (make-parameter (set)))
+
+(struct evidence (observe sample))
+(define current-evidence (make-parameter (evidence #t #t)))
+(define ⊥ (gensym '⊥))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; probability mass function
@@ -81,8 +82,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic features
 
-(struct unreachable ())
-
 (define (flip pr)
   (cond
     [(= pr 0) #f]
@@ -90,58 +89,93 @@
     [else
      (for/all ([pr pr])
        (define-measurable* x (bernoulli-measure (- 1 pr) pr))
+       (current-flips (set-add (current-flips) x))
        x)]))
-
-(define (query e #:evidence [evidence (and o-evidence s-evidence)])
-  (define ⊥ (unreachable))
-  (define unnormalized
-    (infer (if evidence e ⊥)
-           #:engine engine
-           #:path-aware? #t
-           #:lazy? #f))
-  (define prob (density unnormalized))
-  (define normalizer
-    (for/sum ([value (in-set (support unnormalized))]
-              #:unless (unreachable? value))
-      (prob value)))
-  (and (positive? normalizer)
-       (for/pmf ([value (in-set (support unnormalized))]
-                 #:unless (unreachable? value)
-                 #:do [(define weight (prob value))]
-                 #:unless (zero? weight))
-         (values value (/ weight normalizer)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; sampling
 
 (define (sample e)
-  (define ht (pmf-hash (query e)))
+  (define ev (current-evidence))
+  (match-define (evidence obs samp) ev)
+  (define e′ (if (&& obs samp) e ⊥))
+  (check-sample-flips! e′)
+  (define ht (query-val e′ (set)))
   (define result (hash-sample ht))
   (define pr (hash-ref ht result))
-  (when o-evidence
-    (define-measurable* γ
-      #:affine? #t
-      (bernoulli-measure 1 (/ 1 pr)))
-    (set! s-evidence (&& (equal? e result) γ s-evidence)))
+  (when obs
+    (define-measurable* γ #:affine? #t (bernoulli-measure 1 (/ 1 pr)))
+    (current-flips (set-add (current-flips) γ))
+    (define samp′ (&& samp (guard-with-assume (&& (equal? e result) γ))))
+    (current-evidence (struct-copy evidence ev [sample samp′])))
   result)
 
-(define-syntax with-sample
-  (syntax-parser
-    [(_ n body:expr ...+)
-     #:declare n (expr/c #'natural?)
-     #'(with-sample-fn n.c (λ () body ...))]))
+(define (check-sample-flips! val)
+  (unless (subset? (list->set (symbolics val))
+                   (set-subtract (current-flips) (previous-flips)))
+    (raise-user-error 'sample "cannot sample with the given value")))
 
-(define (with-sample-fn n thk)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; observation
+
+(define (observe! e)
+  (define ev (current-evidence))
+  (match-define (evidence obs _samp) ev)
+  (define obs′ (&& obs (guard-with-assume e)))
+  (current-evidence (struct-copy evidence ev [observe obs′])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; inference
+
+(define-syntax query
+  (syntax-parser
+    [(_ (~optional (~seq #:samples samples:nat)) body:expr ...+)
+     #'(query-fn (λ () body ...) (~? (~@ #:samples samples)))]))
+
+(define (query-fn thk #:samples [n 1])
   (for/lists (vs ws #:result (mean vs ws))
              ([_ (in-range n)])
-    (set! engine (rsdd-engine))
-    (define old s-evidence)
-    (begin0
-      (with-observe
-        (let ([result-pmf (query (thk))]
-              [weight-pmf (query o-evidence #:evidence s-evidence)])
-          (values result-pmf (weight-pmf #t))))
-      (set! s-evidence old))))
+    (parameterize ([previous-flips (current-flips)]
+                   [current-flips (current-flips)]
+                   [current-evidence (current-evidence)])
+      (define val (thk))
+      (match-define (evidence obs samp) (current-evidence))
+      (define val′ (if (&& obs samp) val ⊥))
+      (check-query-flips! val′)
+      (define ev′ (if samp obs ⊥))
+      (values (query-val val′ (previous-flips))
+              (query-val ev′ (previous-flips))))))
+
+(define (query-val val vars)
+  (define unnormalized (infer val #:keep vars #:engine engine))
+  (define prob (density unnormalized))
+  (define supp (set->list (support unnormalized)))
+  (let go ([supp-probs (map prob supp)]
+           [rev-probs '()])
+    (match supp-probs
+      [(cons x xt)
+       (for/all ([x x #:exhaustive])
+         (go xt (cons x rev-probs)))]
+      [(list)
+       (query-weight supp (reverse rev-probs))])))
+
+(define (query-weight supp probs)
+  (define normalizer
+    (for/fold ([acc 0])
+              ([value (in-list supp)]
+               [prob (in-list probs)]
+               #:unless (eq? value ⊥))
+      (+ acc prob)))
+  (assert (positive? normalizer) "observed false")
+  (for/hash ([value (in-list supp)]
+             [prob (in-list probs)]
+             #:unless (eq? value ⊥)
+             #:unless (zero? prob))
+    (values value (/ prob normalizer))))
+
+(define (check-query-flips! val)
+  (unless (subset? (list->set (symbolics val)) (current-flips))
+    (raise-user-error 'query "cannot query with the given value")))
 
 (define (hash-sample ht)
   (define target (random))
@@ -151,29 +185,23 @@
     (if (< target acc*) v (go rst acc*))))
 
 (define (mean vs ws)
-  (define total (apply + ws))
-  (define result
-    (for/fold ([acc (hash)])
-              ([v (in-list vs)]
-               [w (in-list ws)]
-               #:when (pmf? v)
-               [(k p) (in-hash (pmf-hash v))])
-      (hash-update acc k (curry + (/ (* p w) total)) 0)))
-  (make-categorical (hash->list result)))
+  (define total
+    (for/fold ([acc 0])
+              ([w (in-list ws)])
+      (for*/all ([acc acc] [w w])
+        (+ acc (hash-ref w #t 0)))))
+  (for/fold ([acc (hash)] #:result (for/all ([acc acc]) (make-pmf acc)))
+            ([v (in-list vs)]
+             [w (in-list ws)])
+    (for*/all ([acc acc] [v v] [w w] [total total])
+      (if (hash? v)
+          (hash-combine acc v (hash-ref w #t 0) total)
+          acc))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; observation
-
-(struct exn:fail:observe-false exn:fail ())
-
-(define (observe! e)
-  (set! o-evidence (&& o-evidence e)))
-
-(define-syntax-rule (with-observe body0 body ...)
-  (let ([old o-evidence])
-    (begin0
-      (begin body0 body ...)
-      (set! o-evidence old))))
+(define (hash-combine acc v w total)
+  (for/fold ([acc acc])
+            ([(k p) (in-hash v)])
+    (hash-update acc k (curry + (/ (* p w) total)) 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wrapping
@@ -191,18 +219,15 @@
 
 (define (print-values . es)
   (for ([e (in-list es)])
-    (print-result (query e))))
+    (print-result (query-fn (λ () (previous-flips (set)) e)))))
 
 (define ((~header f) x)
   (match x
     [(header x) (~a x)]
     [_ (f x)]))
 
-(define (print-result res)
-  (unless res
-    (define ccm (current-continuation-marks))
-    (raise (exn:fail:observe-false "observed false" ccm)))
-  (define ht (pmf-hash res))
+(define (print-result pmf)
+  (define ht (pmf-hash pmf))
   (if (= (hash-count ht) 1)
       ((current-print) (first (hash-keys ht)))
       (print-table
@@ -210,7 +235,7 @@
        #:->string (list (~header ~v) (~header ~a))
        (cons
         (map header '(Value Probability))
-        (for/list ([(v p) (in-pmf res)])
+        (for/list ([(v p) (in-hash ht)])
           (list v p))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -246,3 +271,10 @@
 (define (renormalize xs n)
   (for/list ([x+y (in-list xs)])
     (cons (car x+y) (/ (cdr x+y) n))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; util
+
+;; If parameters were properly lifted, then this utility wouldn't be needed.
+(define (guard-with-assume v)
+  (=> (vc-assumes (vc)) v))

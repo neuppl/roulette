@@ -8,25 +8,28 @@
            rackunit
            "util.rkt")
 
+  (define SAMPLES 2500)
+  (define TOL 0.03)
+
   ;; must have rosette's #%top-interaction for set! to work properly
-  (define (run datum #:query? [query? #t])
+  (define (run datum #:samples [samples 1] #:query? [query? #t])
     (define ns (make-base-namespace))
     (parameterize ([current-namespace ns])
       (namespace-require 'roulette/example/disrupt)
       (namespace-require `(prefix rosette: rosette))
       (eval (if query?
-                `(pmf-hash (query (rosette:#%top-interaction . ,datum)))
+                `(pmf-hash (query #:samples ,samples (rosette:#%top-interaction . ,datum)))
                 `(pmf-hash (rosette:#%top-interaction . ,datum))))))
 
   ;; util
   (define-syntax-rule (check-program prog ([val pr] ...))
-    (check-program-fn run 'prog (hash (~@ val pr) ...) #f))
+    (check-program-fn run 'prog (hash (~@ val pr) ...) 1))
 
   (define-syntax-rule (check-program-samples body ... ([val pr] ...))
-    (check-program-fn run '(with-sample 2500 body ...) (hash (~@ val pr) ...)))
+    (check-program-fn run '(let () body ...) (hash (~@ val pr) ...) SAMPLES TOL))
 
-  (define (check-program-fn ev prog ht [tol 0.03])
-    (define result (ev prog))
+  (define (check-program-fn ev prog ht [samples 1] [tol #f])
+    (define result (ev prog #:samples samples))
     (with-check-info (['program prog] ['result result])
       (if tol (check-close tol result ht) (check-equal? result ht))))
 
@@ -100,18 +103,28 @@
 
   (check-program
    (let ([x (flip 1/2)] [y (flip 1/2)])
-     (with-observe
-       (observe! (or x y)))
+     (query (observe! (or x y)))
      x)
    ([#t 1/2] [#f 1/2]))
 
   (check-equal?
    (run #:query? #f
-        '(let ([x (flip 1/2)] [y (flip 1/2)])
-           (with-observe
-             (observe! (or x y))
-             (query x))))
+        '(query
+          (let ([x (flip 1/2)] [y (flip 1/2)])
+            (observe! (or x y))
+            x)))
    (hash #t 2/3 #f 1/3))
+
+  ;; Nested inference
+  (check-equal?
+   (run '(let ([x (flip 1/2)])
+           (pmf-hash
+            (query
+             (let ([y (flip 1/5)])
+               (observe! (or x y))
+               y)))))
+   (hash (hash #t 1) 1/2
+         (hash #t 1/5 #f 4/5) 1/2))
 
   (check-program
    (= (+ (if (flip 1/2) 0 1) (if (flip 1/2) 0 1)) 0)
@@ -123,9 +136,7 @@
   ([1 1/2] ['none 1/2]))
 
   ;; Should yield an error
-  #;(check-false
-   ((make-run 'roulette/example/disrupt)
-    '(observe! #f)))
+  (check-exn exn:fail? (λ () (run '(observe! #f))))
 
   ;; samples tests
   (check-program-samples
@@ -216,15 +227,14 @@
 
   ;; generated programs
   (define (make-prog body)
-    `(with-sample 2500
-       (let* ([x (sample (flip 1/3))]
-              [z (flip 1/4)])
-         (observe! (or x z))
-         (define y (sample z))
-         ,body)))
+    `(let* ([x (sample (flip 1/3))]
+            [z (flip 1/4)])
+       (observe! (or x z))
+       (define y (sample z))
+       ,body))
 
-  (check-program-fn run (make-prog 'x) (hash #t 2/3 #f 1/3))
-  (check-program-fn run (make-prog 'y) (hash #t 1/2 #f 1/2))
-  (check-program-fn run (make-prog '(or x y)) (hash #t 1))
-  (check-program-fn run (make-prog '(and x y)) (hash #t 1/6 #f 5/6))
+  (check-program-fn run (make-prog 'x) (hash #t 2/3 #f 1/3) SAMPLES TOL)
+  (check-program-fn run (make-prog 'y) (hash #t 1/2 #f 1/2) SAMPLES TOL)
+  (check-program-fn run (make-prog '(or x y)) (hash #t 1) SAMPLES TOL)
+  (check-program-fn run (make-prog '(and x y)) (hash #t 1/6 #f 5/6) SAMPLES TOL)
   )

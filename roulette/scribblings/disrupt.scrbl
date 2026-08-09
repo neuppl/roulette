@@ -8,9 +8,7 @@
 			      flip
 			      query
 			      observe!
-			      with-observe
 			      sample
-			      with-sample
 			      pmf?
 			      in-pmf))
 	  racket/sandbox
@@ -57,7 +55,10 @@ changes the probability of @racket[first-coin]. Conditional on
     (if (flip 1/2) 'a 'b)]
 }
 
-@defproc[(query [e any/c]) pmf?]{
+@defform[(query maybe-option body ...+)
+         #:grammar
+         [(maybe-option (code:line)
+                        (code:line #:samples nat))]]{
   Returns the probability mass function (PMF) associated with @racket[e].
   In other words, @racket[query] performs top-level inference. See
   @racket[in-pmf] for an example of how to use the result of this
@@ -65,6 +66,15 @@ changes the probability of @racket[first-coin]. Conditional on
   @examples[
     #:eval evaluator #:label #f
     (query (flip 1/2))]
+  Delimits observations to the dynamic extent of @racket[body]. After
+  @racket[body] has finished, any observations executed during @racket[body]
+  are forgotten.
+    Runs the @racket[body] expression @racket[iter] times,
+  producing a probabilistic value according to the sampling distribution.
+  Note that observations are automatically delimited
+  (using @racket[with-observe])
+  inside of @racket[body]
+  to prevent observations from leaking between samples.
 }
 
 @defproc[(observe! [e boolean?]) void?]{
@@ -78,19 +88,6 @@ changes the probability of @racket[first-coin]. Conditional on
     (and x y)]
 }
 
-@defform[(with-observe body ...+)]{
-  Delimits observations to the dynamic extent of @racket[body]. After
-  @racket[body] has finished, any observations executed during @racket[body]
-  are forgotten.
-  @examples[#:eval evaluator #:label #f
-    (define x (flip 1/2))
-    (define y (flip 1/2))
-    (with-observe
-      (observe! x)
-      (query (and x y)))
-    (query (and x y))]
-}
-
 @defproc[(sample [e any/c]) any/c]{
   Samples a concrete value from the given probabilistic value.
   @examples[
@@ -98,26 +95,14 @@ changes the probability of @racket[first-coin]. Conditional on
     (sample (flip 1/2))]
 }
 
-@defform[(with-sample iter body ...+)]{
-  Runs the @racket[body] expression @racket[iter] times,
-  producing a probabilistic value according to the sampling distribution.
-  Note that observations are automatically delimited
-  (using @racket[with-observe])
-  inside of @racket[body]
-  to prevent observations from leaking between samples.
-  @examples[
-    #:eval evaluator #:label #f
-    (with-sample 100
-      (sample (flip 1/3)))]
-}
-
 @defproc[(in-pmf [e pmf?]) stream?]{
   Sequence constructor for PMFs.
   @examples[
     #:eval evaluator #:label #f
-    (define (expectation v)
-      (for/sum ([(val prob) (in-pmf (query v))])
-	(* val prob)))
+    (define-syntax-rule (expectation e)
+      (for/all ([pmf (query e)])
+        (for/sum ([(val prob) (in-pmf pmf)])
+	  (* val prob))))
 
     (expectation (if (flip 1/2) 5 10))]
 }
