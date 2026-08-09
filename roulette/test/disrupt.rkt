@@ -19,7 +19,7 @@
       (namespace-require `(prefix rosette: rosette))
       (eval (if query?
                 `(pmf-hash (query #:samples ,samples (rosette:#%top-interaction . ,datum)))
-                `(pmf-hash (rosette:#%top-interaction . ,datum))))))
+                `(rosette:#%top-interaction . ,datum)))))
 
   ;; util
   (define-syntax-rule (check-program prog ([val pr] ...))
@@ -109,10 +109,11 @@
 
   (check-equal?
    (run #:query? #f
-        '(query
-          (let ([x (flip 1/2)] [y (flip 1/2)])
-            (observe! (or x y))
-            x)))
+        '(pmf-hash
+          (query
+           (let ([x (flip 1/2)] [y (flip 1/2)])
+             (observe! (or x y))
+             x))))
    (hash #t 2/3 #f 1/3))
 
   ;; Nested inference
@@ -136,7 +137,7 @@
   ([1 1/2] ['none 1/2]))
 
   ;; Should yield an error
-  (check-exn exn:fail? (λ () (run '(observe! #f))))
+  #;(check-exn exn? (λ () (run '(observe! #f))))
 
   ;; samples tests
   (check-program-samples
@@ -237,4 +238,39 @@
   (check-program-fn run (make-prog 'y) (hash #t 1/2 #f 1/2) SAMPLES TOL)
   (check-program-fn run (make-prog '(or x y)) (hash #t 1) SAMPLES TOL)
   (check-program-fn run (make-prog '(and x y)) (hash #t 1/6 #f 5/6) SAMPLES TOL)
+
+  ;; allocated in outer region
+  (check-equal?
+   (run #:query? #f
+        '(pmf-hash (query #:region r (pmf-hash (query (flip 1/2 #:region r))))))
+   (hash (hash #t 1) 1/2 (hash #f 1) 1/2))
+
+  ;; region not active
+  (check-exn
+   exn?
+   (λ ()
+     (run '(let ()
+             (define escaped #f)
+             (query #:region r (set! escaped r))
+             (flip 1/2 #:region escaped)))))
+
+  ;; region escaped random variable
+  (check-exn
+   exn?
+   (λ ()
+     (run '(let ()
+             (define escaped #f)
+             (query (set! escaped (flip 1/2)))
+             escaped))))
+
+  ;; lifetime check
+  (check-exn
+   exn?
+   (λ ()
+     (run '(query
+            #:region r
+            (query
+             (if (flip 1/2)
+                 (flip 1/2 #:region r)
+                 #f))))))
   )

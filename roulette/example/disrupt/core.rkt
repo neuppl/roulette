@@ -13,6 +13,7 @@
  query
  sample
  observe!
+ region?
 
  ;; debug
  clear-cache!
@@ -30,7 +31,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (for-syntax racket/base
+(require (prefix-in base: racket/base)
+         (for-syntax racket/base
                      syntax/parse)
          racket/match
          racket/struct
@@ -42,9 +44,18 @@
 
 (gc-terms!)
 
+(base:struct region (vals) #:mutable)
+(define (make-region) (region (set)))
+(define (region-add! reg val)
+  (set-region-vals! reg (set-add (region-vals reg) val)))
+(define (innermost-region)
+  (match (current-regions)
+    [(cons x _) x]
+    [_ top-region]))
+
 (define engine (rsdd-engine))
-(define previous-flips (make-parameter (set)))
-(define current-flips (make-parameter (set)))
+(define top-region (make-region))
+(define current-regions (make-parameter null))
 
 (struct evidence (observe sample))
 (define current-evidence (make-parameter (evidence #t #t)))
@@ -82,15 +93,24 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic features
 
-(define (flip pr)
+(define (flip pr #:region [reg #f])
   (cond
     [(= pr 0) #f]
     [(= pr 1) #t]
     [else
-     (for/all ([pr pr])
+     (for*/all ([pr pr] [reg reg])
+       (when reg (check-region-validity! reg))
        (define-measurable* x (bernoulli-measure (- 1 pr) pr))
-       (current-flips (set-add (current-flips) x))
+       (region-add! (or reg (innermost-region)) x)
        x)]))
+
+(define (check-region-validity! reg)
+  (define regs (member reg (current-regions)))
+  (assert-panic! regs "region not active")
+  (define ok?
+    (for/and ([var (in-list (symbolics (vc-assumes (vc))))])
+      (memf (λ (r) (set-member? (region-vals r) var)) regs)))
+  (assert-panic! ok? "region does not live long enough"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; sampling
@@ -99,21 +119,15 @@
   (define ev (current-evidence))
   (match-define (evidence obs samp) ev)
   (define e′ (if (&& obs samp) e ⊥))
-  (check-sample-flips! e′)
   (define ht (query-val e′ (set)))
   (define result (hash-sample ht))
   (define pr (hash-ref ht result))
   (when obs
     (define-measurable* γ #:affine? #t (bernoulli-measure 1 (/ 1 pr)))
-    (current-flips (set-add (current-flips) γ))
+    (region-add! (innermost-region) γ)
     (define samp′ (&& samp (guard-with-assume (&& (equal? e result) γ))))
     (current-evidence (struct-copy evidence ev [sample samp′])))
   result)
-
-(define (check-sample-flips! val)
-  (unless (subset? (list->set (symbolics val))
-                   (set-subtract (current-flips) (previous-flips)))
-    (raise-user-error 'sample "cannot sample with the given value")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
@@ -129,22 +143,27 @@
 
 (define-syntax query
   (syntax-parser
-    [(_ (~optional (~seq #:samples samples:nat)) body:expr ...+)
-     #'(query-fn (λ () body ...) (~? (~@ #:samples samples)))]))
+    [(_ (~alt (~optional (~seq #:samples samples:nat))
+              (~optional (~seq #:region x:id))) ...
+        body:expr ...+)
+     #'(query-fn (λ ((~? x)) body ...) (~? (~@ #:samples samples)))]))
 
-(define (query-fn thk #:samples [n 1])
+(define (query-fn body #:samples [n 1] #:region [reg (make-region)])
   (for/lists (vs ws #:result (mean vs ws))
              ([_ (in-range n)])
-    (parameterize ([previous-flips (current-flips)]
-                   [current-flips (current-flips)]
+    (parameterize ([current-regions (cons reg (current-regions))]
                    [current-evidence (current-evidence)])
-      (define val (thk))
+      (define val (if (zero? (procedure-arity body)) (body) (body reg)))
       (match-define (evidence obs samp) (current-evidence))
       (define val′ (if (&& obs samp) val ⊥))
       (check-query-flips! val′)
+      (define prev-vars (allocated-vars (rest (current-regions))))
       (define ev′ (if samp obs ⊥))
-      (values (query-val val′ (previous-flips))
-              (query-val ev′ (previous-flips))))))
+      (values (query-val val′ prev-vars)
+              (query-val ev′ prev-vars)))))
+
+(define (allocated-vars regs)
+  (apply set-union (set) (map region-vals regs)))
 
 (define (query-val val vars)
   (define unnormalized (infer val #:keep vars #:engine engine))
@@ -166,16 +185,18 @@
                [prob (in-list probs)]
                #:unless (eq? value ⊥))
       (+ acc prob)))
-  (assert (positive? normalizer) "observed false")
-  (for/hash ([value (in-list supp)]
-             [prob (in-list probs)]
-             #:unless (eq? value ⊥)
-             #:unless (zero? prob))
-    (values value (/ prob normalizer))))
+  (and (positive? normalizer)
+       (for/hash ([value (in-list supp)]
+                  [prob (in-list probs)]
+                  #:unless (eq? value ⊥)
+                  #:unless (zero? prob))
+         (values value (/ prob normalizer)))))
 
 (define (check-query-flips! val)
-  (unless (subset? (list->set (symbolics val)) (current-flips))
-    (raise-user-error 'query "cannot query with the given value")))
+  (assert-panic!
+   (subset? (list->set (symbolics val))
+            (allocated-vars (current-regions)))
+   "region for value has ended"))
 
 (define (hash-sample ht)
   (define target (random))
@@ -215,11 +236,12 @@
   (make-wrapping-top-interaction #'wrap))
 
 (define-syntax-rule (wrap e ...)
-  (call-with-values (λ () e ...) print-values))
+  (void (print-value (λ () e)) ...))
 
-(define (print-values . es)
-  (for ([e (in-list es)])
-    (print-result (query-fn (λ () (previous-flips (set)) e)))))
+;; At the top level, we must allocate in the top region. Additionally,
+(define (print-value thk)
+  (print-result
+   (query-fn thk #:region top-region)))
 
 (define ((~header f) x)
   (match x
@@ -278,3 +300,9 @@
 ;; If parameters were properly lifted, then this utility wouldn't be needed.
 (define (guard-with-assume v)
   (=> (vc-assumes (vc)) v))
+
+;; Make region errors a fatal error for now, but we should really figure out
+;; how to properly handle errors.
+(define (assert-panic! val msg)
+  (unless val
+    (raise (exn msg (current-continuation-marks)))))

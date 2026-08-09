@@ -310,9 +310,7 @@
        (define kept-var (hash-ref kept-map label #f))
        (cond
          [kept-var
-          (if neg?
-              (@if kept-var (go (rsdd-low val)) (go (rsdd-high val)))
-              (@if kept-var (go (rsdd-high val)) (go rsdd-low val)))]
+          (@if kept-var (go (rsdd-high val)) (go (rsdd-low val)))]
          [else
           (match-define (list f t (semiring _ add mul))
             (gvector-ref weight-map label))
