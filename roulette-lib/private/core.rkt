@@ -17,13 +17,12 @@
  (contract-out
   [infer (->i ([val (eng) (measurable-space-point (send (if (unsupplied-arg? eng) default-engine eng) domain))])
               (#:engine [eng (is-a?/c engine<%>)]
-               #:path-aware? [path-aware? boolean?]
-               #:lazy? [lazy? boolean?])
-              any)])
+               #:keep [keep set?])
+              any)]
+  [support (-> measure? any)])
 
  ;; `private/measure.rkt`
  (contract-out
-  [rename measure-support support (-> measure? any)]
   [rename measure-density density (-> measure? any)]
   [measure/c (-> measurable-space? flat-contract? chaperone-contract?)])
 
@@ -75,6 +74,8 @@
 
 (define (infer val
                #:engine [eng default-engine]
-               #:path-aware? [path-aware? #f]
-               #:lazy? [lazy? #f])
-  (send eng infer val path-aware? lazy?))
+               #:keep [kept-vars '()])
+  (send eng infer val kept-vars))
+
+(define (support m)
+  ((measure-support m)))

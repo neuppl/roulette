@@ -38,8 +38,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (only-in rosette define-symbolic* [boolean? @boolean?])
-         (only-in rosette/base/core/reflect symbolics)
+(require (only-in rosette define-symbolic* [boolean? @boolean?] [if @if])
          ffi/unsafe
          ffi/unsafe/custodian
          ffi/unsafe/define
@@ -201,6 +200,7 @@
     (define/cache (const->label _) (rsdd-label builder))
     (define enc (make-enc builder const->label))
     (define weight-map (make-gvector))
+    (define smoothing-map (make-hash))
     (define weight-cache (box '()))
     (define smoothing #t)
     (register-finalizer-and-custodian-shutdown weight-cache free-weight-cache)
@@ -210,56 +210,60 @@
       (for ([(var measure pc) (in-measures)]
             #:do [(define label (const->label var))]
             #:unless (< label (gvector-count weight-map)))
-        (match-define (semiring _ zero add one mul)
-          (measure-codomain measure))
-        (define d (measure-density measure))
-        (define f (d #f))
-        (define t (d #t))
-        (cond
-          [(or (eq? pc #f) (equal? (add f t) one))
-           (gvector-set! weight-map label (list f t add mul))]
-          [else
-           (define-symbolic* dummy @boolean?)
-           (define dummy-label (const->label dummy))
-           (set! smoothing (@&& smoothing (@=> pc (@<=> var dummy))))
-           (gvector-set! weight-map label (list f t add mul))
-           (gvector-set! weight-map dummy-label (list one one add mul))])))
+        (define semi (measure-codomain measure))
+        (match-define (semiring _ add mul) semi)
+        (define one (semiring-one semi))
+        (define density (measure-density measure))
+        (define f (density #f))
+        (define t (density #t))
+        (define f+t (add f t))
+        (gvector-set! weight-map label (list f t semi))
+        ;; The `=` is needed for detecting neutrality when numbers become inexact
+        (unless (or (eq? pc #f) (equal? f+t one) (and (number? f+t) (= f+t one)))
+          (define-symbolic* smoothing-var @boolean?)
+          (define smoothing-label (const->label smoothing-var))
+          (set! smoothing (@&& smoothing (@=> pc (@<=> var smoothing-var))))
+          (gvector-set! weight-map smoothing-label (list one one semi))
+          (hash-set! smoothing-map label smoothing-label))))
 
     (define/public (domain)
       (immutable-set/c any/c))
 
-    (define/public (infer val path-aware? lazy?)
-      (match-define (semiring _ zero add _ _) semi)
-      (define assumes (if path-aware? (vc-assumes (vc)) #t))
+    (define/public (infer val kept-vars)
+      (define add (semiring-add semi))
+      (define zero (semiring-zero semi))
+      (define assumes (vc-assumes (vc)))
       (ensure-labels-exist!)
+      (define kept-map
+        (for/hash ([kept-var (in-set kept-vars)])
+          (values (const->label kept-var) kept-var)))
 
       ;; Compute measure
       (define ht (flatten-symbolic val))
       (define (procedure elems)
-        (for/fold ([acc zero])
-                  ([elem (in-set elems)])
-          (add acc (density elem))))
-      (define/cache (density val)
-        (if (hash-has-key? ht val)
-            (wmc (enc (&& assumes smoothing (hash-ref ht val))) weight-map weight-cache semi)
-            zero))
-      (define support
-        (list->set
-         (if lazy?
-             (hash-keys ht)
-             (filter (λ (k) (not (equal? (density k) zero))) (hash-keys ht)))))
+        (apply add (set-map elems density)))
+      (define/cache (density elem)
+        (cond
+          [(hash-has-key? ht elem)
+           (define ϕ (&& assumes smoothing (hash-ref ht elem)))
+           (wmc (enc ϕ) kept-map weight-map weight-cache semi)]
+          [else zero]))
+      (define/cache (support)
+        (for/set ([elem (in-hash-keys ht)]
+                  #:unless (equal? (density elem) zero))
+          elem))
       (measure procedure support density (immutable-set/c any/c) semi))
 
     (define/public (recursive-calls)
       (rsdd-num-recursive-calls builder))
 
-    (define/public (size v)
+    (define/public (size val)
       (ensure-labels-exist!)
-      (for/sum ([f (in-hash-values (flatten-symbolic (&& v smoothing)))])
+      (for/sum ([f (in-hash-values (flatten-symbolic (&& val smoothing)))])
         (bdd-size (enc f))))
 
     (define/public (show val)
-      (for/list ([(val expr) (in-hash (flatten-symbolic val))])
+      (for/list ([(val expr) (in-hash (flatten-symbolic (&& val smoothing)))])
         (define bdd (enc expr))
         (define p (bdd->pict bdd))
         (cons p val)))))
@@ -302,16 +306,24 @@
       [(rsdd-true? val) (if neg? zero one)]
       [(rsdd-false? val) (if neg? one zero)]
       [else
-       (match-define (list f t add mul)
-         (gvector-ref weight-map (bdd-topvar val)))
-       (define result
-         (add (mul f (go (rsdd-low val))) (mul t (go (rsdd-high val)))))
-       (define scratch
-         (malloc-immobile-cell
-          (if neg? (cons other result) (cons result other))))
-       (set-box! weight-cache (cons scratch (unbox weight-cache)))
-       (rsdd-set-scratch! val scratch)
-       result])))
+       (define label (bdd-topvar val))
+       (define kept-var (hash-ref kept-map label #f))
+       (cond
+         [kept-var
+          (if neg?
+              (@if kept-var (go (rsdd-low val)) (go (rsdd-high val)))
+              (@if kept-var (go (rsdd-high val)) (go rsdd-low val)))]
+         [else
+          (match-define (list f t (semiring _ add mul))
+            (gvector-ref weight-map label))
+          (define result
+            (add (mul f (go (rsdd-low val))) (mul t (go (rsdd-high val)))))
+          (define scratch
+            (malloc-immobile-cell
+             (if neg? (cons other result) (cons result other))))
+          (set-box! weight-cache (cons scratch (unbox weight-cache)))
+          (rsdd-set-scratch! val scratch)
+          result])])))
 
 (define (free-weight-cache cache)
   (for ([ptr (in-list (unbox cache))])

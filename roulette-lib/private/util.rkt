@@ -39,6 +39,15 @@
 ;; applications.
 (define-syntax define/cache
   (syntax-parser
+    [(_ (x:id) body:expr ...)
+     #'(define x
+         (let ([cache #f] [init? #f])
+           (λ ()
+             (cond
+               [init? cache]
+               [else (set! cache (let () body ...))
+                     (set! init? #t)
+                     cache]))))]
     [(_ (x:id a:id ... an:id) body:expr ...)
      #:with (b ...) (generate-temporaries #'(a ...))
      #:with (c ... d) #'(cache b ...)

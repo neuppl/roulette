@@ -52,9 +52,7 @@ section use the @secref{RSDD} backend.
 }
 
 @defproc[(infer [v (measurable-space-point dom)]
-		[#:engine engine (engine/c dom cod) (rsdd-engine)]
-		[#:path-aware? path-aware? boolean? #f]
-		[#:lazy? lazy? boolean? #f])
+		[#:engine engine (engine/c dom cod) (rsdd-engine)])
 	 (measure/c dom cod)]{
   Returns the measure associated with @racket[v] using @racket[engine].
   One way to think about @racket[infer] is that it reifies a measure from the meta level.
@@ -63,18 +61,14 @@ section use the @secref{RSDD} backend.
   @examples[#:eval evaluator #:label #f
   (define m (infer (if x 'apple 'banana)))
   (m (set 'apple))]
-  If @racket[path-aware?] is @racket[#t] then the measure is computed
-  under the path condition at the time @racket[infer] was invoked.
-  If @racket[lazy?] is @racket[#t] then the measure is computed only as needed
-  (e.g., when applied or when the @racket[density] is applied).
 }
 
 @defproc[(support [m (measure/c dom cod)]) (or/c dom #f)]{
-  If possible, returns the largest (measurable) set such that every open neighborhood of every point in the set has positive measure.
+  Returns the largest (measurable) set
+  such that every open neighborhood of every point in the set has positive measure.
   @examples[#:eval evaluator #:label #f
   (support (bernoulli-measure 0 1))
   (support m)]
-  For lazy measures, the result may be a superset of the actual support.
 }
 
 @defproc[(density [m (measure/c dom cod)])
