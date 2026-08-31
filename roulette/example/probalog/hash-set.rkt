@@ -2,7 +2,7 @@
 
 (require racket/hash
          rackunit
-         (only-in roulette/example/disrupt flatten-symbolic)
+         "../../../roulette-lib/private/util.rkt"
          (for-syntax syntax/parse)
          rackunit/text-ui
          racket/pretty

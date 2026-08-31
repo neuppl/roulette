@@ -37,8 +37,7 @@
  pmf-support
  in-pmf
  for/pmf
- pmf-hash
- flatten-symbolic)
+ pmf-hash)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -51,7 +50,6 @@
          racket/struct
          pkg/lib
          "../../../bdd-engine.rkt"
-         "../../../roulette-lib/private/util.rkt"
          (prefix-in rs: roulette/engine/rsdd)
          (prefix-in rkt: roulette/engine/rbdd)
          text-table
