@@ -8,49 +8,45 @@
          (all-from-out roulette/example/probalog/probalog-core)
          (all-from-out roulette/example/probalog/probalog-set-equal))
 
-;; #%module-begin for the probalog language. Scans the module's body
-;; forms at compile time for the four entry shapes the parser emits,
-;; and rewrites the whole body into:
-;;   - one `run-datalog` call collecting every fact/rule declared
-;;   - one observe-fact/observe-not-fact call per observation, applied
-;;     after the database is built so the guard formulas exist
-;;   - one printf per query, reporting its (now conditioned) probability
-;;
-;; Ordering: database is built first, then observations are applied in
-;; source order, then queries run. This is the only sensible order:
-;; observations condition on guards that only exist after run-datalog,
-;; and queries reflect all prior observations.
+;; #%module-begin for the probalog language. Facts and rules are
+;; collected first (the database must be fully built before anything
+;; can be queried or observed). Queries and observations are then
+;; emitted in their original source order relative to each other, so
+;; queries before the first observation report priors and queries
+;; after report posteriors conditioned on all preceding observations.
 (define-syntax (probalog-module-begin stx)
   (syntax-parse stx
     [(_ form ...)
-     (define-values (fact-forms rule-forms observe-forms query-forms other-forms)
-       (for/fold ([facts '()] [rules '()] [observes '()] [queries '()] [others '()])
+     ;; First pass: collect facts and rules.
+     (define-values (fact-forms rule-forms)
+       (for/fold ([facts '()] [rules '()])
                  ([f (syntax->list #'(form ...))])
          (syntax-parse f
-           #:datum-literals (#%probalog-fact-entry #%probalog-rule-entry
-                             #%probalog-observe-entry #%probalog-query-entry)
+           #:datum-literals (#%probalog-fact-entry #%probalog-rule-entry)
            [(#%probalog-fact-entry fact-expr prob-expr)
-            (values (cons #'(cons fact-expr prob-expr) facts) rules observes queries others)]
+            (values (cons #'(cons fact-expr prob-expr) facts) rules)]
            [(#%probalog-rule-entry rule-expr)
-            (values facts (cons #'rule-expr rules) observes queries others)]
-           [(#%probalog-observe-entry fact-expr negated?)
-            (values facts rules (cons #'(cons fact-expr negated?) observes) queries others)]
+            (values facts (cons #'rule-expr rules))]
+           [_ (values facts rules)])))
+     ;; Second pass: build the ordered sequence of query/observe
+     ;; statements, preserving source order.
+     (define ordered-stmts
+       (for/list ([f (syntax->list #'(form ...))])
+         (syntax-parse f
+           #:datum-literals (#%probalog-query-entry #%probalog-observe-entry)
            [(#%probalog-query-entry query-expr)
-            (values facts rules observes (cons #'query-expr queries) others)]
-           [_ (values facts rules observes queries (cons f others))])))
-     (with-syntax ([(fact-e ...)    (reverse fact-forms)]
-                    [(rule-e ...)    (reverse rule-forms)]
-                    [(observe-e ...) (reverse observe-forms)]
-                    [(query-e ...)   (reverse query-forms)]
-                    [(other-e ...)   (reverse other-forms)])
+            #'(printf "~a: ~a\n" query-expr
+                      (query-fact probalog-result query-expr))]
+           [(#%probalog-observe-entry fact-expr negated?)
+            #'(if negated?
+                  (observe-not-fact probalog-result fact-expr)
+                  (observe-fact probalog-result fact-expr))]
+           [_ #'(void)])))
+     (with-syntax ([(fact-e ...)  (reverse fact-forms)]
+                    [(rule-e ...)  (reverse rule-forms)]
+                    [(stmt-e ...)  ordered-stmts])
        #'(#%plain-module-begin
-          other-e ...
           (define probalog-result
             (run-datalog (list fact-e ...) (list rule-e ...)))
           (provide probalog-result)
-          (for ([obs (list observe-e ...)])
-            (if (cdr obs)
-                (observe-not-fact probalog-result (car obs))
-                (observe-fact probalog-result (car obs))))
-          (for ([q (list query-e ...)])
-            (printf "~a: ~a\n" q (query-fact probalog-result q)))))]))
+          stmt-e ...))]))
