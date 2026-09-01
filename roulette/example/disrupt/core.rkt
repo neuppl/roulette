@@ -48,13 +48,17 @@
          syntax/location
          racket/match
          racket/struct
-         pkg/lib
+         racket/lazy-require
          "../../../bdd-engine.rkt"
          (prefix-in rs: roulette/engine/rsdd)
          (prefix-in rkt: roulette/engine/rbdd)
          text-table
          "profile.rkt"
          json)
+
+;; Loading the package manager costs a few hundred milliseconds, and
+;; `pkg-directory` is only needed by `visualize`.
+(lazy-require [pkg/lib (pkg-directory)])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global parameters

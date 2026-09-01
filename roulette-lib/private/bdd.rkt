@@ -54,9 +54,15 @@
 (define true-ptr 0) 
 (define false-ptr 1) 
 
+;; Initial size of a table's backing vector. `get-or-insert` doubles the vector
+;; as needed, so this only has to be big enough to keep small BDDs from
+;; resizing; pre-allocating for the worst case would cost hundreds of
+;; megabytes at module instantiation.
+(define initial-table-capacity 1024)
+
 ;; Create a fresh BDD table
 (define (fresh-bdd-table)
-  (let ([arr (make-vector 100000000 (bdd-true))]
+  (let ([arr (make-vector initial-table-capacity (bdd-true))]
         [compute-tbl (make-hasheq)]
         [and-memo-tbl (make-hasheq)]
         [not-memo-tbl (make-hasheq)])
@@ -69,7 +75,7 @@
 ;; Global BDD table
 (define global-bdd-table (fresh-bdd-table))
 
-;; Reset the contents of an existing table in place, reusing its (large)
+;; Reset the contents of an existing table in place, reusing its already-grown
 ;; backing vector instead of reallocating. Only slots below `next-free` are
 ;; ever read, so the stale entries above it need not be cleared.
 (define (reset-bdd-table-in-place! tbl)
@@ -110,6 +116,17 @@
 (define (deref-bdd ptr)
   (vector-ref (bdd-table-backing-table global-bdd-table) ptr))
 
+;; Grow the backing vector of `tbl` so that `idx` is in range, doubling it.
+;; Only slots below `next-free` hold live entries, so copying that prefix
+;; (which is all of `arr`, since we only grow when it is full) suffices.
+(define (ensure-capacity! tbl idx)
+  (define arr (bdd-table-backing-table tbl))
+  (define capacity (vector-length arr))
+  (when (>= idx capacity)
+    (define grown (make-vector (max (* 2 capacity) (add1 idx)) (bdd-true)))
+    (vector-copy! grown 0 arr)
+    (set-bdd-table-backing-table! tbl grown)))
+
 ;; Get or insert a fresh BDD into the table
 (define (get-or-insert bdd)
   (define cached (hash-ref (bdd-table-compute-table global-bdd-table) bdd #f))
@@ -117,6 +134,7 @@
       cached
       (let ([new-idx (unbox (bdd-table-next-free global-bdd-table))])
         (set-box! (bdd-table-next-free global-bdd-table) (add1 new-idx))
+        (ensure-capacity! global-bdd-table new-idx)
         (vector-set! (bdd-table-backing-table global-bdd-table) new-idx bdd)
         (hash-set! (bdd-table-compute-table global-bdd-table) bdd new-idx)
         new-idx)))
