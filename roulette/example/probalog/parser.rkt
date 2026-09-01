@@ -8,6 +8,9 @@
 ;;   (#%probalog-rule-entry (rule (fact 'Name (list arg ...))
 ;;                                 (list (fact 'Name (list arg ...)) ...)))
 ;;   (#%probalog-query-entry (fact 'Name (list arg ...)))
+;;   (#%probalog-observe-entry (fact 'Name (list arg ...)) polarity)
+;;     polarity is #t for positive observations (! Foo(args).)
+;;              and #f for negative observations (! ~Foo(args).)
 ;; These head symbols are recognized by probalog/expander.rkt's
 ;; #%module-begin, which consumes and rewrites them — they're never
 ;; actually bound to real functions/macros.
@@ -52,9 +55,10 @@
 ;;      query) across the whole file must agree on argument count.
 
 (define (parse-statement toks arities)
-  (if (eq? (peek-type toks) 'question)
-      (parse-query (cdr toks) arities)
-      (parse-fact-or-rule toks arities)))
+  (case (peek-type toks)
+    [(question) (parse-query (cdr toks) arities)]
+    [(bang)     (parse-observe (cdr toks) arities)]
+    [else       (parse-fact-or-rule toks arities)]))
 
 (define (parse-query toks arities)
   (define-values (name-tok toks1) (expect toks 'ident))
@@ -66,6 +70,24 @@
   (define-values (_ toks3) (expect toks2 'period))
   (values `(#%probalog-query-entry
              (fact ',name-sym (list ,@args)))
+          toks3))
+
+;; Observation syntax:
+;;   ! Foo(args).    -- observe that Foo(args) is TRUE
+;;   ! ~Foo(args).   -- observe that Foo(args) is FALSE
+(define (parse-observe toks arities)
+  (define negated? (eq? (peek-type toks) 'tilde))
+  (define toks* (if negated? (cdr toks) toks))
+  (define-values (name-tok toks1) (expect toks* 'ident))
+  (check-predicate-name! (token-value name-tok))
+  (define name-sym (string->symbol (token-value name-tok)))
+  (define-values (args toks2) (parse-parenthesized-arglist toks1))
+  (check-ground! "observation" name-sym args)
+  (check-arity! arities name-sym args)
+  (define-values (_ toks3) (expect toks2 'period))
+  (values `(#%probalog-observe-entry
+             (fact ',name-sym (list ,@args))
+             ,negated?)
           toks3))
 
 (define (parse-fact-or-rule toks arities)

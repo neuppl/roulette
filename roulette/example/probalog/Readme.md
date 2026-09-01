@@ -68,6 +68,19 @@ Building on predicate indexing, facts are further indexed per predicate by the v
 
 Applying a rule derives the same fact many different ways — on a densely connected graph, many paths converge on the same `Path(x, y)` conclusion. Inserting each derivation into a sym-set one at a time is expensive: every insertion copies part of the underlying immutable hash and re-runs the guard merging machinery. `for/sym-set/fast` instead accumulates into a _transient_ mutable hash, merging duplicate derivations in place, and converts to a real sym-set once at the end — so the expensive guarded insertion is paid once per distinct element rather than once per derivation. This is safe because the mutable hash never escapes the macro that creates it, so callers still see purely functional behaviour.
 
+## Bayesian observations
+
+After the factset has been saturated, you can condition the probability distribution on observed evidence using Roulette's `observe!` mechanism. This updates all subsequent queries to reflect the posterior `P(fact | evidence)` rather than the prior `P(fact)`.
+
+In `#lang roulette/example/probalog`, observations use the `!` prefix:
+
+```
+! Path("a", "c").    % observe that Path("a","c") is definitely true
+! ~Path("a", "c").   % observe that Path("a","c") is definitely false
+```
+
+Observations are applied in source order, after the database is built and before queries run. Queries appearing before the first observation report prior probabilities; queries appearing after report posteriors conditioned on all preceding observations.
+
 ## Examples and #lang roulette/example/probalog
 
 Probalog is implemented as an example language inside Roulette, alongside `roulette/example/disrupt`.

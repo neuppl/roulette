@@ -195,3 +195,20 @@
 ;; re-exporting query from roulette/example/disrupt as query-fact 
 (define (query-fact result f)
   (query (set-member? result f)))
+
+;; Condition the current probability distribution on the given fact
+;; being present (or absent) in the result set. All subsequent calls
+;; to query-fact (or query) are automatically conditioned on this
+;; observation. Observing a fact with zero prior probability is
+;; undefined (division by zero), so only observe facts that are
+;; actually possible given your rules and base facts.
+(define (observe-fact result f)
+  (observe! (set-member? result f)))
+
+(define (observe-not-fact result f)
+  (observe! (! (set-member? result f))))
+
+;; Lower-level: condition on an arbitrary guard formula, e.g. a
+;; disjunction of several facts being present.
+(define (observe-guard g)
+  (observe! g))

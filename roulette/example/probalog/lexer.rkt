@@ -24,6 +24,8 @@
       [(char=? c #\)) (read-char port) (loop (cons (token 'rparen #f) acc))]
       [(char=? c #\,) (read-char port) (loop (cons (token 'comma #f) acc))]
       [(char=? c #\?) (read-char port) (loop (cons (token 'question #f) acc))]
+      [(char=? c #\!) (read-char port) (loop (cons (token 'bang #f) acc))]
+      [(char=? c #\~) (read-char port) (loop (cons (token 'tilde #f) acc))]
       [(char=? c #\.) (read-char port) (loop (cons (token 'period #f) acc))]
       [(char=? c #\:) (loop (cons (read-colon-token port) acc))]
       [else (error 'probalog-lexer "unexpected character: ~a" c)])))

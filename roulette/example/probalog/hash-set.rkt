@@ -183,9 +183,9 @@
     (for/and ([key keys])
       (let* ([e1 (hash-ref ht1 key #f)]
              [e2 (hash-ref ht2 key #f)]
-             [entry1-pc (if e1 (guarded-entry-path-condition e1) #f)]
+             [entry1-pc    (if e1 (guarded-entry-path-condition e1) #f)]
              [entry1-value (if e1 (guarded-entry-value e1) #f)]
-             [entry2-pc (if e2 (guarded-entry-path-condition e2) #f)]
+             [entry2-pc    (if e2 (guarded-entry-path-condition e2) #f)]
              [entry2-value (if e2 (guarded-entry-value e2) #f)]
              [clause (&& (<=> entry1-pc entry2-pc)
                          (=> entry1-pc (equal? entry1-value entry2-value)))])
@@ -294,10 +294,18 @@
        [(v) (set-add acc v)]
        [(v g) (set-add acc v g)]))))
 
-
+;; A mutable accumulator for building up a sym-set. Repeated insertions
+;; of the same element merge their guards in a mutable hash, so the
+;; immutable guarded-entry machinery in my-hash-set is only paid once
+;; per DISTINCT element when the builder is finalized -- rather than
+;; once per insertion, which for a heavily-duplicated element means
+;; rebuilding the disjunction on every duplicate.
 (struct sym-set-builder (ht))
 (define (make-sym-set-builder) (sym-set-builder (make-hash)))
 
+;; Mirrors my-hash-set: a symbolic element is decomposed by
+;; flatten-symbolic into the concrete values it can take, each with
+;; its branch condition ANDed into the supplied guard.
 (define (builder-add! b v [guard #t])
   (if (and (concrete? v) (concrete? guard) guard)
       (hash-update! (sym-set-builder-ht b) v
@@ -313,6 +321,9 @@
   (for/fold ([acc (set)]) ([(v g) (in-hash (sym-set-builder-ht b))])
     (set-add acc v g)))
 
+;; Same interface and semantics as for/sym-set, but accumulates through
+;; a builder, so duplicate elements merge cheaply before the immutable
+;; set is constructed.
 (define-syntax-rule (for/sym-set/fast (clause ...) body ...)
   (let ([b (make-sym-set-builder)])
     (for (clause ...)
