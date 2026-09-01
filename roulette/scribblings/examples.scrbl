@@ -11,4 +11,5 @@ Roulette to show concretely how this works.
 
 @include-section["disrupt.scrbl"]
 @include-section["bn.scrbl"]
+@include-section["probalog.scrbl"]
 @include-section["dice.scrbl"]
