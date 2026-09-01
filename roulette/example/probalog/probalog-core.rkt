@@ -174,7 +174,7 @@
                               (lambda () (find-bindings-prob/delta (rule-body r) full delta))))
   (time-it! add-guard-build-time!
             (lambda ()
-              (for/sym-set ([w bindings])
+              (for/sym-set/fast ([w bindings])
                 (values (substitute (rule-head r) (car w)) (cdr w))))))
 
 ;; Returns (values new-full new-delta): new-delta is exactly what's

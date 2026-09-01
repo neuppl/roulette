@@ -294,6 +294,35 @@
        [(v) (set-add acc v)]
        [(v g) (set-add acc v g)]))))
 
+
+(struct sym-set-builder (ht))
+(define (make-sym-set-builder) (sym-set-builder (make-hash)))
+
+(define (builder-add! b v [guard #t])
+  (if (and (concrete? v) (concrete? guard) guard)
+      (hash-update! (sym-set-builder-ht b) v
+                    (lambda (existing) (|| existing guard))
+                    #f)
+      (for ([(key-value key-guard) (in-hash (flatten-symbolic v))])
+        (define combined-guard (&& key-guard guard))
+        (hash-update! (sym-set-builder-ht b) key-value
+                      (lambda (existing) (|| existing combined-guard))
+                      #f))))
+
+(define (builder->sym-set b)
+  (for/fold ([acc (set)]) ([(v g) (in-hash (sym-set-builder-ht b))])
+    (set-add acc v g)))
+
+(define-syntax-rule (for/sym-set/fast (clause ...) body ...)
+  (let ([b (make-sym-set-builder)])
+    (for (clause ...)
+      (call-with-values
+       (lambda () body ...)
+       (case-lambda
+         [(v) (builder-add! b v)]
+         [(v g) (builder-add! b v g)])))
+    (builder->sym-set b)))
+
 (define (subset? st1 st2)
   (my-hash-keys-subset? (sym-set-ht st1) (sym-set-ht st2)))
 
@@ -568,6 +597,36 @@
               ;; exactly when x23 holds (both conditions coincide here)
               (with-clean-vc
                   (check-formula-equiv! (set-member? s 10) x23)))
+
+   (test-case "for/sym-set/fast matches for/sym-set on concrete elements"
+              (define s (for/sym-set/fast ([i (in-range 3)]) i))
+              (check-true (set-member? s 0))
+              (check-true (set-member? s 1))
+              (check-true (set-member? s 2)))
+
+   (test-case "for/sym-set/fast ORs guards for duplicate elements"
+              (define-symbolic x24 x25 boolean?)
+              ;; the same element inserted twice under different guards
+              ;; should end up present under their disjunction
+              (define s (for/sym-set/fast ([g (in-list (list x24 x25))])
+                          (values 1 g)))
+              (with-clean-vc
+                  (check-formula-equiv! (set-member? s 1) (|| x24 x25))))
+
+   (test-case "for/sym-set/fast with a symbolic element"
+              (define-symbolic x26 boolean?)
+              (define s (for/sym-set/fast ([i (in-list (list 1))]) (if x26 1 2)))
+              (with-clean-vc
+                  (check-formula-equiv! (set-member? s 1) x26))
+              (with-clean-vc
+                  (check-formula-equiv! (set-member? s 2) (! x26))))
+
+   (test-case "for/sym-set/fast with both element and guard symbolic"
+              (define-symbolic x27 boolean?)
+              (define s (for/sym-set/fast ([i (in-list (list 1))])
+                          (values (if x27 10 20) x27)))
+              (with-clean-vc
+                  (check-formula-equiv! (set-member? s 10) x27)))
 
    (test-case "set-count"
               (define s (set 1 2 3))
