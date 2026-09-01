@@ -145,8 +145,8 @@
 ;; try every clause position as the required-delta position.
 ;; produces a list of worlds (bindings . guard) pairs
 (define (find-bindings-prob/delta body full delta)
-  (define full-idx (index-by-name full))
-  (define delta-idx (index-by-name delta))
+  (define full-idx (time-it! add-index-time! (lambda () (index-by-name full))))
+  (define delta-idx (time-it! add-index-time! (lambda () (index-by-name delta))))
   (define n (length body))
   (for*/list ([delta-pos (in-range n)]
               [w (find-bindings-prob/at body full-idx delta-idx delta-pos)])
@@ -158,6 +158,7 @@
 (define total-find-bindings-time 0.0)
 (define total-guard-build-time 0.0)
 (define total-set-union-time 0.0)
+(define total-index-time 0.0)
 
 (define (time-it! updater! thunk)
   (define start (current-inexact-monotonic-milliseconds))
@@ -168,10 +169,13 @@
 (define (add-find-bindings-time! dt) (set! total-find-bindings-time (+ total-find-bindings-time dt)))
 (define (add-guard-build-time! dt) (set! total-guard-build-time (+ total-guard-build-time dt)))
 (define (add-set-union-time! dt) (set! total-set-union-time (+ total-set-union-time dt)))
+(define (add-index-time! dt) (set! total-index-time (+ total-index-time dt)))
 
 (define (rule-apply-prob/delta r full delta)
   (define bindings (time-it! add-find-bindings-time!
                               (lambda () (find-bindings-prob/delta (rule-body r) full delta))))
+  ;; for/sym-set/fast (rather than for/sym-set) since the same head
+  ;; fact is typically derived from many different bindings.
   (time-it! add-guard-build-time!
             (lambda ()
               (for/sym-set/fast ([w bindings])
