@@ -78,4 +78,4 @@ Probalog can then be run by using the hashlang declaration at the top of rkt fil
 
 Some example programs, including the graph-reachability example in this file and some others can be found at [github.com/Smaran-Teja/probalog](https://github.com/Smaran-Teja/probalog).
 
-Note: the hashlang is entirely AI-generated and not tested robustly. It was mostly made as a useful tool to test programs, not for actual use.
+Note: The Parser for the hashlang was AI-generated and not tested robustly. It was mostly made as a useful tool to test programs, not for actual use. It also may have osme unexpected behaviour for syntactically flawed programs. 
