@@ -64,6 +64,10 @@ Facts are indexed by predicate name before each round of matching, so that a cla
 
 Building on predicate indexing, facts are further indexed per predicate by the value at each argument position. When matching a clause, if any of its arguments is already known — either a literal constant, or a variable already bound by an earlier clause in the same rule body — that known value is used to look up only the facts that could possibly match at that position, instead of scanning every fact of the predicate.
 
+### Transient mutable hashes in `for/sym-set/fast` iteration
+
+Applying a rule derives the same fact many different ways — on a densely connected graph, many paths converge on the same `Path(x, y)` conclusion. Inserting each derivation into a sym-set one at a time is expensive: every insertion copies part of the underlying immutable hash and re-runs the guard merging machinery. `for/sym-set/fast` instead accumulates into a _transient_ mutable hash, merging duplicate derivations in place, and converts to a real sym-set once at the end — so the expensive guarded insertion is paid once per distinct element rather than once per derivation. This is safe because the mutable hash never escapes the macro that creates it, so callers still see purely functional behaviour.
+
 ## Examples and #lang roulette/example/probalog
 
 Probalog is implemented as an example language inside Roulette, alongside `roulette/example/disrupt`.
