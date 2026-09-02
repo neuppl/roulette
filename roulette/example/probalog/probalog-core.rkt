@@ -192,23 +192,77 @@
     (define new-new-acc (time-it! add-set-union-time! (lambda () (set-union new-acc fresh))))
     (values new-full-acc new-new-acc)))
 
-;; re-exporting query from roulette/example/disrupt as query-fact 
-(define (query-fact result f)
-  (query (set-member? result f)))
+;; Reports a runtime failure the way the parser reports a syntax one:
+;; prefixed with the source location of the statement responsible.
+;; `where` is that location, already formatted, and is #f when these
+;; are called directly from Racket rather than from a statement.
+(define (probalog-error who where fmt . args)
+  (raise (make-exn:fail (format "~a: ~a" (or where who) (apply format fmt args))
+                        (current-continuation-marks))))
+
+;; re-exporting query from roulette/example/disrupt as query-fact
+(define (query-fact result f #:where [where #f])
+  (define pmf (query (set-member? result f)))
+  (unless pmf
+    (probalog-error
+     'query-fact where
+     (string-append
+      "no possible world remains, so ~a has no probability\n"
+      "  the observations made so far cannot all hold at once")
+     f))
+  pmf)
+
+;; How a query result is shown. A distribution over a single outcome
+;; carries no uncertainty, so it prints as that value rather than as a
+;; one-row table — the same choice Disrupt makes when printing a query
+;; whose result turned out to be concrete.
+(define (query-result->string pmf)
+  (define outcomes (for/list ([(value prob) (in-pmf pmf)]) value))
+  (if (= (length outcomes) 1)
+      (format "~a" (car outcomes))
+      (format "~a" pmf)))
+
+;; Whether `guard` can still take the given value in some world that
+;; satisfies every observation made so far. `query` returns #f when no
+;; world satisfies the observations at all.
+(define (possible? guard value)
+  (define pmf (query guard))
+  (and pmf
+       (for/or ([(v p) (in-pmf pmf)])
+         (and (equal? v value) (positive? p)))))
+
+;; Conditioning on something impossible divides by zero, and every
+;; later query would silently report nothing rather than fail. So an
+;; observation is checked before it is made, while it can still be
+;; blamed on the statement that caused it.
+(define (check-observable! who where guard value what)
+  (unless (possible? guard value)
+    (probalog-error
+     who where
+     (string-append
+      "cannot observe ~a: it has probability 0\n"
+      "  given the base facts, the rules, and any earlier observations,\n"
+      "  there is no possible world in which this holds")
+     what)))
 
 ;; Condition the current probability distribution on the given fact
 ;; being present (or absent) in the result set. All subsequent calls
 ;; to query-fact (or query) are automatically conditioned on this
-;; observation. Observing a fact with zero prior probability is
-;; undefined (division by zero), so only observe facts that are
-;; actually possible given your rules and base facts.
-(define (observe-fact result f)
-  (observe! (set-member? result f)))
+;; observation. Observing something impossible is rejected rather than
+;; dividing by zero; see check-observable! above.
+(define (observe-fact result f #:where [where #f])
+  (define guard (set-member? result f))
+  (check-observable! 'observe-fact where guard #t f)
+  (observe! guard))
 
-(define (observe-not-fact result f)
-  (observe! (! (set-member? result f))))
+(define (observe-not-fact result f #:where [where #f])
+  (define guard (set-member? result f))
+  (check-observable! 'observe-not-fact where guard #f
+                     (format "the absence of ~a" f))
+  (observe! (! guard)))
 
 ;; Lower-level: condition on an arbitrary guard formula, e.g. a
 ;; disjunction of several facts being present.
-(define (observe-guard g)
+(define (observe-guard g #:where [where #f])
+  (check-observable! 'observe-guard where g #t "this formula")
   (observe! g))

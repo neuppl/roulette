@@ -16,7 +16,7 @@ In the above program, we have the facts `Edge("a", "b")` and `Edge("b", "c")` in
 
 Similar to a standard Datalog engine, the goal is to find all derivable facts from the initial factset. However, we must also calculate the probabilities of the derived facts using the probabilities in the initial fact set.
 
-After all facts (along with their probabilities) have been derived, you can query the presence of facts. For example, querying `Path("a", "c")` gives us the probability distribution ` #<pmf: [#t 0.3] [#f 0.7]>` since `Path("a", "c")` only exists when both `Path("a", "b")` and `Path("b", "c")` exist, which has a probability of `0.6*0.5 = 0.3`
+After all facts (along with their probabilities) have been derived, you can query the presence of facts. For example, querying `Path("a", "c")` gives us the probability distribution `#<pmf: [#t 0.3] [#f 0.7]>` since `Path("a", "c")` only exists when both `Path("a", "b")` and `Path("b", "c")` exist, which has a probability of `0.6*0.5 = 0.3`
 
 ## Factset representation and Fixpoint detection
 
@@ -79,6 +79,8 @@ In `#lang roulette/example/probalog`, observations use the `!` prefix:
 ! ~Path("a", "c").   % observe that Path("a","c") is definitely false
 ```
 
+A query whose result is certain — probability 1 or 0 — prints as `#t` or `#f` rather than as a one-outcome distribution.
+
 Observations are applied in source order, after the database is built and before queries run. Queries appearing before the first observation report prior probabilities; queries appearing after report posteriors conditioned on all preceding observations.
 
 ## Examples and #lang roulette/example/probalog
@@ -95,4 +97,40 @@ Probalog can then be run by using the hashlang declaration at the top of rkt fil
 
 Some example programs, including the graph-reachability example in this file and some others can be found at [github.com/Smaran-Teja/probalog](https://github.com/Smaran-Teja/probalog).
 
-Note: The Parser for the hashlang was AI-generated and not tested robustly. It was mostly made as a useful tool to test programs, not for actual use. It also may have some unexpected behaviour for certain syntactically flawed programs.
+The language also claims the file extension `.pdl`, which is what editors key off of when they can't read the `#lang` line. A `.rkt` file works exactly the same way when run.
+
+Note: parsing stops at the first error, so a program with several mistakes reveals them one at a time.
+
+## Editor support
+
+**DrRacket** needs no setup — it reads everything from the `#lang` line:
+
+- syntax coloring in Probalog's own terms (predicates as keywords, variables as symbols, strings and probabilities as constants, `%` comments as comments)
+- indentation that understands statements: a rule broken across lines aligns under its first body clause, and a line after a completed statement returns to the margin
+- Check Syntax arrows between a rule's variables. A variable is bound by its first occurrence in the body — the one that actually ranges over the database — and used by the rest, including the ones in the head, so Rename and Jump to Binding work
+- an interactions area that reads statements, submitting on a period rather than on a balanced parenthesis. Racket expressions work there too: the saturated database is bound to `probalog-result` and the whole engine interface is in scope
+- parse errors highlighted where they occur
+
+**VS Code** needs two separate pieces, since nothing there reads a `#lang` line. Diagnostics, hover, and jump-to-binding come from [racket-langserver](https://github.com/jeapostrophe/racket-langserver), which runs the same Check Syntax pass and works on `.rkt` files with no setup. Coloring comes from the extension in [`vscode/`](vscode/), installed by linking it in:
+
+```
+ln -s "$(pwd)/vscode" ~/.vscode/extensions/probalog
+```
+
+See [`vscode/README.md`](vscode/README.md) for details, including why a `.rkt` file still gets Racket's coloring there.
+
+### How it's put together
+
+| file                                               | role                                                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `lang/reader.rkt`                                  | the `#lang` entry point; answers the editor info keys below                                                                          |
+| `lang/lang-info.rkt`, `lang/configure-runtime.rkt` | installs the interactive reader for the REPL                                                                                         |
+| `lexer.rkt`                                        | the scanner, shared by the parser, the colorer, the submit predicate, and the indenter, so they can't disagree about what a token is |
+| `parser.rkt`                                       | recursive descent; attaches source locations and emits the Check Syntax binding scaffold                                             |
+| `expander.rkt`                                     | `#%module-begin`, plus macros that make the marker forms work at the REPL                                                            |
+| `tool/syntax-color.rkt`                            | `color-lexer`                                                                                                                        |
+| `tool/submit.rkt`                                  | `drracket:submit-predicate`                                                                                                          |
+| `tool/indentation.rkt`                             | `drracket:indentation`                                                                                                               |
+| `vscode/`                                          | TextMate grammar for VS Code                                                                                                         |
+
+The scaffold is worth a note: Datalog variables live inside quoted data at runtime, where Check Syntax can't see them as identifiers. So each rule also emits a `(when #f (lambda (x ...) (void y ...)))` carrying the real source locations of the variable occurrences — dead code that never runs but gives the variables genuine binding structure for the IDE to annotate.

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Probalog",
+  "scopeName": "source.probalog",
+  "patterns": [
+    { "include": "#lang-line" },
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#operator" },
+    { "include": "#predicate" },
+    { "include": "#variable" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "lang-line": {
+      "match": "\\A(#lang)\\s+(\\S+)",
+      "captures": {
+        "1": { "name": "keyword.control.lang.probalog" },
+        "2": { "name": "entity.name.type.lang.probalog" }
+      }
+    },
+    "comment": {
+      "name": "comment.line.percentage.probalog",
+      "match": "%.*$"
+    },
+    "string": {
+      "comment": "The language has no escape sequences, so a backslash is an ordinary character. A literal ends at the closing quote or, if there isn't one, at the end of the line — matching the lexer, which stops there so a missing quote is blamed on the line that opened it.",
+      "name": "string.quoted.double.probalog",
+      "begin": "\"",
+      "end": "\"|$"
+    },
+    "number": {
+      "name": "constant.numeric.probalog",
+      "match": "-?[0-9]+(\\.[0-9]+)?"
+    },
+    "operator": {
+      "patterns": [
+        {
+          "comment": "Probability annotation and rule arrow.",
+          "name": "keyword.operator.probalog",
+          "match": "::|:-"
+        },
+        {
+          "comment": "Query, observation, and negated observation.",
+          "name": "keyword.control.probalog",
+          "match": "[?!~]"
+        }
+      ]
+    },
+    "predicate": {
+      "comment": "Predicate names start with an uppercase letter.",
+      "name": "entity.name.function.probalog",
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+    },
+    "variable": {
+      "comment": "Variables start with a lowercase letter.",
+      "name": "variable.parameter.probalog",
+      "match": "\\b[a-z][A-Za-z0-9_]*\\b"
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.terminator.statement.probalog",
+          "match": "\\."
+        },
+        {
+          "name": "punctuation.separator.comma.probalog",
+          "match": ","
+        },
+        {
+          "name": "meta.brace.round.probalog",
+          "match": "[()]"
+        }
+      ]
+    }
+  }
+}

@@ -20,6 +20,7 @@
 			      rule-body
 			      make-base-set
 			      query-fact
+			      query-result->string
 			      observe-fact
 			      observe-not-fact
 			      observe-guard
@@ -129,14 +130,19 @@ Path(x, z) :- Path(x, y), Edge(y, z).
 
 ? Edge("a", "b").   % prior:     #<pmf: [#t 0.5] [#f 0.5]>
 ! Path("a", "c").
-? Edge("a", "b").   % posterior: #<pmf: [#t 1.0]>
+? Edge("a", "b").   % posterior: #t
 END
 ]}
 
 Observing @tt{Path("a", "c")} forces both edges to be present,
 so the posterior probability of @tt{Edge("a", "b")} is 1.
-Observations are implemented with @racket[observe!],
-so observing a fact whose prior probability is zero is undefined.
+A query with only one possible outcome prints as that outcome
+rather than as a distribution over it.
+Observations are implemented with @racket[observe!].
+Observing something impossible --- a fact that no combination of base
+facts can derive, or one ruled out by an earlier observation ---
+is reported as an error against the statement that did it,
+rather than silently leaving every later query with nothing to report.
 
 The parser rejects several classes of program statically:
 
@@ -157,17 +163,72 @@ The parser rejects several classes of program statically:
 @item{An uppercase identifier in argument position is rejected,
       since it is nearly always a constant missing its quotes.}]
 
-@margin-note{
- The reader and parser for @racketmodname[roulette/example/probalog]
- were written as a convenience for testing programs,
- and are not robust:
- syntactically invalid programs may produce confusing errors
- rather than good diagnostics.
-}
+Every one of these is reported at the location of the offending text,
+so an editor can highlight it.
+Parsing stops at the first error, however:
+a program with several mistakes reveals them one at a time.
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section{Editor support}
+
+Probalog programs can be written in a @filepath{.rkt} file like any
+other Racket module, but the language also claims the extension
+@filepath{.pdl}, which is what an editor keys off of when it has no
+other way to know what it is looking at.
+
+@bold{DrRacket} needs nothing beyond the language itself.
+It reads the coloring, indentation, and interaction behavior from
+the @tt{#lang} line, so a Probalog file opened in DrRacket gets:
+
+@itemlist[
+@item{Syntax coloring in Probalog's own terms:
+      predicate names as keywords,
+      variables as symbols,
+      quoted strings and probabilities as constants,
+      and @tt{%} comments as comments.}
+@item{Indentation that understands statements.
+      A rule broken across lines aligns under its first body clause,
+      and a line following a completed statement returns to the margin.}
+@item{Check Syntax arrows for both variables and predicate names,
+      so @onscreen{Rename} and @onscreen{Jump to Binding} work on either.
+      A variable is bound by its first occurrence in its rule's body ---
+      the one that actually ranges over the database ---
+      and used by the others, including the ones in the head.
+      A predicate is bound file-wide by the first statement that defines it,
+      a fact declaration or a rule head,
+      and used by every body clause, query, and observation that names it,
+      so selecting one occurrence highlights the rest.}
+@item{An interactions area that reads Probalog statements,
+      submitting on a period rather than on a balanced parenthesis.
+      Racket expressions are accepted there too:
+      the saturated database is bound to @racket[probalog-result],
+      and the whole engine interface is in scope.}
+@item{Errors highlighted where they occur,
+      rather than reported against the parser's own source.}]
+
+@bold{VS Code} needs two separate things,
+because nothing there reads a @tt{#lang} line the way DrRacket does.
+Diagnostics, hover, and jump-to-binding come from
+@hyperlink[LANGSERVER]{racket-langserver},
+which runs the same Check Syntax pass documented above
+and so reports the same information;
+it works on @filepath{.rkt} files with no additional setup.
+Syntax coloring comes from the extension in
+@filepath{roulette/example/probalog/vscode},
+which is installed by linking it into the extensions directory:
+
+@verbatim|{
+$ ln -s "$(pwd)/roulette/example/probalog/vscode" ~/.vscode/extensions/probalog
+}|
+
+and restarting VS Code.
+It colors @filepath{.pdl} files.
+A Probalog program saved as @filepath{.rkt} will still be colored as
+Racket, since the Racket extension claims that extension and grammars
+are selected by file type rather than by language line.
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Engine}
-@defmodule[roulette/example/probalog/probalog-core]
 
 The engine is also usable directly from
 @racketmodname[roulette/example/disrupt],
@@ -192,6 +253,22 @@ and a list of rules.
   (observe-fact db (fact 'Path (list "a" "c")))
   (query-fact db (fact 'Edge (list "a" "b")))]
 
+@subsection{Saturation}
+@defmodule[roulette/example/probalog/probalog-set-equal]
+
+@defproc[(run-datalog [base-fact-probs (listof (cons/c fact? (real-in 0 1)))]
+		      [rules (listof rule?)])
+	 sym-set?]{
+  Saturates the database,
+  returning the symbolic set of all derivable facts.
+  Each base fact is admitted under an independent @racket[flip]
+  of the given probability,
+  and the immediate-consequence operator is iterated to a fixpoint.
+}
+
+@subsection{Facts, rules, and queries}
+@defmodule[roulette/example/probalog/probalog-core]
+
 @defstruct*[fact ([name symbol?] [args list?])]{
   A predicate applied to arguments.
   An argument that is a symbol is a variable;
@@ -205,37 +282,54 @@ and a list of rules.
   under which every clause of @racket[body] holds.
 }
 
-@defproc[(run-datalog [base-fact-probs (listof (cons/c fact? (real-in 0 1)))]
-		      [rules (listof rule?)])
-	 sym-set?]{
-  Saturates the database,
-  returning the symbolic set of all derivable facts.
-  Each base fact is admitted under an independent @racket[flip]
-  of the given probability,
-  and the immediate-consequence operator is iterated to a fixpoint.
-}
-
-@defproc[(query-fact [result sym-set?] [f fact?]) pmf?]{
+@defproc[(query-fact [result sym-set?] [f fact?]
+		     [#:where where (or/c string? #f) #f]) pmf?]{
   Returns the probability distribution of @racket[f]'s membership
   in @racket[result],
   conditioned on all observations made so far.
-  Equivalent to @racket[(query (set-member? result f))].
+  Essentially @racket[(query (set-member? result f))],
+  but raises an error rather than returning @racket[#f]
+  when no possible world remains.
+
+  Every one of these procedures takes an optional @racket[where],
+  a source location like @tt{"reachability.pdl:5:0"}
+  used to attribute a failure to the statement responsible.
+  The language supplies it;
+  code calling the engine directly has no reason to.
 }
 
-@defproc[(observe-fact [result sym-set?] [f fact?]) void?]{
+@defproc[(query-result->string [p pmf?]) string?]{
+  How the language displays a query result:
+  a distribution with a single possible outcome
+  renders as that outcome, and anything else as the distribution.
+  @racket[query-fact] itself always returns a @racket[pmf?];
+  this only affects what a @tt{?} statement prints.
+}
+
+@defproc[(observe-fact [result sym-set?] [f fact?]
+		       [#:where where (or/c string? #f) #f]) void?]{
   Conditions the current distribution on @racket[f] being derivable,
   so that all subsequent queries report posteriors.
-  Observing a fact of zero prior probability is undefined.
+
+  Observing something of probability zero would divide by zero
+  and leave every later query reporting nothing,
+  so it is rejected instead:
+  @racket[f] must be derivable in at least one world
+  that satisfies the observations already made.
 }
 
-@defproc[(observe-not-fact [result sym-set?] [f fact?]) void?]{
+@defproc[(observe-not-fact [result sym-set?] [f fact?]
+			   [#:where where (or/c string? #f) #f]) void?]{
   Like @racket[observe-fact],
-  but conditions on @racket[f] @emph{not} being derivable.
+  but conditions on @racket[f] @emph{not} being derivable,
+  and rejects the observation when @racket[f] is certain.
 }
 
-@defproc[(observe-guard [g boolean?]) void?]{
+@defproc[(observe-guard [g boolean?]
+			[#:where where (or/c string? #f) #f]) void?]{
   Conditions on an arbitrary formula,
-  such as a disjunction of several facts' membership tests.
+  such as a disjunction of several facts' membership tests,
+  subject to the same check.
 }
 
 @defproc[(make-base-set [base-fact-probs (listof (cons/c fact? (real-in 0 1)))])
@@ -384,3 +478,4 @@ rather than scanning every fact of the predicate.
 @;; links
 
 @(define DATALOG "https://en.wikipedia.org/wiki/Datalog")
+@(define LANGSERVER "https://github.com/jeapostrophe/racket-langserver")
