@@ -74,11 +74,21 @@
 (define kill-signal-box (if (equal? bdd-engine-backend "rsdd") 
                             rs:kill-signal-box 
                             rkt:kill-signal-box))
-(define (clear-cache!) (if (equal? bdd-engine-backend "rsdd")
-                           (set! engine (make-engine))
-                           (begin
-                             (rkt:reset-bdd!)
-                             (set! engine (make-engine)))))
+(define (clear-cache!)
+  (if (equal? bdd-engine-backend "rsdd")
+      (set! engine (make-engine))
+      (begin
+        (rkt:reset-bdd!)
+        (set! engine (make-engine))))
+  ;; Old flips' variables are meaningless once the engine backing them is
+  ;; gone, but `variable-contexts`/`var-label-map` hold them strongly
+  ;; forever, which in turn keeps the global `measures` queue
+  ;; (roulette-lib/private/measure.rkt) from ever pruning dead entries.
+  ;; Left unbounded, every `infer` call scans that whole queue, turning
+  ;; loops like `with-sample`/`cost` (which call `clear-cache!` every
+  ;; iteration) quadratic in the number of iterations.
+  (hash-clear! variable-contexts)
+  (hash-clear! var-label-map))
 
 (define engine (make-engine))
 (define o-evidence #t)
@@ -192,7 +202,7 @@
 (define (with-sample-fn n thk)
   (for/lists (vs ws #:result (mean vs ws))
              ([_ (in-range n)])
-    (set! engine (make-engine))
+    (clear-cache!)
     (define old s-evidence)
     (begin0
       (with-observe
