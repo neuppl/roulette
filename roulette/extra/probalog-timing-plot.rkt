@@ -8,7 +8,7 @@
 ;;   racket probalog-timing-plot.rkt
 (require roulette/example/probalog/probalog-core
          roulette/example/probalog/probalog-set-equal
-         plot)
+         plot/no-gui)
 (provide probalog-timing-split-plot)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Program generators
