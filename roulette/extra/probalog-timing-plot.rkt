@@ -9,7 +9,7 @@
 (require roulette/example/probalog/probalog-core
          roulette/example/probalog/probalog-set-equal
          plot)
-
+(provide probalog-timing-split-plot)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Program generators
 
@@ -178,7 +178,7 @@
 
 (define total (apply + (map cdr parts)))
 
-(plot-pict
+(define probalog-timing-split-plot (plot-pict
  (stacked-histogram
   (list (vector "" (map cdr parts)))
   #:invert? #t
@@ -192,4 +192,6 @@
  #:y-label #f
  #:legend-anchor 'outside-right-top
  #:width 800
- #:height 300)
+ #:height 300))
+
+ probalog-timing-split-plot
