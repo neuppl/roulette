@@ -17,14 +17,6 @@
 
  sample
  with-sample
- guided-sample
-
- ;; profiling
- cost
- profile
- process-results
- save-results
- visualize
 
  ;; debug
  clear-cache!
@@ -43,60 +35,19 @@
 ;; require
 
 (require (for-syntax racket/base
-                     syntax/parse
-                     racket/syntax-srcloc)
-         syntax/location
+                     syntax/parse)
          racket/match
          racket/struct
-         racket/lazy-require
-         "../../../bdd-engine.rkt"
-         (prefix-in rs: roulette/engine/rsdd)
-         (prefix-in rkt: roulette/engine/rbdd)
-         text-table
-         "profile.rkt"
-         json)
-
-;; Loading the package manager costs a few hundred milliseconds, and
-;; `pkg-directory` is only needed by `visualize`.
-(lazy-require [pkg/lib (pkg-directory)])
+         roulette/engine/rsdd
+         text-table)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Global parameters
+;; parameters
 
 (gc-terms!)
-(define make-engine (if (equal? bdd-engine-backend "rsdd") 
-                        rs:rsdd-engine 
-                        rkt:rbdd-engine))
-
-(define bernoulli-measure (if (equal? bdd-engine-backend "rsdd") 
-                              rs:bernoulli-measure 
-                              rkt:bernoulli-measure))
-(define kill-signal-box (if (equal? bdd-engine-backend "rsdd") 
-                            rs:kill-signal-box 
-                            rkt:kill-signal-box))
-(define (clear-cache!)
-  (if (equal? bdd-engine-backend "rsdd")
-      (set! engine (make-engine))
-      (begin
-        (rkt:reset-bdd!)
-        (set! engine (make-engine))))
-  ;; Old flips' variables are meaningless once the engine backing them is
-  ;; gone, but `variable-contexts`/`var-label-map` hold them strongly
-  ;; forever, which in turn keeps the global `measures` queue
-  ;; (roulette-lib/private/measure.rkt) from ever pruning dead entries.
-  ;; Left unbounded, every `infer` call scans that whole queue, turning
-  ;; loops like `with-sample`/`cost` (which call `clear-cache!` every
-  ;; iteration) quadratic in the number of iterations.
-  (hash-clear! variable-contexts)
-  (hash-clear! var-label-map))
-
-(define engine (make-engine))
+(define engine (rsdd-engine))
 (define o-evidence #t)
 (define s-evidence #t)
-(define variable-contexts (make-hash))
-(define var-label-map (make-hash))
-(define (variable-from-label label)
-  (first (hash-ref variable-contexts label)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; probability mass function
@@ -132,25 +83,7 @@
 
 (struct unreachable ())
 
-(define-syntax flip
-  (syntax-parser 
-    [(_ pr (~optional (~seq #:label label) #:defaults ([label #'(gensym)])))
-     #:do [(define src (syntax-srcloc this-syntax))]
-     #:with source #`#,src
-     #'(let ([out (flip-fn pr)]) 
-          (begin 
-            (hash-set! variable-contexts
-                      label
-                      (list
-                        out
-                        source
-                        (continuation-mark-set->context (current-continuation-marks))))
-            (hash-set! var-label-map
-                      out
-                      label)
-          out))]))
-
-(define (flip-fn pr) 
+(define (flip pr)
   (cond
     [(= pr 0) #f]
     [(= pr 1) #t]
@@ -202,7 +135,7 @@
 (define (with-sample-fn n thk)
   (for/lists (vs ws #:result (mean vs ws))
              ([_ (in-range n)])
-    (clear-cache!)
+    (set! engine (rsdd-engine))
     (define old s-evidence)
     (begin0
       (with-observe
@@ -229,13 +162,6 @@
       (hash-update acc k (curry + (/ (* p w) total)) 0)))
   (make-categorical (hash->list result)))
 
-(define (guided-sample e var-labels #:take [num-vars 10])
-  (define vars (map variable-from-label var-labels))
-  (define env
-    (for/hash ([var (take vars num-vars)])
-      (define pr (hash-ref (pmf-hash (query var)) #t 0))
-      (values var (< (random) pr))))
-  (query e #:environment env))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; observation
 
@@ -288,186 +214,11 @@
         (for/list ([(v p) (in-pmf res)])
           (list v p))))))
 
-
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; cost
+;; debug
 
-
-(define (with-timeout duration thnk default)
-  (let* ([th (thread thnk #:keep 'results)]
-         [out (sync/timeout duration th)])
-    (kill-thread th)
-    (if out
-        (thread-wait out)
-        (default))))
-
-
-; Returns a hash from environments to the number of recursive calls needed to evaluate val with all 
-; vars sampled randomly over a number of iterations. A value of #f means the val couldn't evaluate 
-; within budget for that sample.
-(define (cost val vars
-              #:iterations [iters 10]
-              #:budget [budget +inf.0]
-              #:wait [wait 1/4])
-  (define (make-env)
-    (for/hash ([var (in-set vars)])
-      (define pr (hash-ref (pmf-hash (query var)) #t 0))
-      (values var (< (random) pr))))
-
-  ;; Kill safety: swap Rosette's term cache for an `eq?`-based ephemeron hash
-  ;; only for the duration of the (thread-killed) timed queries below, then
-  ;; restore an `equal?`-based cache so normal queries keep hash-consing.
-  (gc-terms-hack! make-weak-hasheq)
-  (begin0
-    (for/hash ([k (in-range iters)])
-      (printf "~a: " k)
-      (clear-cache!)
-
-      (define env (make-env))
-      (with-timeout wait
-                    (lambda ()
-                      (query val #:environment env)
-                      (define rec-calls (recursive-calls))
-                      (printf "completed sample in ~a recursive calls \n" rec-calls)
-                      rec-calls)
-                    (lambda ()
-                      (displayln "timed out")
-                      #f)))
-    (gc-terms-hack! make-weak-hash)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; profiling
-
-;Ordered list of most "expensive" symbolic variables in provided expression, based on heuristics
-(define (profile e #:timeout [duration 1]
-                   #:samples [samples 10]
-                   #:iterations [iters 10]
-                   #:specialize-amt [num-vars (inexact->exact (round (/ (length (symbolics e)) 2)))]
-                   #:stream-visualization [stream-path? #f])
-  
-  (define transition (make-random-specialization-transition (symbolics e) num-vars))
-  (define config-data (hash 'timeout duration
-                            'specialization-amt num-vars
-                            'iterations iters
-                            'samples samples
-                            'total-vars (length (symbolics e))))
-  (define heuristics (make-heuristics config-data))
-
-  (display "\u001B[1mProfiler Configuration: \u001B[0m\n")
-  (printf "timeout: ~a\n" duration)
-  (printf "specialization-amt: ~a\n" num-vars)
-  (printf "iterations: ~a\n" iters)
-  (printf "samples: ~a\n" samples)
-  (display "\u001B[1mRunning profiler...\u001B[0m\n")
-  (for ([k (in-range samples)])
-    (printf "Sample ~a\n" k)
-    (define var-subset (transition))
-    (define cost-map (cost e
-                          var-subset
-                          #:iterations iters
-                          #:budget 0
-                          #:wait duration))
-    (heuristics cost-map)
-    (when stream-path?
-          (define cur-cost-map (heuristics #f))
-          (define json-path (save-results cur-cost-map stream-path? #:print #f))
-          (visualize json-path #:print #f)))
-  (display "\u001B[1mFinished running profiler.\u001B[0m\n")
-  (heuristics #f))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; profiler utility functions
-
-(define (save-results profiler-results save-path #:print [print? #t])
-  (define json-path (path->string (path-replace-extension save-path ".json")))
-  (define rkt-path (path->string (path-replace-extension save-path ".rkt")))
-  (define (srcloc->js-hash loc)
-    (match-define (srcloc source line column position span) loc)
-    (hash
-      `source (~a source)
-      `line line
-      `column column
-      `position position
-      `span span))
-
-  (define json-formatted-results 
-    (hash-set*
-      (for/hash ([(key value) (in-hash profiler-results)])
-        (cond [(string? key) (values (string->symbol key) value)]
-              [(symbolic? key) 
-              (let ([var-label (hash-ref var-label-map key)])
-                  (values (string->symbol var-label)
-                          (hash 
-                            'results (hash 'num-successful-samples (first value)
-                                            'num-total-samples (second value)
-                                            'total-recursive-calls (third value))
-                            'cost-value (var-value value)
-                            'syntactic-source (srcloc->js-hash (second (hash-ref variable-contexts var-label))))))]))
-      'source-code (call-with-input-file rkt-path
-                      (lambda (in) (port->string in)))
-      'file-path rkt-path))
-  
-  (call-with-output-file json-path
-    (lambda (out)
-      (write-json 
-        json-formatted-results
-        out
-        #:indent #\tab))
-    #:exists 'replace)
-  
-  (when print? (printf "\u001B[1mSaved profiler results to ~a\u001B[0m\n" json-path))
-  json-path)
-
-
-(define (visualize json-path #:open [open? #f] #:print [print? #t])
-  (define-values (viz-proc _out _in _err)
-    (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "python3") 
-                (path->string (simplify-path (build-path (pkg-directory "roulette") "example/disrupt/visualize.py")))
-                json-path))
-  (subprocess-wait viz-proc)
-  (define html-path (path->string (path-replace-extension json-path ".html")))
-  
-  (when open?
-        (define-values (open-proc _out _in _err)
-          (subprocess (current-output-port) (current-input-port) (current-error-port) (find-executable-path "open") html-path))
-        (subprocess-wait open-proc))
-  (when print?
-    (printf "HTML file produced at: ~a" html-path))
-  html-path)
-
-(define (process-results profiler-results)
-  (variable-labels var-label-map profiler-results))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; profiler evaluation
-
-;Compares the time taken to randomly sample num-vars in e, against the time taken to sample the first 
-; num-vars in var-labels. Returns the difference, and prints information to output port. 
-(define (compare-sampling-duration e var-labels #:take [num-vars 10] 
-                                                #:samples [num-samples 10])
-  (define-values (_ __ real-guided ___) 
-    (time-apply (lambda ()
-      (for ([n (in-range num-samples)]) 
-        (guided-sample e var-labels #:take num-vars))) 
-    (list)))
-  (printf "Time taken to guided sample ~a top vars ~a times: ~a" num-vars num-samples real-guided)
-  (define shuffled-var-labels (shuffle var-labels))
-  
-  (define-values (____ _____ real-random ______) 
-    (time-apply (lambda ()
-      (for ([n (in-range num-samples)]) 
-        (guided-sample e shuffled-var-labels #:take num-vars))) 
-    (list)))
-  (printf "Time taken to sample ~a random vars ~a times: ~a" num-vars num-samples real-random)
-  (- real-guided real-random))
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; debug  
+(define (clear-cache!)
+  (set! engine (rsdd-engine)))
 
 (define (recursive-calls)
   (send engine recursive-calls))
@@ -496,30 +247,3 @@
 (define (renormalize xs n)
   (for/list ([x+y (in-list xs)])
     (cons (car x+y) (/ (cdr x+y) n))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; gc-terms-hack!
-
-(require rackunit)
-(require/expose rosette/base/core/term (current-terms))
-
-;; This hack is necessary to convert Rosette's internal cache into an
-;; `eq?`-based hash for kill safety. Unfortunately, performance is horrible
-;; using an `eq?`-based hash for term caching, so it's enabled only during
-;; profiling.
-(define (gc-terms-hack! make)
-  (define cache
-    (impersonate-hash
-     (make)
-     (lambda (h k)
-       (values k (lambda (h k e) (ephemeron-value e #f))))
-     (lambda (h k v)
-       (values k (make-ephemeron k v)))
-     (lambda (h k) k)
-     (lambda (h k) k)
-     hash-clear!))
-
-  (for ([(k v) (current-terms)])
-    (hash-set! cache k v))
-
-  (current-terms cache))

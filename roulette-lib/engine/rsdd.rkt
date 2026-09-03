@@ -21,9 +21,7 @@
   [real-semiring semiring?]
   [complex-semiring semiring?]
   [log-semiring semiring?]
-  [polynomial-semiring (base-> semiring? semiring?)])
- enc-instrumentation
- kill-signal-box)
+  [polynomial-semiring (base-> semiring? semiring?)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -349,34 +347,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
 
-(define kill-signal-box (box #f))
-(define enc-instrumentation (make-hash))
-(hash-set! enc-instrumentation "lo" +inf.0)
-(hash-set! enc-instrumentation "hi" 0)
-(hash-set! enc-instrumentation "total" 0)
-(hash-set! enc-instrumentation "num-calls" 0)
-
 (define (make-enc b const->label)
   (define rsdd-true (make-rsdd-true b))
   (define rsdd-false (make-rsdd-false b))
 
   (define/cache (enc v)
-    (define start-time (current-milliseconds))
-    (let ([return (unbox kill-signal-box)])
-      (when return
-        (return)))
-    (begin0
-      (match v
-        [(? expression?) (enc-expr v)]
-        [(? constant?)   (enc-const v)]
-        [_               (enc-lit v)])
-      (let ([time-taken (- (current-milliseconds) start-time)])
-        (when (< time-taken (hash-ref enc-instrumentation "lo"))
-            (hash-set! enc-instrumentation "lo" time-taken))
-        (when (> time-taken (hash-ref enc-instrumentation "hi"))
-              (hash-set! enc-instrumentation "hi" time-taken))
-        (hash-update! enc-instrumentation "total" (lambda (prev-total) (+ prev-total time-taken)))
-        (hash-update! enc-instrumentation "num-calls" (lambda (prev) (+ 1 prev))))))
+    (match v
+      [(? expression?) (enc-expr v)]
+      [(? constant?)   (enc-const v)]
+      [_               (enc-lit v)]))
 
   (define (enc-expr v)
     (match v
