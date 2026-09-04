@@ -204,24 +204,30 @@
     (values new-full-acc new-new-acc)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Immediate consequence operator (naive)
+;; Immediate consequence operators for canonical guards
 ;;
-;; Every clause draws from the whole factset, so no derivation is ever
-;; skipped for having been found before. That is exactly the redundant
-;; work semi-naive evaluation exists to avoid, and with Rosette-term
-;; guards avoiding it is a clear win.
+;; `immediate-prob` above is semi-naive in the textbook sense: it
+;; derives from `delta`, and the guard it builds therefore says "newly
+;; derivable *this round*". That is a strictly more complicated
+;; condition than "derivable" -- it has to encode the absence of the
+;; shorter derivations as well as the presence of a new one -- and with
+;; a canonical representation the intermediate diagrams dwarf the
+;; answer: on a friends-and-smokers ring of 14 it costs 231 million BDD
+;; operations where the operators below cost under 180 thousand, for
+;; the same result.
 ;;
-;; With canonical guards it is the other way round, and dramatically so.
-;; A semi-naive round derives facts from `delta`, so the guard it builds
-;; says "newly derivable *this round*" rather than "derivable" -- a
-;; strictly more complicated condition, since it has to encode the
-;; absence of the shorter derivations as well as the presence of a new
-;; one. Those intermediate BDDs dwarf the final answer: on a
-;; friends-and-smokers ring of 14, semi-naive costs 231 million BDD
-;; operations where naive costs 179 thousand, for the same result. The
-;; redundant derivations naive evaluation performs cost almost nothing,
-;; because re-deriving a fact that is already known collapses on contact
-;; with a canonical guard.
+;; The mistake is transplanting a rule about *set*-valued Datalog onto
+;; guard-valued Datalog. Classically a derivation from facts that all
+;; existed before was already performed, so it can be skipped. Here a
+;; fact can exist from round one while its guard keeps weakening for
+;; many rounds, so the condition to test is whether a guard *changed*,
+;; and the re-derivation must use current guards rather than deltas of
+;; guards.
+;;
+;; `immediate-semi` does that: the delta selects which facts to match,
+;; and every guard is read out of the accumulated set. `immediate-naive`
+;; drops the selection too, and is kept as the simplest thing that
+;; works and as a baseline to measure against.
 (define (rule-apply-prob/full r full)
   (define idx (time-it! add-index-time! (lambda () (index-by-name full))))
   ;; -1 is not a clause position, so no clause is restricted to a delta.
@@ -236,6 +242,47 @@
   (for/fold ([acc full]) ([r rules])
     (time-it! add-set-union-time!
               (lambda () (set-union acc (rule-apply-prob/full r acc))))))
+
+;; The given keys, carrying the guards they have in `full` rather than
+;; any partial ones. This is what keeps a delta from ever becoming a
+;; "newly derivable this round" condition.
+(define (restrict-to full keys)
+  (for/sym-set/fast ([k keys])
+    (values k (set-member? full k))))
+
+;; The keys whose guard is not the one they had before. Cheap exactly
+;; where this operator is used, since comparing two canonical guards is
+;; a pointer comparison.
+(define (changed-keys old new)
+  (for/list ([(k g) new] #:unless (guard-equiv? g (set-member? old k))) k))
+
+;; One round of semi-naive evaluation over accumulated guards: a
+;; derivation must use at least one changed fact somewhere, but every
+;; clause's guard comes from `full`. Skipping the rest is sound because
+;; if no body guard changed then neither did their conjunction, so the
+;; contribution is already present and re-adding it would be a no-op.
+(define (immediate-semi full delta-keys rules)
+  (define full-idx (time-it! add-index-time! (lambda () (index-by-name full))))
+  (define delta-idx
+    (time-it! add-index-time!
+              (lambda () (index-by-name (restrict-to full delta-keys)))))
+  (for/fold ([acc full]) ([r rules])
+    (define n (length (rule-body r)))
+    ;; Each clause position in turn is the one required to draw from the
+    ;; delta. A derivation with two changed facts is therefore built
+    ;; twice; with canonical guards the second is free.
+    (define bindings
+      (time-it! add-find-bindings-time!
+                (lambda ()
+                  (for*/list ([pos (in-range n)]
+                              [w (find-bindings-prob/at (rule-body r) full-idx delta-idx pos)])
+                    w))))
+    (define fresh
+      (time-it! add-guard-build-time!
+                (lambda ()
+                  (for/sym-set/fast ([w bindings])
+                    (values (substitute (rule-head r) (car w)) (cdr w))))))
+    (time-it! add-set-union-time! (lambda () (set-union acc fresh)))))
 
 ;; Reports a runtime failure the way the parser reports a syntax one:
 ;; prefixed with the source location of the statement responsible.
