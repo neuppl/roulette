@@ -753,5 +753,11 @@
 ;; `run-all-tests` had no caller, so `raco test` never ran any of the above.
 ;; These are the only direct coverage of the guarded-hash and sym-set code,
 ;; which makes them worth having run automatically.
+;;
+;; Pinned to the term representation rather than whatever the default is:
+;; these tests hand Rosette booleans in as guards and read symbolic values
+;; back out of set-count and friends, neither of which a canonical
+;; representation can do.
 (module+ test
-  (run-all-tests))
+  (parameterize ([current-guard-backend term-backend])
+    (run-all-tests)))

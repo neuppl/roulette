@@ -223,10 +223,15 @@
 (define (use-bdd-guards!)  (current-guard-backend (make-bdd-backend)))
 (define (bdd-guards?) (eq? (guard-backend-name (current-guard-backend)) 'bdd))
 
-;; The term backend is the default. `PROBALOG_GUARDS=bdd` selects the
-;; other one for a whole process, which is how the test suite and the
-;; benchmarks run the same programs both ways without every program
-;; having to say so itself.
-(if (equal? (getenv "PROBALOG_GUARDS") "bdd")
-    (use-bdd-guards!)
-    (use-term-guards!))
+;; BDDs are the default. `PROBALOG_GUARDS=term` selects the other one
+;; for a whole process, which is how the test suite and the benchmarks
+;; run the same programs both ways without every program having to say
+;; so itself.
+;;
+;; Code that needs the term representation regardless -- anything using
+;; the sym-set operations that build Rosette values out of guards, or
+;; handing a Rosette boolean in as a guard -- should parameterize
+;; `current-guard-backend` rather than rely on the default.
+(if (equal? (getenv "PROBALOG_GUARDS") "term")
+    (use-term-guards!)
+    (use-bdd-guards!))
