@@ -66,13 +66,69 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Probabilistic fact database
 
+;; Put base facts that mention a constant in common next to each other.
+;;
+;; Variables are created in this order, and for a representation with a
+;; total variable order that is the order it tests them in. Such a
+;; structure has to keep alive every decision still relevant below the
+;; current level, so the cost depends on how far apart related variables
+;; sit. Rule bodies join on shared variables, which bind to shared
+;; constants, so two facts naming the same constant are exactly the ones
+;; that can meet in a derivation; adjacent is where they want to be.
+;;
+;; The traversal is breadth-first over the constants -- the
+;; Cuthill-McKee family of linear-layout heuristics. It looks only at
+;; which facts share a constant, never at what a constant *is*, so
+;; renaming the data does not change the result.
+;;
+;; Note the target is pathwidth rather than treewidth: a total variable
+;; order is a path decomposition. Elimination orders such as min-fill
+;; and min-degree minimise treewidth instead, and measured 2-3x worse
+;; here; they would be the right choice for a vtree-structured
+;; representation like an SDD, not for this one.
+(define (order-base-facts base-fact-probs)
+  ;; constants that share a fact are adjacent
+  (define adj (make-hash))
+  (for ([fp base-fact-probs])
+    (define as (fact-args (car fp)))
+    (for ([a as])
+      (unless (hash-has-key? adj a) (hash-set! adj a (make-hash))))
+    (for* ([a as] [b as] #:unless (equal? a b))
+      (hash-set! (hash-ref adj a) b #t)))
+  ;; breadth-first visit order, restarting for each component
+  (define idx (make-hash))
+  (define counter 0)
+  (define (visit! c)
+    (unless (hash-has-key? idx c)
+      (hash-set! idx c counter)
+      (set! counter (add1 counter))))
+  (for* ([fp base-fact-probs] [start (fact-args (car fp))])
+    (unless (hash-has-key? idx start)
+      (visit! start)
+      (let loop ([queue (list start)])
+        (unless (null? queue)
+          (define fresh
+            (for/fold ([acc '()]) ([(nb _) (in-hash (hash-ref adj (car queue)))])
+              (cond
+                [(hash-has-key? idx nb) acc]
+                [else (visit! nb) (cons nb acc)])))
+          (loop (append (cdr queue) (reverse fresh)))))))
+  ;; a fact sits at its earliest-visited argument; nullary facts, which
+  ;; share a constant with nothing, keep their declared order in front
+  (define (rank fp)
+    (for/fold ([m -1]) ([a (fact-args (car fp))])
+      (define i (hash-ref idx a 0))
+      (if (or (= m -1) (< i m)) i m)))
+  ;; `sort` is stable, so declaration order breaks ties
+  (sort base-fact-probs < #:key rank))
+
 ;; base-fact-probs : list of (cons fact probability)
 ;;
 ;; The only place a base fact's guard is created, which makes it the one
-;; place that decides how the guards are represented and -- for a backend
-;; where it matters, such as BDDs -- what order the variables come in.
+;; place that decides how the guards are represented and what order the
+;; variables come in.
 (define (make-base-set base-fact-probs)
-  (for/sym-set ([fp base-fact-probs])
+  (for/sym-set ([fp (order-base-facts base-fact-probs)])
     (values (car fp) (guard-var (cdr fp)))))
 
 
