@@ -23,6 +23,45 @@
   [log-semiring semiring?]
   [polynomial-semiring (base-> semiring? semiring?)]))
 
+;; The BDD layer underneath the engine, for callers that want to build and
+;; weigh BDDs directly rather than going through `infer` on Rosette terms.
+;; A client that carries BDDs through its own computation -- rather than
+;; building a Rosette term and compiling it once at the end -- gets
+;; canonicalisation at every step, which is the point of exposing this.
+;;
+;; These are raw FFI wrappers over librsdd and are unContracted: the
+;; pointer types are opaque, and mixing pointers from two different
+;; builders is undefined. Hold one builder per computation.
+;;
+;; Weighting convention for `wmc`: `weight-map` is a gvector indexed by
+;; the label of a variable, holding `(cons false-weight true-weight)`;
+;; `weight-cache` is a box of allocated scratch cells, which the caller
+;; should hand to `free-weight-cache` (or register a finalizer for) when
+;; done.
+;;
+;; SHARP EDGE: `wmc` memoises per BDD node in that node's scratch cell and
+;; never invalidates it, so its results are only valid for as long as the
+;; weight map is unchanged. That is a feature when weights are fixed --
+;; repeated counts over the same BDDs are nearly free -- but if you change
+;; a weight you must `rsdd-clear-scratch!` every node you have counted, or
+;; you will silently read stale values back.
+(provide
+ ;; manager
+ mk-bdd-manager-default-order free-bdd-manager
+ ;; variables
+ rsdd-label rsdd-var
+ ;; operations
+ rsdd-and rsdd-or rsdd-not rsdd-ite rsdd-compose
+ ;; constants and tests
+ make-rsdd-true make-rsdd-false
+ rsdd-true? rsdd-false? rsdd-const? rsdd-neg? rsdd-equal?
+ ;; structure
+ rsdd-low rsdd-high rsdd-topvar
+ ;; weighted model counting
+ wmc free-weight-cache rsdd-clear-scratch!
+ ;; instrumentation
+ rsdd-nodes rsdd-num-recursive-calls)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 

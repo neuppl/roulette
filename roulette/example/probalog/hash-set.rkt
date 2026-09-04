@@ -6,7 +6,8 @@
          (for-syntax syntax/parse)
          rackunit/text-ui
          racket/pretty
-         (prefix-in rkt: racket/set))
+         (prefix-in rkt: racket/set)
+         "guards.rkt")
 
 
 (provide (all-defined-out))
@@ -21,13 +22,14 @@
   (for*/fold ([acc (hash)])
              ([gv contents]
               [(key entry) (in-hash (cdr gv))])
-    (define guard (&& (car gv) (guarded-entry-path-condition entry)))
+    (define guard (guard-and (guard-from-rosette (car gv))
+                             (guarded-entry-path-condition entry)))
     (define value (guarded-entry-value entry))
     (if (hash-has-key? acc key)
         (let ([existing (hash-ref acc key)])
           (hash-set acc key
-                    (guarded-entry (if guard value (guarded-entry-value existing))
-                                   (|| (guarded-entry-path-condition existing) guard))))
+                    (guarded-entry (merge-value guard value (guarded-entry-value existing))
+                                   (guard-or (guarded-entry-path-condition existing) guard))))
         (hash-set acc key (guarded-entry value guard)))))
 
 
@@ -36,11 +38,26 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Utilities/helpers
 
+;; Pick the value an entry should carry when a new write lands on an
+;; existing key: `new` where `guard` holds and `old` elsewhere.
+;;
+;; When the two agree there is nothing to choose, which is always the
+;; case when the hash is backing a set -- every element carries #t. That
+;; matters because the general case has to branch on the guard, and a
+;; guard is only branchable when it is a Rosette term; a canonical
+;; representation like a BDD is an opaque handle that `if` would happily
+;; treat as true. So the equal case is served first, and the general one
+;; asks the backend for a term and fails loudly if it cannot give one.
+(define (merge-value guard new old)
+  (if (equal? new old)
+      new
+      (if (guard-term guard) new old)))
+
 (define (force-ref ht key)
   (let ([out (hash-ref ht key)])
     (if (guarded-entry? out)
         (begin
-          (assert (guarded-entry-path-condition out))
+          (assert (guard-term (guarded-entry-path-condition out)))
           (guarded-entry-value out))
         out)))
 
@@ -67,10 +84,11 @@
                    [(key-value key-guard) (in-hash (flatten-symbolic k))])
          (define existing (hash-ref ht key-value #f))
          (define old-val (if existing (guarded-entry-value existing) v))
-         (define old-pc  (if existing (guarded-entry-path-condition existing) #f))
+         (define old-pc  (if existing (guarded-entry-path-condition existing) (guard-false)))
+         (define kg (guard-from-rosette key-guard))
          (hash-set ht key-value
-                   (guarded-entry (if key-guard v old-val)
-                                  (|| key-guard old-pc))))]))
+                   (guarded-entry (merge-value kg v old-val)
+                                  (guard-or kg old-pc))))]))
 
 (define (my-hash-ref ht key)
   (if (concrete? key) 
@@ -80,29 +98,44 @@
 
 (define (my-hash-has-key? ht key)
   (if (concrete? key)
-      (and (hash-has-key? ht key)
-           (guarded-entry-path-condition (hash-ref ht key)))
-      (for/fold ([acc #t])
+      (if (hash-has-key? ht key)
+          (guarded-entry-path-condition (hash-ref ht key))
+          (guard-false))
+      (for/fold ([acc (guard-true)])
                 ([(key-value key-guard) (in-hash (flatten-symbolic key))])
-        (&& acc (=> key-guard (my-hash-has-key? ht key-value))))))
+        (guard-and acc (guard-implies (guard-from-rosette key-guard)
+                                      (my-hash-has-key? ht key-value))))))
 
 ;; Optional guard argument is a workaround since setting a hash key under a
 ;; unary condition isn't possible.
 ;; ie. (when x (my-hash-set ...)) creates an unexpected symbolic union
 ;; at the top level, with one of the entries as <void>
 
-(define (my-hash-set ht key value [guard #t])
-  (if (and (concrete? key) (concrete? guard) guard)
-      (hash-set ht key (guarded-entry value #t))
-      (for/fold ([acc ht])
-                ([(key-value key-guard) (in-hash (flatten-symbolic key))])
-        (define combined-guard (&& key-guard guard))
-        (define existing (hash-ref acc key-value #f))
-        (define old-val (if existing (guarded-entry-value existing) value))
-        (define old-pc  (if existing (guarded-entry-path-condition existing) #f))
-        (hash-set acc key-value
-                  (guarded-entry (if combined-guard value old-val)
-                                 (|| combined-guard old-pc))))))
+(define (my-hash-set ht key value [guard (guard-true)])
+  (cond
+    ;; An unconditional write of a concrete key is just a write.
+    [(and (concrete? key) (guard-known-true? guard))
+     (hash-set ht key (guarded-entry value (guard-true)))]
+    ;; A concrete key under a condition still needs no flattening, and
+    ;; skipping it keeps the guard in the backend's own representation
+    ;; rather than mixing in the Rosette booleans flatten-symbolic emits.
+    [(concrete? key)
+     (define existing (hash-ref ht key #f))
+     (define old-val (if existing (guarded-entry-value existing) value))
+     (define old-pc  (if existing (guarded-entry-path-condition existing) (guard-false)))
+     (hash-set ht key
+               (guarded-entry (merge-value guard value old-val)
+                              (guard-or guard old-pc)))]
+    [else
+     (for/fold ([acc ht])
+               ([(key-value key-guard) (in-hash (flatten-symbolic key))])
+       (define combined-guard (guard-and (guard-from-rosette key-guard) guard))
+       (define existing (hash-ref acc key-value #f))
+       (define old-val (if existing (guarded-entry-value existing) value))
+       (define old-pc  (if existing (guarded-entry-path-condition existing) (guard-false)))
+       (hash-set acc key-value
+                 (guarded-entry (merge-value combined-guard value old-val)
+                                (guard-or combined-guard old-pc))))]))
 
 (define (my-hash-remove ht key)
   (if (concrete? key)
@@ -113,7 +146,7 @@
             (let* ([entry (hash-ref acc key-value)]
                    [val (guarded-entry-value entry)]
                    [pc (guarded-entry-path-condition entry)])
-              (hash-set acc key-value (guarded-entry val (&& pc (! key-guard)))))
+              (hash-set acc key-value (guarded-entry val (guard-and pc (guard-not (guard-from-rosette key-guard))))))
             acc))))
 
 
@@ -128,8 +161,8 @@
                [new-val (guarded-entry-value entry)]
                [new-pc (guarded-entry-path-condition entry)])
           (hash-set acc key
-                    (guarded-entry (if new-pc new-val existing-val)
-                                   (|| existing-pc new-pc))))
+                    (guarded-entry (merge-value new-pc new-val existing-val)
+                                   (guard-or existing-pc new-pc))))
         (hash-set acc key entry))))
 
 
@@ -145,31 +178,31 @@
                  [other-val (guarded-entry-value other)]
                  [other-pc (guarded-entry-path-condition other)])
             (hash-set acc2 key
-                      (guarded-entry (if pc val other-val)
-                                     (&& pc other-pc))))
+                      (guarded-entry (merge-value pc val other-val)
+                                     (guard-and pc other-pc))))
           acc2))))
 
 
 (define (my-hash-keys-subset? ht1 ht2)
   (and (hash-keys-subset? ht1 ht2)
-       (for/fold ([acc #t])
+       (for/fold ([acc (guard-true)])
                  ([(key entry1) (in-hash ht1)])
-         (&& acc
-             (=> (guarded-entry-path-condition entry1)
-                 (guarded-entry-path-condition (hash-ref ht2 key)))))))
+         (guard-and acc
+                    (guard-implies (guarded-entry-path-condition entry1)
+                                   (guarded-entry-path-condition (hash-ref ht2 key)))))))
 
 (define (my-hash-empty? ht)
   (or (hash-empty? ht)
-      (for/fold ([acc #t])
+      (for/fold ([acc (guard-true)])
                 ([(_ entry) (in-hash ht)])
-        (&& acc (! (guarded-entry-path-condition entry))))))
+        (guard-and acc (guard-not (guarded-entry-path-condition entry))))))
 
 (define (my-hash-count ht)
   (for/fold
    ([acc 0])
    ([(_ entry) (in-hash ht)])
     (+ acc
-       (if (guarded-entry-path-condition entry)
+       (if (guard-term (guarded-entry-path-condition entry))
            1
            0))))
 
@@ -183,16 +216,28 @@
     (for/and ([key keys])
       (let* ([e1 (hash-ref ht1 key #f)]
              [e2 (hash-ref ht2 key #f)]
-             [entry1-pc    (if e1 (guarded-entry-path-condition e1) #f)]
-             [entry1-value (if e1 (guarded-entry-value e1) #f)]
-             [entry2-pc    (if e2 (guarded-entry-path-condition e2) #f)]
-             [entry2-value (if e2 (guarded-entry-value e2) #f)]
-             [clause (&& (<=> entry1-pc entry2-pc)
-                         (=> entry1-pc (equal? entry1-value entry2-value)))])
-        (if (and (concrete? entry1-pc) (concrete? entry2-pc)
-                 (concrete? entry1-value) (concrete? entry2-value))
-            (and (eq? entry1-pc entry2-pc) (equal? entry1-value entry2-value))
-            (unsat? (verify (assert clause)))))))
+             [entry1-pc (if e1 (guarded-entry-path-condition e1) (guard-false))]
+             [entry2-pc (if e2 (guarded-entry-path-condition e2) (guard-false))]
+             ;; A key missing from one side is the same as being present
+             ;; there under a false guard. Taking the other side's value
+             ;; for it keeps the values equal, so the comparison reduces
+             ;; to the guards -- which is the only case a canonical
+             ;; backend can decide without a solver, and is every case
+             ;; that arises when the hash is being used as a set.
+             [entry1-value (cond [e1 (guarded-entry-value e1)]
+                                 [e2 (guarded-entry-value e2)]
+                                 [else #f])]
+             [entry2-value (cond [e2 (guarded-entry-value e2)]
+                                 [e1 (guarded-entry-value e1)]
+                                 [else #f])])
+        (if (and (concrete? entry1-value) (concrete? entry2-value)
+                 (equal? entry1-value entry2-value))
+            (guard-equiv? entry1-pc entry2-pc)
+            (unsat? (verify (assert (&& (<=> (guard-term entry1-pc)
+                                             (guard-term entry2-pc))
+                                        (=> (guard-term entry1-pc)
+                                            (equal? entry1-value
+                                                    entry2-value))))))))))
   (define elapsed (- (current-inexact-monotonic-milliseconds) start))
   (set! total-my-hash-equal?-time (+ total-my-hash-equal?-time elapsed))
   result)
@@ -210,7 +255,8 @@
     (define pairs
       (for*/list ([gv contents]
                   [(k entry) (in-hash (cdr gv))])
-        (cons k (&& (car gv) (guarded-entry-path-condition entry)))))
+        (cons k (guard-and (guard-from-rosette (car gv))
+                           (guarded-entry-path-condition entry)))))
     (in-parallel (in-list (map car pairs)) (in-list (map cdr pairs))))
   #:methods gen:custom-write
   [(define (write-proc self port mode)
@@ -224,9 +270,10 @@
        (for* ([gv contents]
               [(k entry) (in-hash (cdr gv))])
          (write-string "\n  " port)
-         (define g (&& (car gv) (guarded-entry-path-condition entry)))
+         (define g (guard-and (guard-from-rosette (car gv))
+                              (guarded-entry-path-condition entry)))
          (cond
-           [(and (concrete? g) (equal? g #t)) (write-elem k)]
+           [(guard-known-true? g) (write-elem k)]
            [else
             (write-string "[" port)
             (write-elem g)
@@ -252,7 +299,7 @@
 (define (set-member? st v)
   (my-hash-has-key? (sym-set-ht st) v))
 
-(define (set-add st v [guard #t])
+(define (set-add st v [guard (guard-true)])
   (sym-set (my-hash-set (sym-set-ht st) v #t guard)))
 
 (define (set-count st)
@@ -306,16 +353,16 @@
 ;; Mirrors my-hash-set: a symbolic element is decomposed by
 ;; flatten-symbolic into the concrete values it can take, each with
 ;; its branch condition ANDed into the supplied guard.
-(define (builder-add! b v [guard #t])
-  (if (and (concrete? v) (concrete? guard) guard)
+(define (builder-add! b v [guard (guard-true)])
+  (if (concrete? v)
       (hash-update! (sym-set-builder-ht b) v
-                    (lambda (existing) (|| existing guard))
-                    #f)
+                    (lambda (existing) (guard-or existing guard))
+                    (lambda () (guard-false)))
       (for ([(key-value key-guard) (in-hash (flatten-symbolic v))])
-        (define combined-guard (&& key-guard guard))
+        (define combined-guard (guard-and (guard-from-rosette key-guard) guard))
         (hash-update! (sym-set-builder-ht b) key-value
-                      (lambda (existing) (|| existing combined-guard))
-                      #f))))
+                      (lambda (existing) (guard-or existing combined-guard))
+                      (lambda () (guard-false))))))
 
 (define (builder->sym-set b)
   (for/fold ([acc (set)]) ([(v g) (in-hash (sym-set-builder-ht b))])
@@ -702,3 +749,9 @@
 (define (run-all-tests)
   (run-tests hash-tests)
   (run-tests set-tests))
+
+;; `run-all-tests` had no caller, so `raco test` never ran any of the above.
+;; These are the only direct coverage of the guarded-hash and sym-set code,
+;; which makes them worth having run automatically.
+(module+ test
+  (run-all-tests))

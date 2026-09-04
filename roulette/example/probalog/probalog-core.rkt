@@ -1,7 +1,9 @@
 #lang roulette/example/disrupt
-(require "hash-set.rkt")
+(require "hash-set.rkt"
+         "guards.rkt")
 (provide (all-defined-out)
-         (all-from-out "hash-set.rkt"))
+         (all-from-out "hash-set.rkt")
+         (all-from-out "guards.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Program representation
@@ -65,9 +67,13 @@
 ;; Probabilistic fact database
 
 ;; base-fact-probs : list of (cons fact probability)
+;;
+;; The only place a base fact's guard is created, which makes it the one
+;; place that decides how the guards are represented and -- for a backend
+;; where it matters, such as BDDs -- what order the variables come in.
 (define (make-base-set base-fact-probs)
   (for/sym-set ([fp base-fact-probs])
-    (values (car fp) (flip (cdr fp)))))
+    (values (car fp) (guard-var (cdr fp)))))
 
 
 
@@ -128,14 +134,19 @@
 ;; delta-idx, every other clause draws from full-idx.
 ;; Produces a list of (bindings . guard) pairs, or "world"s 
 (define (find-bindings-prob/at body full-idx delta-idx delta-pos)
-  (for/fold ([worlds (list (cons (hash) #t))])
+  (for/fold ([worlds (list (cons (hash) (guard-true)))])
             ([clause body] [i (in-naturals)])
     (define idx (if (= i delta-pos) delta-idx full-idx))
     (for*/list ([w worlds]
                 [fg (candidates-for clause (car w) idx)]
                 [b (in-value (match-fact clause (car fg) (car w)))]
                 #:when b)
-      (cons b (and (cdr w) (cdr fg))))))
+      ;; A world holds when every clause matched so far does, so the
+      ;; guards conjoin. This has to be `guard-and` rather than `and`:
+      ;; Rosette lifts `and` over symbolic booleans, which happens to do
+      ;; the right thing for term guards, but on any other representation
+      ;; it just returns the last operand and quietly drops the rest.
+      (cons b (guard-and (cdr w) (cdr fg))))))
 
 
 ;; `delta` is what was freshly derived in the most recent iteration.
@@ -192,6 +203,40 @@
     (define new-new-acc (time-it! add-set-union-time! (lambda () (set-union new-acc fresh))))
     (values new-full-acc new-new-acc)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Immediate consequence operator (naive)
+;;
+;; Every clause draws from the whole factset, so no derivation is ever
+;; skipped for having been found before. That is exactly the redundant
+;; work semi-naive evaluation exists to avoid, and with Rosette-term
+;; guards avoiding it is a clear win.
+;;
+;; With canonical guards it is the other way round, and dramatically so.
+;; A semi-naive round derives facts from `delta`, so the guard it builds
+;; says "newly derivable *this round*" rather than "derivable" -- a
+;; strictly more complicated condition, since it has to encode the
+;; absence of the shorter derivations as well as the presence of a new
+;; one. Those intermediate BDDs dwarf the final answer: on a
+;; friends-and-smokers ring of 14, semi-naive costs 231 million BDD
+;; operations where naive costs 179 thousand, for the same result. The
+;; redundant derivations naive evaluation performs cost almost nothing,
+;; because re-deriving a fact that is already known collapses on contact
+;; with a canonical guard.
+(define (rule-apply-prob/full r full)
+  (define idx (time-it! add-index-time! (lambda () (index-by-name full))))
+  ;; -1 is not a clause position, so no clause is restricted to a delta.
+  (define bindings (time-it! add-find-bindings-time!
+                             (lambda () (find-bindings-prob/at (rule-body r) idx idx -1))))
+  (time-it! add-guard-build-time!
+            (lambda ()
+              (for/sym-set/fast ([w bindings])
+                (values (substitute (rule-head r) (car w)) (cdr w))))))
+
+(define (immediate-naive full rules)
+  (for/fold ([acc full]) ([r rules])
+    (time-it! add-set-union-time!
+              (lambda () (set-union acc (rule-apply-prob/full r acc))))))
+
 ;; Reports a runtime failure the way the parser reports a syntax one:
 ;; prefixed with the source location of the statement responsible.
 ;; `where` is that location, already formatted, and is #f when these
@@ -200,9 +245,50 @@
   (raise (make-exn:fail (format "~a: ~a" (or where who) (apply format fmt args))
                         (current-continuation-marks))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Weighing and conditioning guards
+;;
+;; Under the term backend a guard is a Rosette term, so Roulette's own
+;; `query` and `observe!` do this work. Under the BDD backend a guard is
+;; an opaque handle that Roulette cannot see into, so the same semantics
+;; are computed directly: conditioning conjoins evidence, and a marginal
+;; is P(fact and evidence) / P(evidence) -- which is what Roulette's
+;; `query` computes too, by normalising over `(if evidence e ⊥)`.
+
+;; The accumulated evidence, as a guard. #f before anything has been
+;; observed, since `(guard-true)` cannot be evaluated until a backend has
+;; been chosen.
+(define bdd-evidence (box #f))
+(define (current-evidence) (or (unbox bdd-evidence) (guard-true)))
+
+;; A pmf over #t/#f for a guard, conditioned on the evidence so far, or
+;; #f when no world satisfies the evidence at all -- matching what
+;; Roulette's `query` returns in that case.
+(define (guard->pmf g)
+  (cond
+    [(bdd-guards?)
+     (define ev (current-evidence))
+     (define denominator (guard-prob ev))
+     (and (positive? denominator)
+          (let ([p (/ (guard-prob (guard-and g ev)) denominator)])
+            ;; Dropping zero-probability outcomes is what leaves a certain
+            ;; answer as a single-outcome pmf, which `query-result->string`
+            ;; then prints as #t or #f rather than as a table.
+            (for/pmf ([value (in-list (list #t #f))]
+                      [prob (in-list (list p (- 1 p)))]
+                      #:unless (zero? prob))
+              (values value prob))))]
+    [else (query g)]))
+
+;; Condition all later queries on `g` holding.
+(define (add-evidence! g)
+  (if (bdd-guards?)
+      (set-box! bdd-evidence (guard-and (current-evidence) g))
+      (observe! g)))
+
 ;; re-exporting query from roulette/example/disrupt as query-fact
 (define (query-fact result f #:where [where #f])
-  (define pmf (query (set-member? result f)))
+  (define pmf (guard->pmf (set-member? result f)))
   (unless pmf
     (probalog-error
      'query-fact where
@@ -226,7 +312,7 @@
 ;; satisfies every observation made so far. `query` returns #f when no
 ;; world satisfies the observations at all.
 (define (possible? guard value)
-  (define pmf (query guard))
+  (define pmf (guard->pmf guard))
   (and pmf
        (for/or ([(v p) (in-pmf pmf)])
          (and (equal? v value) (positive? p)))))
@@ -253,16 +339,16 @@
 (define (observe-fact result f #:where [where #f])
   (define guard (set-member? result f))
   (check-observable! 'observe-fact where guard #t f)
-  (observe! guard))
+  (add-evidence! guard))
 
 (define (observe-not-fact result f #:where [where #f])
   (define guard (set-member? result f))
   (check-observable! 'observe-not-fact where guard #f
                      (format "the absence of ~a" f))
-  (observe! (! guard)))
+  (add-evidence! (guard-not guard)))
 
 ;; Lower-level: condition on an arbitrary guard formula, e.g. a
 ;; disjunction of several facts being present.
 (define (observe-guard g #:where [where #f])
   (check-observable! 'observe-guard where g #t "this formula")
-  (observe! g))
+  (add-evidence! g))
