@@ -5,6 +5,7 @@
 
 (require (only-in (submod roulette/example/dice reader) read-syntax)
          (only-in "../example/disrupt/core.rkt" query pmf-hash)
+         (only-in rosette with-vc)
          racket/string
          rackunit
          syntax/parse
@@ -28,14 +29,17 @@
            (define result final))]))
   (define ns (make-base-namespace))
   (namespace-attach-module anchored-ns "../example/disrupt/core.rkt" ns)
-  (parameterize ([current-namespace ns])
-    (eval mod)
-    (define result (pmf-hash (query (dynamic-require ''anonymous 'result))))
-    (with-check-info (['program prog] ['result result])
-      (cond
-        [(= t 1.0) (check-close ϵ result (hash #t 1.0))]
-        [(= t 0.0) (check-close ϵ result (hash #f 1.0))]
-        [else (check-close ϵ result (hash #t t #f (- 1 t)))]))))
+  ;; Each trial may build up an assertion formula, so we clear that.
+  (void
+    (with-vc
+      (parameterize ([current-namespace ns])
+        (eval mod)
+        (define result (pmf-hash (query (dynamic-require ''anonymous 'result))))
+        (with-check-info (['program prog] ['result result])
+          (cond
+            [(= t 1.0) (check-close ϵ result (hash #t 1.0))]
+            [(= t 0.0) (check-close ϵ result (hash #f 1.0))]
+            [else (check-close ϵ result (hash #t t #f (- 1 t)))]))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; tests
