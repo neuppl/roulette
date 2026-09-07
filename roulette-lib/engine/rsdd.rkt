@@ -340,7 +340,7 @@
   (semiring p (lift-op z a) (lift-op u m)))
 
 (define (lift-op u op)
-  (case-λ
+  (case-lambda
    [() u]
    [args (foldl op u args)]))
 
@@ -348,7 +348,7 @@
 (define number-semiring (semiring number? + *))
 
 (define log-add
-  (case-λ
+  (case-lambda
    [() -inf.0]
    [args (log (apply + (map exp args)))]))
 (define log-semiring (semiring real? log-add +))
