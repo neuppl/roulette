@@ -5,13 +5,13 @@
 
 @(require (for-label "label.rkt"
 		     (only-in roulette/example/disrupt
-			      flip
+                              flip
                               make-categorical
-			      query
-			      observe!
-			      sample
-			      pmf?
-			      in-pmf
+                              query
+                              observe!
+                              sample
+                              pmf?
+                              in-pmf
                               region?))
 	  racket/sandbox
 	  scribble/example)

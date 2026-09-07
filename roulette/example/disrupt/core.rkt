@@ -49,14 +49,10 @@
 (define (make-region) (region (set)))
 (define (region-add! reg val)
   (set-region-vals! reg (set-add (region-vals reg) val)))
-(define (innermost-region)
-  (match (current-regions)
-    [(cons x _) x]
-    [_ top-region]))
 
 (define engine (rsdd-engine))
 (define top-region (make-region))
-(define current-regions (make-parameter null))
+(define current-regions (make-parameter (list top-region)))
 
 (struct evidence (observe sample))
 (define current-evidence (make-parameter (evidence #t #t)))
@@ -102,7 +98,7 @@
      (for*/all ([pr pr #:exhaustive] [reg reg])
        (when reg (check-region-validity! reg))
        (define-measurable* x (bernoulli-measure (- 1 pr) pr))
-       (region-add! (or reg (innermost-region)) x)
+       (region-add! (or reg (car (current-regions))) x)
        x)]))
 
 (define (check-region-validity! reg)
@@ -125,7 +121,7 @@
   (define pr (hash-ref ht result))
   (when obs
     (define-measurable* γ #:affine? #t (bernoulli-measure 1 (/ 1 pr)))
-    (region-add! (innermost-region) γ)
+    (region-add! (car (current-regions)) γ)
     (define samp′ (&& samp (guard-with-assume (&& (equal? e result) γ))))
     (current-evidence (struct-copy evidence ev [sample samp′])))
   result)
@@ -147,13 +143,16 @@
     [(_ (~alt (~optional (~seq #:samples samples:nat))
               (~optional (~seq #:region x:id))) ...
         body:expr ...+)
-     #'(query-fn (λ ((~? x)) body ...) (~? (~@ #:samples samples)))]))
+     #'(query-fn (λ ((~? x)) body ...) #f (~? (~@ #:samples samples)))]))
 
-(define (query-fn body #:samples [n 1] #:region [reg (make-region)])
-  (for/lists (vs ws #:result (mean vs ws))
-             ([_ (in-range n)])
+(define (query-fn body global? #:samples [n 1] #:region [reg (make-region)])
+  (define (with-local thk)
     (parameterize ([current-regions (cons reg (current-regions))]
                    [current-evidence (current-evidence)])
+      (thk)))
+  (for/lists (vs ws #:result (mean vs ws))
+             ([_ (in-range n)])
+    (define (thk)
       (define val (if (zero? (procedure-arity body)) (body) (body reg)))
       (match-define (evidence obs samp) (current-evidence))
       (define val′ (if (&& obs samp) val ⊥))
@@ -161,7 +160,8 @@
       (define prev-vars (allocated-vars (rest (current-regions))))
       (define ev′ (if samp obs ⊥))
       (values (query-val val′ prev-vars)
-              (query-val ev′ prev-vars)))))
+              (query-val ev′ prev-vars)))
+    (if global? (thk) (with-local thk))))
 
 (define (allocated-vars regs)
   (apply set-union (set) (map region-vals regs)))
@@ -241,8 +241,7 @@
 
 ;; At the top level, we must allocate in the top region. Additionally,
 (define (print-value thk)
-  (print-result
-   (query-fn thk #:region top-region)))
+  (print-result (query-fn thk #t)))
 
 (define ((~header f) x)
   (match x
