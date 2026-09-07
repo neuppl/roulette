@@ -6,6 +6,7 @@
 @(require (for-label "label.rkt"
 		     (only-in roulette/example/disrupt
 			      flip
+                              make-categorical
 			      query
 			      observe!
 			      sample
@@ -57,6 +58,14 @@ changes the probability of @racket[first-coin]. Conditional on
   @examples[
     #:eval evaluator #:label #f
     (if (flip 1/2) 'a 'b)]
+}
+
+@defproc[(make-categorical [distr (listof (cons any/c (real-in 0 1)))]) any/c]{
+  Returns each first component of pairs in @racket[distr]
+  with the probability given by the second component.
+  @examples[
+    #:eval evaluator #:label #f
+    (make-categorical `((a . 1/3) (b . 1/3) (c . 1/3)))]
 }
 
 @defform[(query maybe-option ... body ...+)

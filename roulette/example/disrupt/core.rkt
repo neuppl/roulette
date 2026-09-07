@@ -14,6 +14,7 @@
  sample
  observe!
  region?
+ make-categorical
 
  ;; debug
  clear-cache!
