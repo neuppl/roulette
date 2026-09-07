@@ -96,10 +96,10 @@
 
 (define (flip pr #:region [reg #f])
   (cond
-    [(= pr 0) #f]
-    [(= pr 1) #t]
+    [(base:eq? pr 0) #f]
+    [(base:eq? pr 1) #t]
     [else
-     (for*/all ([pr pr] [reg reg])
+     (for*/all ([pr pr #:exhaustive] [reg reg])
        (when reg (check-region-validity! reg))
        (define-measurable* x (bernoulli-measure (- 1 pr) pr))
        (region-add! (or reg (innermost-region)) x)
