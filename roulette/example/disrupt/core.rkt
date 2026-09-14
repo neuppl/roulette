@@ -20,6 +20,7 @@
  clear-cache!
  recursive-calls
  size
+ display-pmf
 
  ;; pmf
  pmf
@@ -259,6 +260,9 @@
         (map header '(Value Probability))
         (for/list ([(v p) (in-hash ht)])
           (list v p))))))
+
+(define (display-pmf val)
+  (print-result (query-fn (λ () val) #t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug
