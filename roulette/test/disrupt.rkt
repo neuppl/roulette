@@ -107,6 +107,28 @@
      x)
    ([#t 1/2] [#f 1/2]))
 
+  (check-program
+   (let ()
+     (define (list-uniform l)
+       (if (empty? l)
+           '()
+           (if (flip (/ 1 (length l)))
+               (first l)
+               (list-uniform (rest l)))))
+     (define (choose l k)
+       (cond
+         [(zero? k) '()]
+         [else
+          (define elem (list-uniform l))
+          (cons elem (choose (remove elem l) (sub1 k)))]))
+     (choose '(a b c) 2))
+   (['(a c) 1/6]
+    ['(a b) 1/6]
+    ['(b c) 1/6]
+    ['(b a) 1/6]
+    ['(c b) 1/6]
+    ['(c a) 1/6]))
+
   (check-equal?
    (run #:query? #f
         '(pmf-hash

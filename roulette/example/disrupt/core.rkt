@@ -36,6 +36,8 @@
 (require (prefix-in base: racket/base)
          (for-syntax racket/base
                      syntax/parse)
+         (only-in roulette/private/util
+                  flatten-symbolic)
          racket/match
          racket/struct
          roulette/engine/rsdd
@@ -96,11 +98,17 @@
     [(base:eq? pr 0) #f]
     [(base:eq? pr 1) #t]
     [else
-     (for*/all ([pr pr #:exhaustive] [reg reg])
-       (when reg (check-region-validity! reg))
-       (define-measurable* x (bernoulli-measure (- 1 pr) pr))
-       (region-add! (or reg (car (current-regions))) x)
-       x)]))
+     (define elems
+       (for/list ([(pr guard) (in-hash (flatten-symbolic pr))])
+         (when reg (check-region-validity! reg))
+         (define-measurable* x (bernoulli-measure (- 1 pr) pr))
+         (region-add! (or reg (car (current-regions))) x)
+         (cons guard x)))
+     (let go ([elems elems])
+       (match elems
+         [(list (cons _ x)) x]
+         [(cons (cons g x) rst)
+          (if g x (go rst))]))]))
 
 (define (check-region-validity! reg)
   (define regs (member reg (current-regions)))
