@@ -1,42 +1,19 @@
 #lang roulette/example/disrupt
-;; Standalone timing benchmark and plot.
+;; Standalone timing benchmark and plot: runs six programs, aggregates
+;; where saturation spends its time, and renders a stacked bar. Uses
+;; plot/no-gui, so `racket probalog-timing-plot.rkt` works as a script.
 ;;
-;; Runs six programs, aggregates where saturation spends its time, and
-;; renders a stacked horizontal bar. Uses plot/no-gui so no DrRacket
-;; window is needed and it can be run as a plain script:
+;; The six press on different parts of the engine so none dominates:
 ;;
-;;   racket probalog-timing-plot.rkt                    ; bdd, the default
-;;   PROBALOG_GUARDS=term racket probalog-timing-plot.rkt
+;;   ring        long sparse cycle          smokers   recursion, 3 clauses
+;;   chordring   dense cycle, re-derived    pointsto  mutual recursion
+;;   dag         wide converging, acyclic   sg        recursive atom in middle
 ;;
-;; The six are chosen to put pressure on different parts of the engine,
-;; so that no single one dictates the shape of the split:
-;;
-;;   ring        long sparse cycle; a large relation from few facts
-;;   chordring   dense cycle; facts re-derived many ways
-;;   dag         wide converging derivations, no cycles at all
-;;   smokers     recursion around a cyclic relation, three-clause body
-;;   pointsto    Andersen's analysis: several mutually dependent
-;;               predicates rather than one self-recursive one
-;;   sg          same generation, whose recursive atom sits in the
-;;               middle of the body
-;;
-;; Sizes are picked per guard representation, to keep the whole script
-;; under about ten seconds while leaving every program a comparable
-;; share of it. They cannot be shared between the two: the
-;; representations differ by more than an order of magnitude on some of
-;; these, so a size that takes a second under one takes milliseconds
-;; under the other. Cost grows steeply in these parameters -- one step
-;; can change the runtime severalfold -- so re-calibrate rather than
-;; nudging blindly.
-;;
-;; Only saturation is timed and broken down. `dag` is therefore a
-;; smaller slice than the others under the default representation, where
-;; its cost sits in compiling the accumulated guard at query time rather
-;; than in saturation. Sizing it up to match would make the script take
-;; minutes without moving the split it is contributing to.
+;; Only saturation is timed, so `dag` is a smaller slice: its cost is in
+;; the query, not saturation. Cost grows steeply in the size parameters,
+;; so re-calibrate rather than nudging blindly.
 (require roulette/example/probalog/probalog-core
          roulette/example/probalog/probalog-set-equal
-         (only-in roulette/example/probalog/guards bdd-guards?)
          plot/no-gui)
 (provide probalog-timing-split-plot)
 
@@ -179,23 +156,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Benchmarks
 ;;
-;; Sizes calibrated so each program takes roughly a second, separately
-;; for each guard representation.
+;; Sizes calibrated so each program takes roughly a second.
 
 (define benchmarks
-  (if (bdd-guards?)
-      (list (list "ring"       (lambda () (make-ring 45)))
-            (list "chordring"  (lambda () (make-chord-ring 16)))
-            (list "dag"        (lambda () (make-layered-dag 6 5)))
-            (list "smokers"    (lambda () (make-smokers 45)))
-            (list "pointsto"   (lambda () (make-points-to 45)))
-            (list "sg"         (lambda () (make-same-generation 6))))
-      (list (list "ring"       (lambda () (make-ring 45)))
-            (list "chordring"  (lambda () (make-chord-ring 14)))
-            (list "dag"        (lambda () (make-layered-dag 6 5)))
-            (list "smokers"    (lambda () (make-smokers 22)))
-            (list "pointsto"   (lambda () (make-points-to 45)))
-            (list "sg"         (lambda () (make-same-generation 6))))))
+  (list (list "ring"       (lambda () (make-ring 70)))
+        (list "chordring"  (lambda () (make-chord-ring 18)))
+        (list "dag"        (lambda () (make-layered-dag 7 5)))
+        (list "smokers"    (lambda () (make-smokers 70)))
+        (list "pointsto"   (lambda () (make-points-to 70)))
+        (list "sg"         (lambda () (make-same-generation 7)))))
 
 ;; Timings come from subtracting the exported accumulators before and
 ;; after. Read-only access across modules is fine; set!-ing an imported
@@ -234,17 +203,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Run benchmarks and build the chart
 
-(define mode (if (bdd-guards?) "bdd" "term"))
-
 (define results
   (for/list ([b benchmarks])
+    (displayln (car b))
     (run-benchmark (car b) (cadr b))))
 
 (define-values (wall eq bind guard union idx) (aggregate-timing results))
 
 ;; Each program's share of the total, so it is visible at a glance
 ;; whether any one of them is dictating the split.
-(printf "\nshare of total per benchmark (~a mode):\n" mode)
+(printf "\nshare of total per benchmark:\n")
 (for ([r results])
   (printf "  ~a ~a%\n"
           (~a (car r) #:width 12)
@@ -265,19 +233,19 @@
 (define total (apply + (map cdr parts)))
 
 (define probalog-timing-split-plot (plot-pict
- (stacked-histogram
-  (list (vector "" (map cdr parts)))
-  #:invert? #t
-  #:labels (for/list ([p parts])
-             (format "~a (~a%)"
-                     (car p)
-                     (~r (* 100 (/ (cdr p) total)) #:precision 1))))
- #:title (format "timing split across ~a benchmarks, ~a guards (~ams total)"
-                 (length results) mode (~r wall #:precision 0))
- #:x-label "time (ms)"
- #:y-label #f
- #:legend-anchor 'outside-right-top
- #:width 800
- #:height 300))
+                                    (stacked-histogram
+                                     (list (vector "" (map cdr parts)))
+                                     #:invert? #t
+                                     #:labels (for/list ([p parts])
+                                                (format "~a (~a%)"
+                                                        (car p)
+                                                        (~r (* 100 (/ (cdr p) total)) #:precision 1))))
+                                    #:title (format "timing split across ~a benchmarks (~ams total)"
+                                                    (length results) (~r wall #:precision 0))
+                                    #:x-label "time (ms)"
+                                    #:y-label #f
+                                    #:legend-anchor 'outside-right-top
+                                    #:width 800
+                                    #:height 300))
 
 probalog-timing-split-plot

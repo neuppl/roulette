@@ -4,6 +4,8 @@
 ;; require
 
 (require racket/port
+         racket/set
+         racket/list
          racket/string
          rackunit
          (only-in roulette/example/probalog/parser parse-probalog))
@@ -603,3 +605,262 @@
     Never("x") :: 0.
     ! Never("x").
   })
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; conditioning: properties that must hold of any evidence
+
+(module+ test
+  ;; observing an unrelated fact leaves a marginal alone
+  @check-queries['(0.3 0.3)]{
+    A("x") :: 0.3.
+    B("y") :: 0.7.
+    ? A("x").
+    ! B("y").
+    ? A("x").
+  }
+
+  ;; observing the same thing twice says nothing new the second time
+  @check-queries['(#t #t)]{
+    A("x") :: 0.5.
+    B("y") :: 0.5.
+    Both() :- A("x"), B("y").
+    ! Both().
+    ? A("x").
+    ! Both().
+    ? A("x").
+  }
+
+  ;; evidence conjoins, so the order it arrives in cannot matter.
+  ;; Given Edge(a,b), Reach(a,c) holds iff Edge(a,c) or Edge(b,c),
+  ;; so P(Edge(b,c) | both) = 0.5 / 0.75.
+  @check-queries[(list (/ 2.0 3.0))]{
+    Edge("a", "b") :: 0.5.
+    Edge("b", "c") :: 0.5.
+    Edge("a", "c") :: 0.5.
+    Reach(x, y) :- Edge(x, y).
+    Reach(x, z) :- Reach(x, y), Edge(y, z).
+    ! Reach("a", "c").
+    ! Edge("a", "b").
+    ? Edge("b", "c").
+  }
+
+  @check-queries[(list (/ 2.0 3.0))]{
+    Edge("a", "b") :: 0.5.
+    Edge("b", "c") :: 0.5.
+    Edge("a", "c") :: 0.5.
+    Reach(x, y) :- Edge(x, y).
+    Reach(x, z) :- Reach(x, y), Edge(y, z).
+    ! Edge("a", "b").
+    ! Reach("a", "c").
+    ? Edge("b", "c").
+  })
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; conditioning: impossible is not the same as unlikely
+;;
+;; Whether an outcome is possible decides both what a query prints and
+;; what an observation accepts, and it has to be decided structurally.
+;; Deciding it by comparing a weighted model count against zero fails
+;; here: a double cannot tell 1 - 2^-60 from 1, so Any() looked certain
+;; and its absence looked impossible, though one world in 2^60 has it.
+
+(module+ test
+  (define n 60)
+  (define many-flips
+    (apply string-append
+           (for/list ([i (in-range n)]) (format "F(~a) :: 0.5.\n" i))))
+
+  ;; Any() is not certain, so both outcomes survive -- even though the
+  ;; false one rounds to 0.0 when printed
+  (check-equal? (run-program
+                 (string-append "#lang roulette/example/probalog\n"
+                                many-flips
+                                "Any() :- F(x).\n? Any().\n"))
+                '("Any(): #<pmf: [#t 1.0] [#f 0.0]>"))
+
+  ;; and its absence is observable: every F is then absent too
+  @check-queries['(#f)]{@|many-flips|Any() :- F(x).
+    ! ~Any().
+    ? F(0).
+  })
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; conditioning: evidence does not outlive the guards it is built from
+;;
+;; `reset-guards!` replaces the BDD manager. Accumulated evidence refers
+;; to the old one, and using it afterwards used to fault inside Rust
+;; rather than raise.
+
+(module+ test
+  (define ns (make-base-namespace))
+  (parameterize ([current-namespace ns])
+    (define core 'roulette/example/probalog/probalog-core)
+    (define fact* (dynamic-require core 'fact))
+    (define make-base-set* (dynamic-require core 'make-base-set))
+    (define observe-fact* (dynamic-require core 'observe-fact))
+    (define query-fact* (dynamic-require core 'query-fact))
+    (define reset-guards!* (dynamic-require core 'reset-guards!))
+    (define result->string (dynamic-require core 'query-result->string))
+    (define (a-fact) (fact* 'A '("x")))
+    (define (build) (make-base-set* (list (cons (a-fact) 0.5))))
+
+    (define st (build))
+    (observe-fact* st (a-fact))
+    (check-equal? (result->string (query-fact* st (a-fact))) "#t")
+
+    ;; a reset drops the evidence with the manager that backed it
+    (reset-guards!*)
+    (define st2 (build))
+    (check-equal? (result->string (query-fact* st2 (a-fact)))
+                  "#<pmf: [#t 0.5] [#f 0.5]>")
+
+    ;; A guard made before the reset is not revalidated: nothing here
+    ;; can detect that it belongs to a manager that is gone, so using
+    ;; one stays undefined. What the reset does guarantee is that the
+    ;; engine's own state does not carry one across.
+    (void)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; conditioning: differential test against exhaustive enumeration
+;;
+;; The distribution semantics say what a posterior is: sum the
+;; probabilities of the worlds satisfying the evidence, and of those,
+;; the ones also deriving the query. With few enough base facts every
+;; world can simply be enumerated, which gives an answer computed
+;; without guards, without BDDs, and without the engine -- exactly what
+;; is wanted to check the engine against.
+;;
+;; Every subset of the candidate observations is tried, so this covers
+;; no evidence, one piece, and several accumulated, against queries on
+;; both base and derived facts.
+
+(module+ test
+  ;; --- the reference: plain Datalog, no probabilities --------------
+  ;; A rule is (head . body); an argument is a string constant or a
+  ;; symbol variable. Naive fixpoint, which is all the sizes here need.
+  (define (derive base rules)
+    (let loop ([db (list->set base)])
+      (define next
+        (for*/fold ([db db]) ([r (in-list rules)]
+                              [b (in-list (bindings (cdr r) db (hash)))])
+          (set-add db (subst (car r) b))))
+      (if (= (set-count next) (set-count db)) db (loop next))))
+
+  (define (subst atom b)
+    (cons (car atom)
+          (for/list ([a (in-list (cdr atom))])
+            (if (symbol? a) (hash-ref b a) a))))
+
+  (define (bindings body db b)
+    (cond
+      [(null? body) (list b)]
+      [else
+       (define clause (car body))
+       (for*/list ([f (in-set db)]
+                   #:when (and (eq? (car f) (car clause))
+                               (= (length (cdr f)) (length (cdr clause))))
+                   [b* (in-value (unify (cdr clause) (cdr f) b))]
+                   #:when b*
+                   [rest (in-list (bindings (cdr body) db b*))])
+         rest)]))
+
+  (define (unify pats vals b)
+    (for/fold ([b b]) ([p (in-list pats)] [v (in-list vals)])
+      (cond
+        [(not b) #f]
+        [(symbol? p) (if (equal? (hash-ref b p v) v) (hash-set b p v) #f)]
+        [(equal? p v) b]
+        [else #f])))
+
+  ;; P(query | obs) by summing over worlds, in exact rationals.
+  ;; obs is a list of (atom . present?).
+  (define (reference base rules query obs)
+    (define-values (num den)
+      (for/fold ([num 0] [den 0])
+                ([bits (in-range (expt 2 (length base)))])
+        (define-values (present weight)
+          (for/fold ([present '()] [w 1]) ([bp (in-list base)] [i (in-naturals)])
+            (define on? (bitwise-bit-set? bits i))
+            (values (if on? (cons (car bp) present) present)
+                    (* w (if on? (cdr bp) (- 1 (cdr bp)))))))
+        (define db (derive present rules))
+        (cond
+          [(zero? weight) (values num den)]
+          [(for/and ([o (in-list obs)])
+             (eq? (set-member? db (car o)) (cdr o)))
+           (values (if (set-member? db query) (+ num weight) num)
+                   (+ den weight))]
+          [else (values num den)])))
+    (and (positive? den) (/ num den)))
+
+  ;; --- rendering the same model as a probalog program ---------------
+  (define (atom->string a)
+    (format "~a(~a)" (car a)
+            (string-join (for/list ([x (in-list (cdr a))]) (format "~s" x)) ", ")))
+
+  (define (rule->string r)
+    (format "~a :- ~a."
+            (atom->string* (car r))
+            (string-join (map atom->string* (cdr r)) ", ")))
+
+  ;; variables print bare, constants quoted
+  (define (atom->string* a)
+    (format "~a(~a)" (car a)
+            (string-join (for/list ([x (in-list (cdr a))])
+                           (if (symbol? x) (symbol->string x) (format "~s" x)))
+                         ", ")))
+
+  (define (program base rules obs query)
+    (string-append
+     (apply string-append
+            (for/list ([bp (in-list base)])
+              (format "~a :: ~a.\n" (atom->string (car bp)) (exact->inexact (cdr bp)))))
+     (apply string-append (for/list ([r (in-list rules)]) (string-append (rule->string r) "\n")))
+     (apply string-append
+            (for/list ([o (in-list obs)])
+              (format "! ~a~a.\n" (if (cdr o) "" "~") (atom->string (car o)))))
+     (format "? ~a.\n" (atom->string query))))
+
+  ;; --- the cases ------------------------------------------------------
+  ;;
+  ;; Curated rather than swept: each line is a shape the conditioning
+  ;; code has a distinct path for. Expected values come from the
+  ;; enumeration above, so none of them are hand-computed.
+  (define transitive
+    (list (cons '(Reach x y) '((Edge x y)))
+          (cons '(Reach x z) '((Reach x y) (Edge y z)))))
+
+  (define base
+    (list (cons '(Edge "a" "b") 1/2)
+          (cons '(Edge "b" "c") 1/2)
+          (cons '(Edge "a" "c") 1/2)))
+
+  (define cases
+    (list
+     ;; no evidence: the prior, over two overlapping derivations
+     (cons '() '(Reach "a" "c"))
+     ;; evidence on a base fact, query on a derived one
+     (cons '(((Edge "a" "b") . #t)) '(Reach "a" "c"))
+     ;; negative evidence
+     (cons '(((Edge "a" "c") . #f)) '(Reach "a" "c"))
+     ;; evidence on a derived fact, query back on a cause
+     (cons '(((Reach "a" "c") . #t)) '(Edge "a" "b"))
+     ;; two pieces accumulated, from both directions
+     (cons '(((Reach "a" "c") . #t) ((Edge "a" "b") . #t)) '(Edge "b" "c"))
+     ;; querying the observed fact itself: certain, so prints #t
+     (cons '(((Reach "a" "c") . #t)) '(Reach "a" "c"))
+     ;; evidence that makes the query impossible: prints #f
+     (cons '(((Edge "a" "b") . #f) ((Edge "a" "c") . #f)) '(Reach "a" "c"))))
+
+  (for ([c (in-list cases)])
+    (define obs (car c))
+    (define query (cdr c))
+    (define expected (reference base transitive query obs))
+    ;; Every variable has probability strictly between 0 and 1, so an
+    ;; exact posterior of 1 or 0 means the outcome is certain, and
+    ;; probalog must print #t or #f rather than a distribution. Checking
+    ;; that here ties the printing rule to exact arithmetic.
+    (check-queries (list (cond [(= expected 1) #t]
+                               [(= expected 0) #f]
+                               [else (exact->inexact expected)]))
+                   (program base transitive obs query))))
