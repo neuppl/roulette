@@ -171,7 +171,6 @@
 ;; variable is not, which is why we subtract rather than reset.
 (define (run-benchmark name make-program)
   (define-values (facts rules query-target) (make-program))
-  (define equal-before    total-my-hash-equal?-time)
   (define bindings-before total-find-bindings-time)
   (define guard-before    total-guard-build-time)
   (define union-before    total-set-union-time)
@@ -184,31 +183,28 @@
           query-target (query-fact result query-target))
   (flush-output)
   (list name wall
-        (- total-my-hash-equal?-time   equal-before)
         (- total-find-bindings-time    bindings-before)
         (- total-guard-build-time      guard-before)
         (- total-set-union-time        union-before)
         (- total-index-time            index-before)))
 
 (define (aggregate-timing results)
-  (for/fold ([wall 0] [eq 0] [bind 0] [guard 0] [union 0] [idx 0])
+  (for/fold ([wall 0] [bind 0] [guard 0] [union 0] [idx 0])
             ([r results])
     (values (+ wall  (list-ref r 1))
-            (+ eq    (list-ref r 2))
-            (+ bind  (list-ref r 3))
-            (+ guard (list-ref r 4))
-            (+ union (list-ref r 5))
-            (+ idx   (list-ref r 6)))))
+            (+ bind  (list-ref r 2))
+            (+ guard (list-ref r 3))
+            (+ union (list-ref r 4))
+            (+ idx   (list-ref r 5)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Run benchmarks and build the chart
 
 (define results
   (for/list ([b benchmarks])
-    (displayln (car b))
     (run-benchmark (car b) (cadr b))))
 
-(define-values (wall eq bind guard union idx) (aggregate-timing results))
+(define-values (wall bind guard union idx) (aggregate-timing results))
 
 ;; Each program's share of the total, so it is visible at a glance
 ;; whether any one of them is dictating the split.
@@ -220,8 +216,7 @@
 
 (define named
   (list (cons "find-bindings"      bind)
-        (cons "set-add"            guard)
-        (cons "my-hash-equal?"     eq)
+        (cons "deriving heads"     guard)
         (cons "index construction" idx)
         (cons "set-union"          union)))
 

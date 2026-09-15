@@ -66,18 +66,11 @@
   (for/fold ([acc (hash-keys ht1)]) ([k (in-hash-keys ht2)])
     (if (hash-has-key? ht1 k) acc (cons k acc))))
 
-(define total-my-hash-equal?-time 0.0)
-
-;; Equality used in fixpoint detection
+;; Semantic equality: every key present under equivalent conditions.
+;; Not used by the fixpoint loop, which compares `changed-keys` instead.
 (define (my-hash-equal? ht1 ht2 [keys (all-keys ht1 ht2)])
-  (define start (current-inexact-monotonic-milliseconds))
-  (define result
-    (for/and ([key (in-list keys)])
-      (guard-equiv? (pc ht1 key) (pc ht2 key))))
-  (set! total-my-hash-equal?-time
-        (+ total-my-hash-equal?-time
-           (- (current-inexact-monotonic-milliseconds) start)))
-  result)
+  (for/and ([key (in-list keys)])
+    (guard-equiv? (pc ht1 key) (pc ht2 key))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Sets
