@@ -16,10 +16,12 @@
                      syntax/parse)
          racket/match
          racket/struct
+         (only-in rosette/base/base normal? result-value)
          rosette/base/core/bool
          rosette/base/core/polymorphic
          rosette/base/core/term
-         rosette/base/core/union)
+         rosette/base/core/union
+         rosette/base/core/eval)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ffi
@@ -99,8 +101,10 @@
               (for*/hash/or ([(e-val e-guard) (in-hash e-hash)]
                              [(et-val et-guard) (in-hash et-hash)])
                 (values (cons e-val et-val) (&& e-guard et-guard)))])))
-       (for*/hash/or ([(vs g) (in-hash es-hash)])
-         (values (apply op vs) g))]
+       (for*/hash/or ([(vs g) (in-hash es-hash)]
+                      #:do [(define v-result (with-vc (apply op vs)))]
+                      #:when (normal? v-result))
+         (values (result-value v-result) g))]
       [(? struct?)
        (define-values (si _) (struct-info val))
        (define fields (struct->list val))

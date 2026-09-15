@@ -129,6 +129,26 @@
     ['(c b) 1/6]
     ['(c a) 1/6]))
 
+  (check-program
+   (let ()
+     (define (list-uniform l m)
+       (define n (length l))
+       (cond
+         [(flip (/ 1 (- n m))) l]
+         [else (list-uniform (rest l) m)]))
+
+     (define (choose l k)
+       (cond
+         [(= k 0) '()]
+         [else
+          (define result (list-uniform l (sub1 k)))
+          (cons (first result) (choose (rest result) (sub1 k)))]))
+
+     (choose '(a b c) 2))
+   (['(a c) 1/4]
+    ['(a b) 1/4]
+    ['(b c) 1/2]))
+
   (check-equal?
    (run #:query? #f
         '(pmf-hash
