@@ -5,14 +5,14 @@
 
 @(require (for-label "label.rkt"
 		     (only-in roulette/example/disrupt
-			      flip
-			      query
-			      observe!
-			      with-observe
-			      sample
-			      with-sample
-			      pmf?
-			      in-pmf))
+                              flip
+                              make-categorical
+                              query
+                              observe!
+                              sample
+                              pmf?
+                              in-pmf
+                              region?))
 	  racket/sandbox
 	  scribble/example)
 
@@ -49,22 +49,56 @@ changes the probability of @racket[first-coin]. Conditional on
 @racket[both-heads] being @racket[#f], the probability @racket[first-coin] being
 @racket[#t] is @racket[1/3].
 
-@defproc[(flip [p (real-in 0 1)]) boolean?]{
+@defproc[(flip [p (real-in 0 1)] [#:region reg (or/c region? #f) #f]) boolean?]{
   Returns a Boolean where @racket[#t] has probability @racket[p]
   and @racket[#f] has probability @racket[(- 1 p)].
+  Optionally,
+  @racket[flip] can be given a region to place the newly created value.
+  See @racket[query] for details.
   @examples[
     #:eval evaluator #:label #f
     (if (flip 1/2) 'a 'b)]
 }
 
-@defproc[(query [e any/c]) pmf?]{
+@defproc[(make-categorical [distr (listof (cons any/c (real-in 0 1)))]) any/c]{
+  Returns each first component of pairs in @racket[distr]
+  with the probability given by the second component.
+  @examples[
+    #:eval evaluator #:label #f
+    (make-categorical `((a . 1/3) (b . 1/3) (c . 1/3)))]
+}
+
+@defform[(query maybe-option ... body ...+)
+         #:grammar
+         [(maybe-option (code:line)
+                        (code:line #:samples iter)
+                        (code:line #:region reg-id))]]{
   Returns the probability mass function (PMF) associated with @racket[e].
-  In other words, @racket[query] performs top-level inference. See
+  In other words, @racket[query] performs nested inference. See
   @racket[in-pmf] for an example of how to use the result of this
   function.
+  Observations are delimited to the dynamic extent of @racket[body]. After
+  @racket[body] has finished, any observations executed during @racket[body]
+  are forgotten.
   @examples[
     #:eval evaluator #:label #f
     (query (flip 1/2))]
+  The @racket[#:samples] option runs @racket[body] expression @racket[iter] times,
+  producing a probabilistic value according to the sampling distribution.
+  The @racket[#:region] option binds @racket[reg-id] to the region associated
+  with the query. A region is a first-class representation of dynamic extent.
+  Each application of @racket[flip] places its return value in a region.
+  A query marginalizes only over variables in its region.
+  After a region ends,
+  the values associated with that region are considered discarded
+  and their probability cannot be computed.
+  @examples[
+    #:eval evaluator #:label #f
+    (query (flip 1/2))
+    (let ([x (flip 1/2)]) (query x))
+    (query (query (flip 1/2)))
+    (query (let ([x (flip 1/2)]) (query x)))
+    (query #:region r (query (flip 1/2 #:region r)))]
 }
 
 @defproc[(observe! [e boolean?]) void?]{
@@ -78,19 +112,6 @@ changes the probability of @racket[first-coin]. Conditional on
     (and x y)]
 }
 
-@defform[(with-observe body ...+)]{
-  Delimits observations to the dynamic extent of @racket[body]. After
-  @racket[body] has finished, any observations executed during @racket[body]
-  are forgotten.
-  @examples[#:eval evaluator #:label #f
-    (define x (flip 1/2))
-    (define y (flip 1/2))
-    (with-observe
-      (observe! x)
-      (query (and x y)))
-    (query (and x y))]
-}
-
 @defproc[(sample [e any/c]) any/c]{
   Samples a concrete value from the given probabilistic value.
   @examples[
@@ -98,30 +119,22 @@ changes the probability of @racket[first-coin]. Conditional on
     (sample (flip 1/2))]
 }
 
-@defform[(with-sample iter body ...+)]{
-  Runs the @racket[body] expression @racket[iter] times,
-  producing a probabilistic value according to the sampling distribution.
-  Note that observations are automatically delimited
-  (using @racket[with-observe])
-  inside of @racket[body]
-  to prevent observations from leaking between samples.
-  @examples[
-    #:eval evaluator #:label #f
-    (with-sample 100
-      (sample (flip 1/3)))]
-}
-
 @defproc[(in-pmf [e pmf?]) stream?]{
   Sequence constructor for PMFs.
   @examples[
     #:eval evaluator #:label #f
-    (define (expectation v)
-      (for/sum ([(val prob) (in-pmf (query v))])
-	(* val prob)))
+    (define-syntax-rule (expectation e)
+      (for/all ([pmf (query e)])
+        (for/sum ([(val prob) (in-pmf pmf)])
+	  (* val prob))))
 
     (expectation (if (flip 1/2) 5 10))]
 }
 
 @defproc[(pmf? [e any/c]) boolean?]{
   Predicate for PMFs.
+}
+
+@defproc[(region? [e any/c]) boolean?]{
+  Predicate for regions.
 }

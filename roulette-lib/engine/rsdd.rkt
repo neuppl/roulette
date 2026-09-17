@@ -6,37 +6,78 @@
 (require (except-in racket/contract ->)
          (rename-in racket/contract [-> base->]))
 (provide
- (struct-out semiring)
  (contract-out
   [rename make-rsdd-engine
           rsdd-engine
           (->* ()
                (#:semiring semiring?)
                (is-a?/c engine<%>))]
-  [bernoulli-measure (->i ([f (s) (if (unsupplied-arg? s) real-semiring s)]
-                           [t (s) (if (unsupplied-arg? s) real-semiring s)])
+  [bernoulli-measure (->i ([f (s) (if (unsupplied-arg? s) number-semiring s)]
+                           [t (s) (if (unsupplied-arg? s) number-semiring s)])
                           (#:semiring [s semiring?])
                           any)]
+  [rename make-semiring
+          semiring
+          (->i ([p predicate/c]
+                [zero (p) p]
+                [add (p) (base-> p p p)]
+                [one (p) p]
+                [mul (p) (base-> p p p)])
+               [_ semiring?])]
+  [semiring? predicate/c]
+  [semiring-zero (base-> semiring? any/c)]
+  [semiring-add (base-> semiring? procedure?)]
+  [semiring-one (base-> semiring? any/c)]
+  [semiring-mul (base-> semiring? procedure?)]
   [boolean-semiring semiring?]
-  [real-semiring semiring?]
-  [complex-semiring semiring?]
+  [number-semiring semiring?]
   [log-semiring semiring?]
+  [expectation-semiring semiring?]
   [polynomial-semiring (base-> semiring? semiring?)]))
 
+;; The BDD layer underneath the engine, for callers that want to build and
+;; weigh BDDs directly rather than going through `infer` on Rosette terms.
+;; A client that carries BDDs through its own computation -- rather than
+;; building a Rosette term and compiling it once at the end -- gets
+;; canonicalisation at every step, which is the point of exposing this.
+;;
+;; These are raw FFI wrappers over librsdd and are unContracted: the
+;; pointer types are opaque, and mixing pointers from two different
+;; builders is undefined. Hold one builder per computation.
+;;
+;; Weighting convention for `wmc`: `weight-map` is a gvector indexed by
+;; the label of a variable, holding `(cons false-weight true-weight)`;
+;; `weight-cache` is a box of allocated scratch cells, which the caller
+;; should hand to `free-weight-cache` (or register a finalizer for) when
+;; done.
+;;
+;; SHARP EDGE: `wmc` memoises per BDD node in that node's scratch cell and
+;; never invalidates it, so its results are only valid for as long as the
+;; weight map is unchanged. That is a feature when weights are fixed --
+;; repeated counts over the same BDDs are nearly free -- but if you change
+;; a weight you must `rsdd-clear-scratch!` every node you have counted, or
+;; you will silently read stale values back.
 (provide
+ ;; manager
  mk-bdd-manager-default-order free-bdd-manager
+ ;; variables
  rsdd-label rsdd-var
+ ;; operations
  rsdd-and rsdd-or rsdd-not rsdd-ite rsdd-compose
+ ;; constants and tests
  make-rsdd-true make-rsdd-false
  rsdd-true? rsdd-false? rsdd-const? rsdd-neg? rsdd-equal?
+ ;; structure
  rsdd-low rsdd-high rsdd-topvar
+ ;; weighted model counting
  wmc free-weight-cache rsdd-clear-scratch!
+ ;; instrumentation
  rsdd-nodes rsdd-num-recursive-calls)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 
-(require (only-in rosette/base/core/reflect symbolics)
+(require (only-in rosette define-symbolic* [boolean? @boolean?] [if @if])
          ffi/unsafe
          ffi/unsafe/custodian
          ffi/unsafe/define
@@ -184,69 +225,84 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; engine
 
-(define (make-rsdd-engine #:semiring [semi real-semiring])
+(define (make-rsdd-engine #:semiring [semi number-semiring])
   (new rsdd-engine% [semi semi]))
 
 (define rsdd-engine%
   (class* object% (engine<%>)
-    (init semi)
+    (init-field semi)
     (super-new)
 
-    (define semiring semi)
-    (define zero (semiring-zero semi))
-    (define add (semiring-add semi))
     (define builder (mk-bdd-manager-default-order 0))
     (register-finalizer-and-custodian-shutdown builder free-bdd-manager)
 
     (define/cache (const->label _) (rsdd-label builder))
     (define enc (make-enc builder const->label))
     (define weight-map (make-gvector))
+    (define smoothing-map (make-hash))
     (define weight-cache (box '()))
+    (define smoothing #t)
     (register-finalizer-and-custodian-shutdown weight-cache free-weight-cache)
+
+    ;; Use `in-measures` for "program order" as the variable order.
+    (define (ensure-labels-exist!)
+      (for ([(var measure pc) (in-measures)]
+            #:do [(define label (const->label var))]
+            #:unless (< label (gvector-count weight-map)))
+        (define semi (measure-codomain measure))
+        (match-define (semiring _ add mul) semi)
+        (define one (semiring-one semi))
+        (define density (measure-density measure))
+        (define f (density #f))
+        (define t (density #t))
+        (define f+t (add f t))
+        (gvector-set! weight-map label (list f t semi))
+        ;; The `=` is needed for detecting neutrality when numbers become inexact
+        (unless (or (eq? pc #f) (equal? f+t one) (and (number? f+t) (= f+t one)))
+          (define-symbolic* smoothing-var @boolean?)
+          (define smoothing-label (const->label smoothing-var))
+          (set! smoothing (@&& smoothing (@=> pc (@<=> var smoothing-var))))
+          (gvector-set! weight-map smoothing-label (list one one semi))
+          (hash-set! smoothing-map label smoothing-label))))
 
     (define/public (domain)
       (immutable-set/c any/c))
 
-    (define/public (infer val path-aware? lazy? env)
-      (define assumes (if path-aware? (vc-assumes (vc)) #t))
-      (define vars (list->set (append (symbolics val) (symbolics assumes))))
-
-      ;; Use `in-measures` for "program order" as the variable order.
-      (for ([(var measure) (in-measures)]
-            #:when (set-member? vars var))
-        (define f (measure (set #f)))
-        (define t (measure (set #t)))
-        (define label (const->label var))
-        (gvector-set! weight-map label (cons f t)))
+    (define/public (infer val kept-vars)
+      (define add (semiring-add semi))
+      (define zero (semiring-zero semi))
+      (define assumes (vc-assumes (vc)))
+      (ensure-labels-exist!)
+      (define kept-map
+        (for/hash ([kept-var (in-set kept-vars)])
+          (values (const->label kept-var) kept-var)))
 
       ;; Compute measure
       (define ht (flatten-symbolic val))
       (define (procedure elems)
-        (for/fold ([acc zero])
-                  ([elem (in-set elems)])
-          (add acc (density elem))))
-      (define/cache (density val)
+        (apply add (set-map elems density)))
+      (define/cache (density elem)
         (cond
-          [(hash-has-key? ht val)
-           (define g (&& assumes (hash-ref ht val)))
-           (wmc (enc (if env (substitute g env) g)) weight-map weight-cache semiring)]
+          [(hash-has-key? ht elem)
+           (define ϕ (&& assumes smoothing (hash-ref ht elem)))
+           (wmc (enc ϕ) kept-map weight-map weight-cache semi)]
           [else zero]))
-      (define support
-        (list->set
-         (if lazy?
-             (hash-keys ht)
-             (filter (λ (k) (not (equal? (density k) zero))) (hash-keys ht)))))
-      (measure procedure support density (immutable-set/c any/c)))
+      (define/cache (support)
+        (for/set ([elem (in-hash-keys ht)]
+                  #:unless (equal? (density elem) zero))
+          elem))
+      (measure procedure support density (immutable-set/c any/c) semi))
 
     (define/public (recursive-calls)
       (rsdd-num-recursive-calls builder))
 
-    (define/public (size v)
-      (for/sum ([f (in-hash-values (flatten-symbolic v))])
-        (rsdd-nodes (enc f))))
+    (define/public (size val)
+      (ensure-labels-exist!)
+      (for/sum ([f (in-hash-values (flatten-symbolic (&& val smoothing)))])
+        (bdd-size (enc f))))
 
     (define/public (show val)
-      (for/list ([(val expr) (in-hash (flatten-symbolic val))])
+      (for/list ([(val expr) (in-hash (flatten-symbolic (&& val smoothing)))])
         (define bdd (enc expr))
         (define p (bdd->pict bdd))
         (cons p val)))))
@@ -254,25 +310,27 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; bernoulli
 
-(define (bernoulli-measure f t #:semiring [s real-semiring])
-  (define zero (semiring-zero s))
+(define (bernoulli-measure f t #:semiring [s number-semiring])
   (define add (semiring-add s))
+  (define zero (semiring-zero s))
   (define (proc val)
     (add (if (set-member? val #f) f zero)
          (if (set-member? val #t) t zero)))
   (define (density val)
     (if val t f))
-  (define support
+  (define support-value
     (for/set ([val '(#f #t)]
               #:unless (equal? (density val) zero))
       val))
-  (measure proc support density (immutable-set/c @boolean?)))
+  (measure proc (const support-value) density (immutable-set/c @boolean?) s))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; weight maps
 
-(define (wmc val weight-map weight-cache semi)
-  (match-define (semiring _ zero add one mul) semi)
+(define (wmc val kept-map weight-map weight-cache semi)
+  (match-define (semiring _ add mul) semi)
+  (define zero (semiring-zero semi))
+  (define one (semiring-one semi))
   (let go ([val val])
     (define neg? (rsdd-neg? val))
     (define-values (self other)
@@ -287,15 +345,22 @@
       [(rsdd-true? val) (if neg? zero one)]
       [(rsdd-false? val) (if neg? one zero)]
       [else
-       (match-define (cons f t) (gvector-ref weight-map (bdd-topvar val)))
-       (define result
-         (add (mul f (go (rsdd-low val))) (mul t (go (rsdd-high val)))))
-       (define scratch
-         (malloc-immobile-cell
-          (if neg? (cons other result) (cons result other))))
-       (set-box! weight-cache (cons scratch (unbox weight-cache)))
-       (rsdd-set-scratch! val scratch)
-       result])))
+       (define label (bdd-topvar val))
+       (define kept-var (hash-ref kept-map label #f))
+       (cond
+         [kept-var
+          (@if kept-var (go (rsdd-high val)) (go (rsdd-low val)))]
+         [else
+          (match-define (list f t (semiring _ add mul))
+            (gvector-ref weight-map label))
+          (define result
+            (add (mul f (go (rsdd-low val))) (mul t (go (rsdd-high val)))))
+          (define scratch
+            (malloc-immobile-cell
+             (if neg? (cons other result) (cons result other))))
+          (set-box! weight-cache (cons scratch (unbox weight-cache)))
+          (rsdd-set-scratch! val scratch)
+          result])])))
 
 (define (free-weight-cache cache)
   (for ([ptr (in-list (unbox cache))])
@@ -304,31 +369,43 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; semirings
 
-(struct semiring (predicate zero add one mul)
-  #:property prop:procedure 0
-  #:guard
-  (λ (predicate zero add one mul name)
-    (unless (procedure? predicate)
-      (raise-arguments-error name "invalid predicate"))
-    (unless (and (procedure? add) (procedure-arity-includes? add 2))
-      (raise-arguments-error name "invalid addition"))
-    (unless (and (procedure? mul) (procedure-arity-includes? mul 2))
-      (raise-arguments-error name "invalid multiplication"))
-    (values predicate zero add one mul)))
+(struct semiring (predicate add mul)
+  #:property prop:procedure 0)
 
-(define boolean-semiring
-  (semiring boolean? #f (λ (x y) (or x y)) #t (λ (x y) (and x y))))
-(define real-semiring (semiring real? 0 + 1 *))
-(define complex-semiring (semiring complex? 0 + 1 *))
-(define log-semiring
-  (semiring inexact-real?
-            -inf.0
-            (λ (x y) (log (+ (exp x) (exp y))))
-            0
-            +))
+(define (semiring-zero s) ((semiring-add s)))
+(define (semiring-one s) ((semiring-mul s)))
 
-(define (polynomial-semiring coeff-semi)
-  (match-define (semiring predicate _ add one mul) coeff-semi)
+(define (make-semiring p z a u m)
+  (semiring p (lift-op z a) (lift-op u m)))
+
+(define (lift-op u op)
+  (case-lambda
+   [() u]
+   [args (foldl op u args)]))
+
+(define boolean-semiring (semiring boolean? || &&))
+(define number-semiring (semiring number? + *))
+
+(define log-add
+  (case-lambda
+   [() -inf.0]
+   [args (log (apply + (map exp args)))]))
+(define log-semiring (semiring real? log-add +))
+
+(define expectation-semiring
+  (make-semiring
+   (list/c (real-in 0 1) real?)
+   (list 0 0)
+   (match-λ**
+    [((list p u) (list q v))
+     (list (+ p q) (+ u v))])
+   (list 1 0)
+   (match-λ**
+    [((list p u) (list q v))
+     (list (* p q) (+ (* p v) (* q u)))])))
+
+(define (polynomial-semiring semi)
+  (match-define (semiring predicate add mul) semi)
   (define (polynomial? v)
     (and (list? v) (andmap predicate v)))
   (define (polynomial-add p1 p2)
@@ -352,7 +429,9 @@
          (define index (+ k l))
          (vector-set! result index (add (vector-ref result index) (mul c1 c2))))
        (vector->list result)]))
-  (semiring polynomial? '() polynomial-add (list one) polynomial-mul))
+  (make-semiring polynomial?
+                 '() polynomial-add
+                 (list (mul)) polynomial-mul))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; encoding
@@ -407,41 +486,19 @@
   enc)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; substitution
+;; size
 
-(define (substitute v env)
-  (define/cache (go v)
-    (match v
-      [(? expression?) (go-expr v)]
-      [(? constant?)   (hash-ref env v v)]
-      [_               v]))
-
-  (define (go-expr v)
-    (match v
-      [(or (expression (== @||)
-                       (expression (== @&&) (expression (== @!) g) e1)
-                       (expression (== @&&) g e2))
-           (expression (== @||)
-                       (expression (== @&&) g e2)
-                       (expression (== @&&) (expression (== @!) g) e1)))
-       (if-then-else (go g) (go e1) (go e2))]
-
-      [(expression (? procedure? $op) es ...)
-       (apply $op (map go es))]))
-
-  (go v))
-
-(define (if-then-else g e1 e2)
-  (cond
-    [(eq? g #t) e1]
-    [(eq? g #f) e2]
-    [(eq? e1 #t) (|| g e2)]
-    [(eq? e1 #f) (&& (! g) e2)]
-    [(eq? e2 #t) (|| g e1)]
-    [(eq? e2 #f) (&& (! g) e1)]
-    [else (expression @||
-                      (expression @&& (expression @! g) e1)
-                      (expression @&& g e2))]))
+(define/cache (bdd-size v)
+  (define DONE (malloc-immobile-cell #t))
+  (begin0
+    (let go ([v v])
+      (cond
+        [(or (rsdd-const? v) (eq? DONE (rsdd-scratch v #f))) 0]
+        [else
+         (rsdd-set-scratch! v DONE)
+         (+ 1 (go (rsdd-low v)) (go (rsdd-high v)))]))
+    (free-immobile-cell DONE)
+    (rsdd-clear-scratch! v)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; visualization

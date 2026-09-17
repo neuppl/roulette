@@ -17,14 +17,12 @@
  (contract-out
   [infer (->i ([val (eng) (measurable-space-point (send (if (unsupplied-arg? eng) default-engine eng) domain))])
               (#:engine [eng (is-a?/c engine<%>)]
-               #:path-aware? [path-aware? boolean?]
-               #:lazy? [lazy? boolean?]
-               #:environment [env (or/c #f hash?)])
-              any)])
+               #:keep [keep set?])
+              any)]
+  [support (-> measure? any)])
 
  ;; `private/measure.rkt`
  (contract-out
-  [rename measure-support support (-> measure? any)]
   [rename measure-density density (-> measure? any)]
   [measure/c (-> measurable-space? flat-contract? chaperone-contract?)])
 
@@ -57,26 +55,27 @@
 
 (define-syntax -define-measurable
   (syntax-parser
-    [(_ x:id ...+ e:expr)
+    [(_ x:id ...+ (~optional (~seq #:affine? n:expr) #:defaults ([n #'#f])) e:expr)
      #'(begin
          (define m e)
          (define-symbolic x ... (measure-point m))
-         (measures-set! x m) ...)]))
+         (measures-set! x m n) ...)]))
 
 (define-syntax -define-measurable*
   (syntax-parser
-    [(_ x:id ...+ e:expr)
+    [(_ x:id ...+ (~optional (~seq #:affine? n:expr) #:defaults ([n #'#f])) e:expr)
      #'(begin
          (define m e)
          (define-symbolic* x ... (measure-point m))
-         (measures-set! x m) ...)]))
+         (measures-set! x m n) ...)]))
 
 (define (measure-point m)
   (measurable-space-point (measure-domain m)))
 
 (define (infer val
                #:engine [eng default-engine]
-               #:path-aware? [path-aware? #f]
-               #:lazy? [lazy? #f]
-               #:environment [env #f])
-  (send eng infer val path-aware? lazy? env))
+               #:keep [kept-vars '()])
+  (send eng infer val kept-vars))
+
+(define (support m)
+  ((measure-support m)))
