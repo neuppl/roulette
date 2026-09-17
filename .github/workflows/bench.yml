@@ -1,0 +1,82 @@
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+name: benchmark
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+
+      # Racket
+      #
+      # Pinned to a fixed release (rather than "current") so that a
+      # performance change in the benchmark results can be attributed to a
+      # roulette commit, not to Racket itself changing underneath us.
+      # Packages are a separate story: building roulette-lib/roulette/
+      # gtp-util/etc. from scratch is the expensive part, so we cache the
+      # package addon dir via actions/cache. This works whether the job runs
+      # on an ephemeral GitHub-hosted runner or a persistent self-hosted one,
+      # since the cache lives in GitHub's cache service rather than relying
+      # on the runner's local disk.
+
+      - name: Clean previous Racket install
+        run: rm -rf "${{ github.workspace }}/.racket"
+
+      - uses: Bogdanp/setup-racket@v1.15
+        with:
+          architecture: "x64"
+          distribution: "full"
+          version: "9.2"
+          dest: "${{ github.workspace }}/.racket"
+          sudo: never
+
+      - name: Point package installs at the addon dir
+        run: echo "PLTADDONDIR=${{ github.workspace }}/.racket-addon" >> "$GITHUB_ENV"
+
+      - name: Cache Racket packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.racket-addon
+          key: racket-pkgs-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            racket-pkgs-${{ runner.os }}-
+
+      - name: Update dependencies
+        run: sh update.sh
+
+      - name: Run benchmarks
+        run: cd roulette/benchmark && timeout --kill-after=10s 5m racket run_benchmarks.rkt ${{github.sha}} "${{ github.event.head_commit.message }}"
+
+      - name: Checkout benchmark data repository
+        uses: actions/checkout@v7
+        with:
+          repository: "Smaran-Teja/roulette-bench-data"
+          path: "roulette-bench-data" # This will be a subdirectory
+          token: ${{ secrets.PAT }} # MUST use PAT for push permissions
+          persist-credentials: true # Keep credentials for push
+
+      - name: log
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Output of ls: $(ls -la)"
+      - name: Copy results to benchmark data repository
+        run: |
+          mkdir -p roulette-bench-data/extra roulette-bench-data/benchmark
+          rsync -av roulette/benchmark/ roulette-bench-data/benchmark
+          rsync -av roulette/extra/ roulette-bench-data/extra
+      - name: Generate Scribble docs
+        run: |
+          cp roulette/site.scribl roulette-bench-data/site.scribl
+          cd roulette-bench-data
+          raco scribble --htmls site.scribl
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          cd roulette-bench-data
+          git add .
+          git commit -m "push benchmark results"
+          git push

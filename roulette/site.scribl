@@ -1,0 +1,870 @@
+#lang scribble/manual
+@(require racket/path
+          racket/file
+          racket/list
+          racket/string
+          racket/match
+          json
+          markdown
+          plot/no-gui
+          plot/utils
+          file/convertible
+          scribble/base
+          racket/date)
+
+@title{Benchmarking results summary}
+@margin-note{These plots were generated on @(date->string (current-date))@(let ([c (latest-commit-link)]) (if c @elem{, from commit @|c|} ""))@(let ([m (latest-commit-msg)]) (if m @elem{: @|m|} ""))}
+
+
+Benchmarks are organized into groups, one per subdirectory of a run's data
+folder. Each group gets its own section below, and within a section every
+benchmark that group produced is shown --- including any nested in subdirectories
+of the group, which are flattened in and identified by file name. The plots are
+generated from the data in the @tt{data/} directory.
+
+Each ordinary benchmark is shown with three plots side-by-side --- timing (real,
+cpu and gc time), number of recursive calls, and total size --- each tracked
+across benchmark runs.
+
+Scaling benchmarks (those produced by the @tt{scale} form) are rendered
+differently: their metrics are reported across a series of expressions from the 
+most recent run rather than across runs. They appear inline within whichever
+group they belong to, mixed among the ordinary benchmarks, and are flagged 
+with a @tt{(scaling benchmark)} tag next to their name.
+
+Maximum-argument benchmarks (those produced by the @tt{max-arg} form) are also
+rendered specially: a single plot tracking the largest feasible argument across
+runs. They too appear inline within their group, flagged with a
+@tt{(max-arg benchmark)} tag.
+
+Additionally, there are benchmarks for the code profiler in the Extra plots
+section. These are generated from the files in the @tt{extra} directory and are
+not part of the normal benchmarking data.
+
+You can find these files and data in the @hyperlink["https://github.com/Smaran-Teja/roulette-bench-data"]{roulette-bench-data} repository.
+
+These benchmarks are re-generated with each commit to the @hyperlink["https://github.com/neuppl/roulette"]{roulette} repository.
+
+@section{Change since previous run}
+
+@(summary-blocks)
+
+@;; ---------------------------------------------------------------------------
+@;; Data loading
+@;;
+@;; The benchmark runner writes one directory per run under data/, named
+@;; run_<ISO-8601 timestamp> (e.g. run_2026-07-17T19:22:07). Because that naming
+@;; sorts lexicographically in chronological order, we can sort the run
+@;; directories by name. Within each run directory the JSON results live inside
+@;; per-group subdirectories (e.g. small/, scaling/, max-arg/) rather than at the
+@;; run's root, and may be nested further within those group subdirectories.
+@;; ---------------------------------------------------------------------------
+
+@(define data-dir "benchmark/data")
+@(define plots-dir "benchmark/plots")
+
+@(define (run-dirs)
+   (if (directory-exists? data-dir)
+       (sort
+        (filter (lambda (p)
+                  (and (directory-exists? p)
+                       (regexp-match? #rx"^run_"
+                                      (path->string (file-name-from-path p)))))
+                (directory-list data-dir #:build? #t))
+        string<?
+        #:key (lambda (p) (path->string (file-name-from-path p))))
+       '()))
+
+@;; The full commit hash recorded in COMMIT_HASH.txt in a run's directory, or #f
+@;; for older runs that predate the commit-hash file.
+@(define (commit-hash-full d)
+   (define f (build-path d "COMMIT_HASH.txt"))
+   (and (file-exists? f) (string-trim (file->string f))))
+
+@;; The x-axis label for a run: the first 7 characters of the commit hash. Older
+@;; runs without a commit hash fall back to the run directory name.
+@(define (commit-label d)
+   (define h (commit-hash-full d))
+   (if h
+       (substring h 0 (min 7 (string-length h)))
+       (path->string (file-name-from-path d))))
+
+@;; A short commit label (7 chars) hyperlinked to the full commit on GitHub.
+@(define (commit-hyperlink d)
+   (define full (commit-hash-full d))
+   (if full
+       (hyperlink (string-append "https://github.com/neuppl/roulette/commit/" full)
+                  (commit-label d))
+       (commit-label d)))
+
+@;; The commit message recorded in COMMIT_MSG.txt in a run's directory, or #f
+@;; for runs that predate the commit-message file.
+@(define (commit-msg d)
+   (define f (build-path d "COMMIT_MSG.txt"))
+   (and (file-exists? f) (string-trim (file->string f))))
+
+@;; The most recent run's commit as a short hyperlinked label, or #f when there
+@;; are no runs or the latest run predates the commit-hash file.
+@(define (latest-commit-link)
+   (define runs (run-dirs))
+   (and (pair? runs)
+        (commit-hash-full (last runs))
+        (commit-hyperlink (last runs))))
+
+@;; The most recent run's commit message, or #f when there are no runs or the
+@;; latest run predates the commit-message file.
+@(define (latest-commit-msg)
+   (define runs (run-dirs))
+   (and (pair? runs) (commit-msg (last runs))))
+
+@;; ---------------------------------------------------------------------------
+@;; Group and benchmark discovery.
+@;;
+@;; A "group" is a subdirectory name (e.g. "small") that appears directly inside
+@;; one or more run directories; each group becomes one section. Within a group,
+@;; a "benchmark" is a result file. Result files may be nested in arbitrary
+@;; subdirectories of the group; we flatten that subtree and identify each
+@;; benchmark by its bare file name. Files are discovered extension-agnostically:
+@;; every regular file in the subtree is treated as a benchmark result and parsed
+@;; as JSON. (The max-arg form currently writes files with a .rkt extension though
+@;; their contents are JSON, so we cannot key off the extension.)
+@;; ---------------------------------------------------------------------------
+
+@;; Every distinct group (subdirectory) name seen across all runs, in name order.
+@(define (groups)
+   (sort
+    (remove-duplicates
+     (append*
+      (for/list ([d (in-list (run-dirs))])
+        (for/list ([p (in-list (directory-list d #:build? #t))]
+                   #:when (directory-exists? p))
+          (path->string (file-name-from-path p))))))
+    string<?))
+
+@;; Every result file (recursively) inside `group` within run dir `d`, as full
+@;; paths in name order. Result files may be nested in arbitrary subdirectories
+@;; of the group; we walk the whole group subtree, treating every regular file as
+@;; a result. Sorting keeps discovery and lookup deterministic regardless of
+@;; filesystem order.
+@(define (group-result-paths d group)
+   (define gd (build-path d group))
+   (if (directory-exists? gd)
+       (sort
+        (for/list ([p (in-directory gd)]
+                   #:when (and (file-exists? p) (not (readme-file? p))))
+          p)
+        string<?
+        #:key path->string)
+       '()))
+
+@;; A README.md file (case-insensitive) --- these are rendered as section prose
+@;; rather than parsed as benchmark results, so they are excluded from result
+@;; discovery.
+@(define (readme-file? p)
+   (string-ci=? (path->string (file-name-from-path p)) "README.md"))
+
+@;; The full path of the result file named `filename` (a bare file name, since
+@;; the group subtree is flattened) within `group` of run `d`, or #f when that
+@;; run produced no such file. When two nested files share a name the first in
+@;; name order wins.
+@(define (find-result-file d group filename)
+   (for/first ([p (in-list (group-result-paths d group))]
+               #:when (string=? (path->string (file-name-from-path p)) filename))
+     p))
+
+@;; Every distinct result-file name seen within `group` across all runs, in name
+@;; order. Nested files are identified by their bare file name (the group subtree
+@;; is flattened).
+@(define (group-files group)
+   (sort
+    (remove-duplicates
+     (append*
+      (for/list ([d (in-list (run-dirs))])
+        (for/list ([p (in-list (group-result-paths d group))])
+          (path->string (file-name-from-path p))))))
+    string<?))
+
+@;; A "record" is a (cons run-label jsexpr) pair. aligned-records returns one
+@;; entry per run, in run order, pairing each run's label with its parsed record
+@;; --- or with #f when that run did not produce `filename` within `group`. Keeping
+@;; the missing runs (rather than dropping them) lets run-indexed plots leave a
+@;; visible break at the gap instead of collapsing it.
+@(define (aligned-records group filename)
+   (for/list ([d (in-list (run-dirs))])
+     (define f (find-result-file d group filename))
+     (cons (commit-label d)
+           (and f (call-with-input-file f read-json)))))
+
+@;; ---------------------------------------------------------------------------
+@;; Benchmark-type classification. We key off the most recent run's record, so a
+@;; benchmark that only recently changed shape is classified by its current
+@;; shape.
+@;; ---------------------------------------------------------------------------
+
+@;; Is this record a scaling record? The `scale` form tags its JSON "scaling"
+@;; with a list of x-axis labels (one per scaled expression) and reports each
+@;; metric as a list, whereas ordinary benchmarks set "scaling" to #f and report
+@;; scalar metrics.
+@(define (scaling-record? rec)
+   (list? (hash-ref rec 'scaling #f)))
+
+@;; Is this record a max-arg record? The `max-arg` form writes a minimal json
+@;; tagged "max-arg": true whose sole metric is "arg-value" (the largest feasible
+@;; argument found that run).
+@(define (max-arg-record? rec)
+   (eq? #t (hash-ref rec 'max-arg #f)))
+
+@;; The x-axis labels for a scaling benchmark: the source syntax of each scaled
+@;; expression, as recorded under "scaling".
+@(define (scale-labels rec)
+   (hash-ref rec 'scaling))
+
+@;; ---------------------------------------------------------------------------
+@;; Run-to-run comparison, for the "change since previous run" summary at the
+@;; top of the page. This compares only the latest two runs (not the full
+@;; history the plots below cover), so it answers "did the most recent commit
+@;; help or hurt" rather than "how have things trended over time".
+@;; ---------------------------------------------------------------------------
+
+@;; Up to the last `n` elements of `lst`, preserving order. Unlike take-right,
+@;; tolerates fewer than `n` elements so callers can handle "not enough runs
+@;; yet" instead of crashing.
+@(define (last-up-to lst n)
+   (define len (length lst))
+   (if (<= len n) lst (list-tail lst (- len n))))
+
+@;; The parsed record for `filename` within `group` of run `d`, or #f when that
+@;; run produced no such file. Like aligned-records, but for one specific run
+@;; rather than every run.
+@(define (record-in d group filename)
+   (define f (find-result-file d group filename))
+   (and f (call-with-input-file f read-json)))
+
+@;; (list group filename prev-rec latest-rec) for every benchmark --- in a
+@;; group that gets its own section below --- present in both `prev-dir` and
+@;; `latest-dir`. A benchmark missing from either run (new, removed, or a gap)
+@;; is left out rather than reaching further back, since the point is
+@;; specifically "vs. the run immediately before".
+@(define (paired-benchmarks prev-dir latest-dir)
+   (filter values
+    (for*/list ([group (in-list (groups))]
+                #:when (group-readme-path group)
+                [filename (in-list (group-files group))])
+      (define prev (record-in prev-dir group filename))
+      (define latest (record-in latest-dir group filename))
+      (and prev latest (list group filename prev latest)))))
+
+@;; The entries of `paired` classified as ordinary benchmarks, keyed off the
+@;; latest run's record shape (consistent with benchmark-item's dispatch).
+@(define (regular-comparisons paired)
+   (filter (lambda (c) (not (or (scaling-record? (fourth c)) (max-arg-record? (fourth c)))))
+           paired))
+
+@;; The entries of `paired` classified as max-arg benchmarks. Scaling
+@;; benchmarks have no analogous helper: they report a per-run profile across
+@;; scaled inputs rather than a single value, so a run-to-run percent change
+@;; isn't meaningful the way it is for the other two kinds, and they're left
+@;; out of this summary entirely.
+@(define (max-arg-comparisons paired)
+   (filter (lambda (c) (max-arg-record? (fourth c))) paired))
+
+@;; (list group filename pct) for every comparison in `comparisons` whose
+@;; previous value under `key` is positive. A percent change from a zero
+@;; baseline is undefined, so those benchmarks are left out rather than
+@;; reported as an infinite swing.
+@(define (metric-pct-changes comparisons key)
+   (filter values
+    (for/list ([c (in-list comparisons)])
+      (define prev-v (exact->inexact (total (hash-ref (third c) key))))
+      (define latest-v (exact->inexact (total (hash-ref (fourth c) key))))
+      (and (> prev-v 0) (list (first c) (second c) (* 100.0 (/ (- latest-v prev-v) prev-v)))))))
+
+@;; Percent-point threshold below which a change counts as "about the same"
+@;; rather than better/worse --- run-to-run timing jitter alone can easily
+@;; cross a fraction of a percent, so treating every nonzero change as a real
+@;; regression would be reporting noise as signal.
+@(define noise-threshold-pct 1.0)
+
+@;; The aggregate percent change across `pcts` (each a per-benchmark percent
+@;; change from metric-pct-changes), as a geometric mean of the underlying
+@;; ratios rather than an arithmetic mean of the percentages themselves. This
+@;; matters because percentage changes are asymmetric: a benchmark that
+@;; doubles and then halves nets to +25% under an arithmetic mean of the two
+@;; percentages, even though it ended up unchanged, whereas the geometric mean
+@;; correctly nets that to 0%. Returns #f for an empty list.
+@(define (geometric-mean-pct-change pcts)
+   (and (pair? pcts)
+        (* 100.0
+           (sub1 (expt (for/fold ([acc 1.0]) ([p (in-list pcts)]) (* acc (+ 1.0 (/ p 100.0))))
+                       (/ 1.0 (length pcts)))))))
+
+@;; Render a percent change with an explicit sign, e.g. "+12.3%" or "-4.0%".
+@(define (format-pct p)
+   (format "~a~a%" (if (>= p 0) "+" "") (real->decimal-string p 1)))
+
+@;; One itemlist entry summarizing `key`'s change across `comparisons`: the
+@;; aggregate percent change and how many benchmarks moved in each direction
+@;; beyond noise-threshold-pct. `better`/`worse` name the direction in this
+@;; metric's own terms (e.g. "faster"/"slower" for time, "fewer"/"more" for a
+@;; call count).
+@(define (metric-change-item label comparisons key better worse)
+   (define changes (metric-pct-changes comparisons key))
+   (define pcts (map third changes))
+   (cond
+     [(null? pcts) (item (bold label) ": no benchmarks comparable across both runs.")]
+     [else
+      (define worse-n (count (lambda (p) (> p noise-threshold-pct)) pcts))
+      (define better-n (count (lambda (p) (< p (- noise-threshold-pct))) pcts))
+      (define same-n (- (length pcts) worse-n better-n))
+      (item (bold label)
+            (format ": typical change ~a across ~a benchmarks --- ~a ~a, ~a ~a, ~a about the same."
+                    (format-pct (geometric-mean-pct-change pcts)) (length pcts)
+                    worse-n worse better-n better same-n))]))
+
+@;; A short "largest regression / largest improvement" callout naming the
+@;; single most-changed benchmark (by real time) in each direction. Omitted
+@;; when fewer than two benchmarks are comparable, since with only one there's
+@;; nothing to contrast it against.
+@(define (biggest-movers-item comparisons)
+   (define changes (metric-pct-changes comparisons 'real_time_ms))
+   (cond
+     [(< (length changes) 2) '()]
+     [else
+      (define worst (argmax third changes))
+      (define best (argmin third changes))
+      (list
+       (item "Largest real-time regression: " (tt (second worst)) (format " (~a)" (format-pct (third worst))))
+       (item "Largest real-time improvement: " (tt (second best)) (format " (~a)" (format-pct (third best)))))]))
+
+@;; One itemlist entry summarizing max-arg benchmarks: how many found a larger
+@;; vs. smaller feasible argument in the latest run. Higher is better here
+@;; (finding a larger argument within the same recursive-call limit) --- the
+@;; opposite sense from the timing/size/call-count metrics above --- so it's
+@;; reported on its own rather than folded into metric-change-item.
+@(define (max-arg-summary-item comparisons)
+   (cond
+     [(null? comparisons) '()]
+     [else
+      (define deltas
+        (for/list ([c (in-list comparisons)])
+          (- (hash-ref (fourth c) 'arg-value) (hash-ref (third c) 'arg-value))))
+      (define grew (count positive? deltas))
+      (define shrank (count negative? deltas))
+      (define same (- (length deltas) grew shrank))
+      (list (item (bold "Max-arg benchmarks")
+                  (format ": ~a of ~a increased their maximum feasible argument, ~a decreased, ~a unchanged."
+                          grew (length deltas) shrank same)))]))
+
+@;; The full "change since previous run" section body: a sentence naming the
+@;; two runs being compared, followed by an itemlist of aggregate stats. Falls
+@;; back to a one-line note when there aren't yet two runs to compare.
+@(define (summary-blocks)
+   (define runs (last-up-to (run-dirs) 2))
+   (cond
+     [(null? runs) (list (para (italic "No benchmark runs recorded yet.")))]
+     [(< (length runs) 2)
+      (list (para (italic "Only one benchmark run recorded so far --- performance comparisons will appear starting with the next run.")))]
+     [else
+      (define prev-dir (first runs))
+      (define latest-dir (second runs))
+      (define paired (paired-benchmarks prev-dir latest-dir))
+      (define regular (regular-comparisons paired))
+      (define max-arg-pairs (max-arg-comparisons paired))
+      (define excluded-n (- (length paired) (length regular) (length max-arg-pairs)))
+      (append
+       (list
+        (para "Comparing the latest run (" (commit-hyperlink latest-dir)
+              (let ([m (commit-msg latest-dir)]) (if m (format ": ~a" m) ""))
+              ") to the previous run (" (commit-hyperlink prev-dir)
+              (let ([m (commit-msg prev-dir)]) (if m (format ": ~a" m) ""))
+              ").")
+        (itemlist
+         (append
+          (list (metric-change-item "Real time" regular 'real_time_ms "faster" "slower"))
+          (biggest-movers-item regular)
+          (list (metric-change-item "Recursive calls" regular 'recursive-calls "fewer" "more"))
+          (list (metric-change-item "Total size" regular 'total-size "smaller" "larger"))
+          (max-arg-summary-item max-arg-pairs))))
+       (if (zero? excluded-n)
+           '()
+           (list (para (italic (format "~a scaling benchmark~a not included above --- they report a profile across scaled inputs within a single run rather than a single value to compare across runs."
+                                        excluded-n (if (= excluded-n 1) "" "s")))))))]))
+
+@;; ---------------------------------------------------------------------------
+@;; Plotting helpers
+@;; ---------------------------------------------------------------------------
+
+@;; Custom x-axis ticks: one tick per run, labelled with the run's commit hash
+@;; (see commit-label). When there are many runs we thin the ticks (roughly ten
+@;; labels) so they don't overlap, mirroring the behaviour of the old Python
+@;; script. The "run_" strip only matters for the older-run fallback label.
+@(define (make-run-ticks labels)
+   (define n (length labels))
+   (define step (max 1 (quotient n 10)))
+   (ticks
+    (lambda (lo hi)
+      (for/list ([i (in-range n)]
+                 #:when (zero? (modulo i step)))
+        (pre-tick i #t)))
+    (lambda (lo hi pts)
+      (for/list ([pt (in-list pts)])
+        (define i (inexact->exact (round (pre-tick-value pt))))
+        (string-replace (list-ref labels i) "run_" "")))))
+
+@;; Turn a benchmark filename into a plot filename stem, e.g. "n-grid.json" -> "n-grid".
+@(define (stem filename)
+   (path->string (path-replace-suffix filename "")))
+
+@;; The timing metrics (real/cpu/gc) are now recorded as a (make-time
+@;; query-time) pair --- the cost of building the expression and of querying it.
+@;; For now we report their total (make + query). Non-timing metrics are scalars
+@;; and pass through unchanged.
+@(define (total v) (if (list? v) (apply + v) v))
+
+@;; Build the (vector x y) data points for one metric across the runs. recs is
+@;; aligned to every run (see aligned-records); a run with no record contributes
+@;; a +nan.0 y-value, which plot omits from the markers and treats as a break in
+@;; the connecting line --- so an interior run missing this benchmark shows as a
+@;; gap rather than a bridged segment.
+@(define (series recs key)
+   (for/list ([i (in-naturals)]
+              [r (in-list recs)])
+     (vector i (if (cdr r) (total (hash-ref (cdr r) key)) +nan.0))))
+
+@;; A line + marker renderer for a single metric (matches matplotlib marker="o").
+@(define (metric-renderers recs key color label)
+   (define pts (series recs key))
+   (list (lines pts #:color color #:label label #:width 2)
+         (points pts #:color color #:sym 'fullcircle #:size 6)))
+
+@;; Does run `r` carry the make/query real-time split (a two-element list)? False
+@;; for runs missing this benchmark or predating the split (a bare scalar).
+@(define (has-real-split? r)
+   (pair? (and (cdr r) (hash-ref (cdr r) 'real_time_ms))))
+
+@;; (vector i y) points for one component of the real_time_ms (make query) pair
+@;; across runs; `pick` selects/combines the components. Missing runs --- and
+@;; older runs that predate the split and stored a bare scalar --- contribute
+@;; +nan.0 so the stacked bands break at the gap rather than bridging it.
+@(define (real-split-series recs pick)
+   (for/list ([i (in-naturals)]
+              [r (in-list recs)])
+     (define v (and (cdr r) (hash-ref (cdr r) 'real_time_ms)))
+     (vector i (if (pair? v) (pick v) +nan.0))))
+
+@;; Stacked-bar renderers for the make-vs-query split: a filled make bar (0..make)
+@;; and a query bar (make..make+query) at each run's index. Used as the fallback
+@;; when only one run carries data, since a stacked area needs at least two
+@;; x-values to fill (a lone point would show only markers). Bars are half a unit
+@;; wide, centred on the run index so they line up with the run ticks.
+@(define (real-split-bar-renderers recs)
+   (define half 0.3)
+   (define (bars y-lo y-hi color label)
+     (rectangles
+      (for/list ([i (in-naturals)] [r (in-list recs)] #:when (has-real-split? r))
+        (define v (hash-ref (cdr r) 'real_time_ms))
+        (vector (ivl (- i half) (+ i half)) (ivl (y-lo v) (y-hi v))))
+      #:color color #:line-color color #:alpha 0.5 #:label label))
+   (list
+    (list (bars (lambda (v) 0) first "blue" "make (real)"))
+    (list (bars first (lambda (v) (+ (first v) (second v))) "orange" "query (real)"))))
+
+@;; Stacked-area renderers for the make-vs-query real-time split across runs: a
+@;; lower band from 0 to make time, and an upper band from make to make+query
+@;; (so the top edge is the total real time). Each band is a filled interval
+@;; between two curves plus a marked total line on top for readability. Falls
+@;; back to stacked bars when fewer than two runs carry data, since an area can't
+@;; fill a single x-value.
+@(define (real-split-renderers recs)
+   (cond
+     [(< (count has-real-split? recs) 2) (real-split-bar-renderers recs)]
+     [else
+      (define zero (for/list ([i (in-naturals)] [r (in-list recs)]) (vector i 0)))
+      (define mk (real-split-series recs first))
+      (define tot (real-split-series recs (lambda (v) (+ (first v) (second v)))))
+      (list
+       (list (lines-interval zero mk #:color "blue" #:alpha 0.5
+                             #:line1-style 'transparent #:line2-color "blue"
+                             #:label "make (real)"))
+       (list (lines-interval mk tot #:color "orange" #:alpha 0.5
+                             #:line1-style 'transparent #:line2-color "orange"
+                             #:label "query (real)")
+             (points tot #:color "orange" #:sym 'fullcircle #:size 6)))]))
+
+@;; Render a run-indexed plot to plots/<group>/<out-stem>.svg and return an
+@;; @image element for it. renderers is a list of renderer lists (one per
+@;; metric). The default size is sized to fit three plots side-by-side; the
+@;; single-plot callers (max-arg) widen it.
+@(define (render-plot group out-stem title y-label renderers labels
+                      #:y-ticks [y-ticks (plot-y-ticks)]
+                      #:width [width 460]
+                      #:height [height 380])
+   (define out-dir (build-path plots-dir group))
+   (make-directory* out-dir)
+   (define out (build-path out-dir (string-append out-stem ".svg")))
+   (parameterize ([plot-x-ticks (make-run-ticks labels)]
+                  [plot-y-ticks y-ticks]
+                  [plot-x-label "Run"]
+                  [plot-y-label y-label]
+                  [plot-title title]
+                  [plot-x-tick-label-angle 45]
+                  [plot-x-tick-label-anchor 'top-right]
+                  [plot-width width]
+                  [plot-height height])
+     (plot-file (append* renderers) out 'svg))
+   (image #:scale 1 (path->string out)))
+
+@;; ---------------------------------------------------------------------------
+@;; Scaling-plot helpers. A scaling benchmark reports each metric as a list of
+@;; values within a single run (one per scale step), so the x-axis here is the
+@;; scale step index rather than the run. Plots are narrower so three fit
+@;; side-by-side.
+@;; ---------------------------------------------------------------------------
+
+@;; One x-axis tick per scaled expression, labelled with that expression's
+@;; source syntax (e.g. "(main 2)").
+@(define (make-scale-ticks labels)
+   (define n (length labels))
+   (ticks
+    (lambda (lo hi)
+      (for/list ([i (in-range n)])
+        (pre-tick i #t)))
+    (lambda (lo hi pts)
+      (for/list ([pt (in-list pts)])
+        (list-ref labels (inexact->exact (round (pre-tick-value pt))))))))
+
+@;; (vector step-index value) points for one list-valued metric.
+@(define (scale-series lst)
+   (for/list ([i (in-naturals)]
+              [v (in-list lst)])
+     (vector i v)))
+
+@(define (scale-metric-renderers lst color label)
+   (define pts (scale-series lst))
+   (list (lines pts #:color color #:label label #:width 2)
+         (points pts #:color color #:sym 'fullcircle #:size 6)))
+
+@;; Stacked-area renderers for the make-vs-query real-time split across scale
+@;; steps. `pairs` is the list of (make query) real-time pairs, one per step
+@;; (i.e. the raw real_time_ms of a scaling record). Lower band 0..make, upper
+@;; band make..make+query, mirroring real-split-renderers for the run axis. A
+@;; step from an older record that lacks the split (a bare scalar) breaks the
+@;; band with +nan.0.
+@(define (scale-real-split-renderers pairs)
+   (define (mk-part p) (if (pair? p) (first p) +nan.0))
+   (define (tot-part p) (if (pair? p) (+ (first p) (second p)) +nan.0))
+   (define zero (for/list ([i (in-naturals)] [p (in-list pairs)]) (vector i 0)))
+   (define mk (for/list ([i (in-naturals)] [p (in-list pairs)]) (vector i (mk-part p))))
+   (define tot (for/list ([i (in-naturals)] [p (in-list pairs)]) (vector i (tot-part p))))
+   (list
+    (list (lines-interval zero mk #:color "blue" #:alpha 0.5
+                          #:line1-style 'transparent #:line2-color "blue"
+                          #:label "make (real)"))
+    (list (lines-interval mk tot #:color "orange" #:alpha 0.5
+                          #:line1-style 'transparent #:line2-color "orange"
+                          #:label "query (real)")
+          (points tot #:color "orange" #:sym 'fullcircle #:size 6))))
+
+@;; Render one scaling plot to plots/<group>/<stem>-<suffix>.svg. labels are the
+@;; per-expression x-axis labels.
+@(define (render-scale-plot group filename suffix title y-label renderers labels)
+   (define out-dir (build-path plots-dir group))
+   (make-directory* out-dir)
+   (define out (build-path out-dir
+                           (string-append (stem filename) "-" suffix ".svg")))
+   (parameterize ([plot-x-ticks (make-scale-ticks labels)]
+                  [plot-x-label "Expression"]
+                  [plot-y-label y-label]
+                  [plot-title title]
+                  [plot-x-tick-label-angle 45]
+                  [plot-x-tick-label-anchor 'top-right]
+                  [plot-width 420]
+                  [plot-height 360])
+     (plot-file (append* renderers) out 'svg))
+   (image #:scale 1 (path->string out)))
+
+@;; Y-axis ticks for a max-arg plot: one at every candidate argument value
+@;; start, start+step, start+2*step, ... that falls within the plot's range.
+@(define (make-arg-ticks start step)
+   (ticks
+    (lambda (lo hi)
+      (define first-k (inexact->exact (floor (/ (- lo start) step))))
+      (define last-k (inexact->exact (ceiling (/ (- hi start) step))))
+      (for*/list ([k (in-inclusive-range first-k last-k)]
+                  [v (in-value (+ start (* k step)))]
+                  #:when (and (>= v lo) (<= v hi)))
+        (pre-tick v #t)))
+    (lambda (lo hi pts)
+      (for/list ([pt (in-list pts)])
+        (number->string (pre-tick-value pt))))))
+
+@;; ---------------------------------------------------------------------------
+@;; Per-benchmark item builders. Each returns an itemlist item rendered
+@;; according to the benchmark's type.
+@;; ---------------------------------------------------------------------------
+
+@;; An ordinary benchmark: three run-indexed plots (timing, recursive calls,
+@;; total size) side-by-side, with a stacked make-vs-query real-time plot on a
+@;; second row.
+@(define (regular-item group filename recs)
+   (define labels (map car recs))
+   (define name (stem filename))
+   (item @bold{@name}
+         (linebreak)
+         (tabular
+          #:sep (hspace 3)
+          (list
+           (list
+            (render-plot
+             group (string-append name "-timing")
+             (format "Timing for ~a" name) "Time (ms)"
+             (list (metric-renderers recs 'real_time_ms "blue" "real_time_ms")
+                   (metric-renderers recs 'cpu_time_ms "orange" "cpu_time_ms")
+                   (metric-renderers recs 'gc_time_ms "green" "gc_time_ms"))
+             labels)
+            (render-plot
+             group (string-append name "-recursive-calls")
+             (format "Recursive Calls for ~a" name) "Number of Recursive Calls"
+             (list (metric-renderers recs 'recursive-calls "green" "recursive-calls"))
+             labels)
+            (render-plot
+             group (string-append name "-total-size")
+             (format "Total Size for ~a" name) "Total Size"
+             (list (metric-renderers recs 'total-size "purple" "total-size"))
+             labels))
+           (list
+            (render-plot
+             group (string-append name "-real-split")
+             (format "Real time (make vs query) for ~a" name) "Real time (ms)"
+             (real-split-renderers recs)
+             labels)
+            "" "")))))
+
+@;; A scaling benchmark: three scale-indexed plots side-by-side, with a stacked
+@;; make-vs-query real-time plot on a second row. Flagged with a "(scaling
+@;; benchmark)" tag. Plotted from the most recent run.
+@(define (scaling-item group filename recs latest)
+   (define labels (scale-labels latest))
+   (define name (stem filename))
+   (item @bold{@name} " (scaling benchmark)"
+         (linebreak)
+         (tabular
+          #:sep (hspace 3)
+          (list
+           (list
+            (render-scale-plot
+             group filename "timing"
+             (format "Timing for ~a" name) "Time (ms)"
+             (list (scale-metric-renderers (map total (hash-ref latest 'real_time_ms)) "blue" "real_time_ms")
+                   (scale-metric-renderers (map total (hash-ref latest 'cpu_time_ms)) "orange" "cpu_time_ms")
+                   (scale-metric-renderers (map total (hash-ref latest 'gc_time_ms)) "green" "gc_time_ms"))
+             labels)
+            (render-scale-plot
+             group filename "recursive-calls"
+             (format "Recursive Calls for ~a" name) "Number of Recursive Calls"
+             (list (scale-metric-renderers (hash-ref latest 'recursive-calls) "green" "recursive-calls"))
+             labels)
+            (render-scale-plot
+             group filename "total-size"
+             (format "Total Size for ~a" name) "Total Size"
+             (list (scale-metric-renderers (hash-ref latest 'total-size) "purple" "total-size"))
+             labels))
+           (list
+            (render-scale-plot
+             group filename "real-split"
+             (format "Real time (make vs query) for ~a" name) "Real time (ms)"
+             (scale-real-split-renderers (hash-ref latest 'real_time_ms))
+             labels)
+            "" "")))))
+
+@;; A max-arg benchmark: a single run-indexed plot of the largest feasible
+@;; argument, flagged with a "(max-arg benchmark)" tag. start/step/rec-limit were
+@;; added later; older runs may lack them, so we degrade gracefully to default
+@;; y-ticks and no rec-limit note.
+@(define (max-arg-item group filename recs latest)
+   (define name (stem filename))
+   (define start (hash-ref latest 'start #f))
+   (define step (hash-ref latest 'step #f))
+   (define rec-limit (hash-ref latest 'rec-limit #f))
+   (item @bold{@name} " (max-arg benchmark)"
+         (if rec-limit
+             (format " (rec-limit: ~a, start: ~a, step: ~a)" rec-limit start step)
+             "")
+         (linebreak)
+         (render-plot
+          group (string-append name "-max-arg")
+          (format "Max argument for ~a" name)
+          "Max argument value"
+          (list (metric-renderers recs 'arg-value "red" "arg-value"))
+          (map car recs)
+          #:y-ticks (if (and start step)
+                        (make-arg-ticks start step)
+                        (plot-y-ticks))
+          #:width 800 #:height 480)))
+
+@;; Dispatch a single benchmark file to the right item builder, returning a
+@;; one-element list (or '() when the file produced no records).
+@(define (benchmark-item group filename)
+   (define aligned (aligned-records group filename))
+   (define present (filter cdr aligned))
+   (cond
+     [(null? present) '()]
+     [else
+      (define latest (cdr (last present)))
+      (cond
+        [(scaling-record? latest) (list (scaling-item group filename present latest))]
+        [(max-arg-record? latest) (list (max-arg-item group filename aligned latest))]
+        [else (list (regular-item group filename aligned))])]))
+
+@;; The itemlist of every benchmark in a group.
+@(define (group-section group)
+   (itemlist
+    (append*
+     (for/list ([filename (in-list (group-files group))])
+       (benchmark-item group filename)))))
+
+@;; ---------------------------------------------------------------------------
+@;; Group READMEs. Each group directory may carry a README.md (copied there per
+@;; run alongside the results); we render it as prose at the top of the group's
+@;; section. Scribble has no native Markdown reader, so we parse the file with
+@;; the `markdown` package (yielding xexprs) and convert that subset of HTML to
+@;; Scribble content.
+@;; ---------------------------------------------------------------------------
+
+@;; The README.md for `group`, taken from the most recent run that carries one.
+@;; We prefer a README at the group root but fall back to the first (in name
+@;; order) found anywhere in the group subtree, mirroring how result files are
+@;; flattened --- this covers groups like "sandia" whose data lives in a nested
+@;; subdirectory. Returns #f when no run supplied a README.
+@(define (group-readme-path group)
+   (for/or ([d (in-list (reverse (run-dirs)))])
+     (define gd (build-path d group))
+     (and (directory-exists? gd)
+          (let ([direct (build-path gd "README.md")])
+            (if (file-exists? direct)
+                direct
+                (for/first ([p (in-list (sort (for/list ([p (in-directory gd)]
+                                                          #:when (readme-file? p))
+                                                p)
+                                              string<? #:key path->string))])
+                  p))))))
+
+@;; The HTML attribute value for `key` in an xexpr attribute list, or `default`.
+@(define (md-attr attrs key default)
+   (cond [(assq key attrs) => cadr] [else default]))
+
+@;; HTML entities the markdown parser may emit as bare symbols, mapped to their
+@;; literal characters. Unknown entities are dropped.
+@(define (md-entity sym)
+   (case sym
+     [(mdash) "—"] [(ndash) "–"] [(hellip) "…"]
+     [(amp) "&"] [(lt) "<"] [(gt) ">"] [(quot) "\""] [(nbsp) " "]
+     [(lsquo) "‘"] [(rsquo) "’"]
+     [(ldquo) "“"] [(rdquo) "”"]
+     [else ""]))
+
+@;; Every string buried anywhere under an xexpr (skipping tag and attributes),
+@;; used to recover the text of a code block.
+@(define (md-strings x)
+   (cond [(string? x) (list x)]
+         [(and (pair? x) (list? x)) (append-map md-strings (cddr x))]
+         [else '()]))
+
+@(define (md-inlines xs) (map md->scribble xs))
+
+@;; Convert one markdown xexpr to Scribble content. Block elements become
+@;; paragraphs/lists/verbatim blocks; inline elements become the corresponding
+@;; elements. Unknown tags degrade to their rendered children.
+@(define (md->scribble x)
+   (match x
+     [(? string? s) s]
+     [(? symbol? s) (md-entity s)]
+     [(list 'p _ body ...) (para (md-inlines body))]
+     [(list (or 'h1 'h2 'h3 'h4 'h5 'h6) _ body ...)
+      (para (bold (md-inlines body)))]
+     [(list 'strong _ body ...) (bold (md-inlines body))]
+     [(list 'em _ body ...) (italic (md-inlines body))]
+     [(list 'code _ body ...) (tt (md-inlines body))]
+     [(list 'a attrs body ...)
+      (hyperlink (md-attr attrs 'href "") (md-inlines body))]
+     [(list 'img attrs _ ...) (md-attr attrs 'alt "")]
+     [(list 'br _ ...) (linebreak)]
+     [(list 'li _ body ...) (apply item (md-inlines body))]
+     [(list 'ul _ items ...)
+      (apply itemlist (md-inlines (filter (lambda (i) (and (pair? i) (eq? (car i) 'li))) items)))]
+     [(list 'ol _ items ...)
+      (keyword-apply itemlist (list '#:style) (list 'ordered)
+                     (md-inlines (filter (lambda (i) (and (pair? i) (eq? (car i) 'li))) items)))]
+     [(list (or 'pre 'blockquote) _ _ ...)
+      (let ([strs (md-strings x)])
+        (apply verbatim (if (null? strs) (list "") strs)))]
+     [(list 'hr _ ...) (para "")]
+     [(list _ _ body ...) (md-inlines body)]
+     [_ ""]))
+
+@;; The README file `f` rendered as a list of Scribble blocks, suitable for
+@;; splicing into a section flow. Returns '() when `f` is #f or missing.
+@(define (render-readme f)
+   (if (and f (file-exists? f))
+       (map md->scribble (parse-markdown (file->string f)))
+       '()))
+
+@;; The rendered README for `group` (empty when the group has no README).
+@(define (group-readme-blocks group)
+   (render-readme (group-readme-path group)))
+
+@;; One @section per group (titled by the group's subdirectory name), each
+@;; followed by that group's README and then its benchmarks. Groups without a
+@;; README are skipped entirely.
+@(append*
+  (for/list ([group (in-list (groups))]
+             #:when (group-readme-path group))
+    (append (list (section group))
+            (group-readme-blocks group)
+            (list (group-section group)))))
+
+@;; ---------------------------------------------------------------------------
+@;; Extra plots. Every .rkt file in extra/ may provide any number of
+@;; identifiers whose value is renderable (a pict, image, plot snip, or anything
+@;; else implementing the convertible interface). We enumerate those files,
+@;; dynamically require every provided identifier from each, and display every
+@;; renderable value under a heading naming the identifier that is exported.
+@;; Non-renderable provides (helper functions, etc.) are skipped. Files are
+@;; processed in name order.
+@;; ---------------------------------------------------------------------------
+
+@(define extra-dir "extra")
+
+@(define (extra-rkt-files)
+   (if (directory-exists? extra-dir)
+       (for/list ([p (in-directory extra-dir)]
+                  #:when (regexp-match? #rx"\\.rkt$" (path->string p)))
+         p)
+       '()))
+
+@;; The phase-0 value identifiers provided by a module, in name order. We
+@;; declare the module (without instantiating it) so module->exports can
+@;; inspect it.
+@(define (provided-identifiers mod)
+   (dynamic-require mod (void))
+   (define-values (vars stxs) (module->exports mod))
+   (define phase-0 (cond [(assv 0 vars) => cdr] [else '()]))
+   (sort (map car phase-0) symbol<?))
+
+@(define (other-plots-section)
+   (itemlist
+    (append*
+     (for/list ([filename (in-list (extra-rkt-files))])
+       (append*
+        (for/list ([id (in-list (provided-identifiers filename))])
+          (define val (dynamic-require filename id))
+          (if (convertible? val)
+              (list
+               (item @bold{@(symbol->string id)}
+                     (linebreak)
+                     (centered val)))
+              '())))))))
+
+@section{Extra plots}
+@(render-readme (build-path extra-dir "README.md"))
+@(other-plots-section)

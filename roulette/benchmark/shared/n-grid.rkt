@@ -1,10 +1,5 @@
 #lang roulette/example/disrupt
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; require
-
-(require "lattice.rkt")
-(provide gtp-n-grid-2)
+(provide make-grid)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; grid
 
@@ -27,10 +22,3 @@
   (if (and dep1 dep2)
       (flip 0.5)
       (flip 0.4)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; tests
-
-;; lattice test
-(define gtp-n-grid-2 (cost-lattice (make-grid 2) #:iterations 10))
-gtp-n-grid-2

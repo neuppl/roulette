@@ -31,4 +31,5 @@
   '("racket-doc"
     "rosette"
     "sandbox-lib"
-    "scribble-lib"))
+    "scribble-lib"
+    "mischief"))

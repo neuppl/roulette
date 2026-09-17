@@ -1,0 +1,38 @@
+{
+  "name": "probalog",
+  "displayName": "Probalog",
+  "description": "Syntax highlighting for Probalog, the probabilistic Datalog built on Roulette.",
+  "version": "0.1.0",
+  "publisher": "roulette",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "probalog",
+        "aliases": [
+          "Probalog",
+          "probalog"
+        ],
+        "extensions": [
+          ".pdl",
+          ".probalog"
+        ],
+        "firstLine": "^#lang\\s+roulette/example/probalog\\s*$",
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "probalog",
+        "scopeName": "source.probalog",
+        "path": "./syntaxes/probalog.tmLanguage.json"
+      }
+    ]
+  }
+}
