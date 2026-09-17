@@ -1,15 +1,12 @@
 #lang roulette/example/disrupt
 (require "probalog-core.rkt")
-(provide run-datalog)
+(provide run-datalog saturate-semi)
 
-;; Loop immediate-prob until the guards stop changing.
-(define (saturate-prob full delta rules)
-  (define-values (next-full next-delta) (immediate-prob full delta rules))
-  (define changed-keys (for/list ([(k g) next-delta]) k))
-  (if (set-equal? next-full full changed-keys)
-      full
-      (saturate-prob next-full next-delta rules)))
+(define (saturate-semi base rules)
+  (let loop ([full base] [delta (for/list ([(k g) base]) k)])
+    (define next (immediate-semi full delta rules))
+    (define changed (changed-keys full next))
+    (if (null? changed) full (loop next changed))))
 
 (define (run-datalog base-fact-probs rules)
-  (define base-set (make-base-set base-fact-probs))
-  (saturate-prob base-set base-set rules))
+  (saturate-semi (make-base-set base-fact-probs) rules))

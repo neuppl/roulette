@@ -70,8 +70,8 @@
   ;; Racket expressions are submitted on the s-expression rule, since
   ;; they are also accepted at the prompt.
   (check-true  (try "probalog-result"))
-  (check-true  (try "(set-count probalog-result)"))
-  (check-false (try "(set-count probalog-result"))
+  (check-true  (try "(set-empty? probalog-result)"))
+  (check-false (try "(set-empty? probalog-result"))
   (check-true  (try "(query-fact probalog-result (fact 'Path (list \"a\" \"b\")))"))
   ;; a Racket expression is never waiting for a period
   (check-true  (try "(+ 1 2)")))

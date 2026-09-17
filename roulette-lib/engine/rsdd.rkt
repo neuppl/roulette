@@ -23,6 +23,16 @@
   [log-semiring semiring?]
   [polynomial-semiring (base-> semiring? semiring?)]))
 
+(provide
+ mk-bdd-manager-default-order free-bdd-manager
+ rsdd-label rsdd-var
+ rsdd-and rsdd-or rsdd-not rsdd-ite rsdd-compose
+ make-rsdd-true make-rsdd-false
+ rsdd-true? rsdd-false? rsdd-const? rsdd-neg? rsdd-equal?
+ rsdd-low rsdd-high rsdd-topvar
+ wmc free-weight-cache rsdd-clear-scratch!
+ rsdd-nodes rsdd-num-recursive-calls)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
 

@@ -1,7 +1,9 @@
 #lang roulette/example/disrupt
-(require "hash-set.rkt")
+(require "hash-set.rkt"
+         "guards.rkt")
 (provide (all-defined-out)
-         (all-from-out "hash-set.rkt"))
+         (all-from-out "hash-set.rkt")
+         (all-from-out "guards.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Program representation
@@ -9,7 +11,7 @@
 ;; name is the predicate identifier, and
 ;; args is a list of any (concrete) arguments supplied to the fact.
 
-;; args can be symbols, which represent variables 
+;; args can be symbols, which represent variables
 (struct fact (name args)
   #:transparent
   #:methods gen:custom-write
@@ -24,7 +26,7 @@
      (write-string ")" port))])
 
 ;; head is the derived fact, and body is a list of
-;; facts (clauses) that must be satisfied. 
+;; facts (clauses) that must be satisfied.
 (struct rule (head body) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -64,23 +66,60 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Probabilistic fact database
 
-;; base-fact-probs : list of (cons fact probability)
+;; Put base facts sharing a constant next to each other: this is the BDD
+;; variable order, and facts that can meet in a derivation are the ones
+;; that want to be adjacent. Breadth-first over constants (Cuthill-McKee),
+;; so it is invariant under renaming the data.
+(define (order-base-facts base-fact-probs)
+  ;; constants that share a fact are adjacent
+  (define adj (make-hash))
+  (for ([fp base-fact-probs])
+    (define as (fact-args (car fp)))
+    (for ([a as])
+      (unless (hash-has-key? adj a) (hash-set! adj a (make-hash))))
+    (for* ([a as] [b as] #:unless (equal? a b))
+      (hash-set! (hash-ref adj a) b #t)))
+  ;; breadth-first visit order, restarting for each component
+  (define idx (make-hash))
+  (define counter 0)
+  (define (visit! c)
+    (unless (hash-has-key? idx c)
+      (hash-set! idx c counter)
+      (set! counter (add1 counter))))
+  (for* ([fp base-fact-probs] [start (fact-args (car fp))])
+    (unless (hash-has-key? idx start)
+      (visit! start)
+      (let loop ([queue (list start)])
+        (unless (null? queue)
+          (define fresh
+            (for/fold ([acc '()]) ([(nb _) (in-hash (hash-ref adj (car queue)))])
+              (cond
+                [(hash-has-key? idx nb) acc]
+                [else (visit! nb) (cons nb acc)])))
+          (loop (append (cdr queue) (reverse fresh)))))))
+  ;; a fact sits at its earliest-visited argument; nullary facts, which
+  ;; share a constant with nothing, keep their declared order in front
+  (define (rank fp)
+    (for/fold ([m -1]) ([a (fact-args (car fp))])
+      (define i (hash-ref idx a 0))
+      (if (or (= m -1) (< i m)) i m)))
+  ;; `sort` is stable, so declaration order breaks ties
+  (sort base-fact-probs < #:key rank))
+
+;; base-fact-probs : list of (cons fact probability). The only place a
+;; base fact's guard is made, hence the only place the variable order is
+;; decided.
 (define (make-base-set base-fact-probs)
-  (for/sym-set ([fp base-fact-probs])
-    (values (car fp) (flip (cdr fp)))))
+  (for/sym-set ([fp (order-base-facts base-fact-probs)])
+    (values (car fp) (guard-var (cdr fp)))))
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Immediate consequence operator (semi-naive)
 
-;; A per-predicate index: all is a fallback list of every (fact .
-;; guard) pair for this predicate; by-pos maps an argument position to
-;; a hash from the value seen at that position to the (fact . guard)
-;; pairs that have it, so a clause with an already-known argument
-;; (a literal constant, or an already-bound variable) can look up only
-;; the facts that could possibly match, instead of scanning every fact
-;; of that predicate.
+
+;; all is a fallback for by-pos, which indexes arguments at every position.
 (struct pred-index (all by-pos) #:transparent)
 (define (empty-pred-index) (pred-index '() (hash)))
 
@@ -115,8 +154,6 @@
               (loop (cdr args) (add1 i)))]
          [else (cons i a)])])))
 
-;; Candidates for clause: value-narrowed via known-arg when possible,
-;; else the full (unnarrowed) list for that predicate.
 (define (candidates-for clause bindings idx)
   (define pi (hash-ref idx (fact-name clause) (empty-pred-index)))
   (define ka (known-arg clause bindings))
@@ -124,33 +161,16 @@
       (hash-ref (hash-ref (pred-index-by-pos pi) (car ka) (hash)) (cdr ka) '())
       (pred-index-all pi)))
 
-;; Matches body left to right; the clause at delta-pos draws from
-;; delta-idx, every other clause draws from full-idx.
-;; Produces a list of (bindings . guard) pairs, or "world"s 
 (define (find-bindings-prob/at body full-idx delta-idx delta-pos)
-  (for/fold ([worlds (list (cons (hash) #t))])
+  (for/fold ([worlds (list (cons (hash) (guard-true)))])
             ([clause body] [i (in-naturals)])
     (define idx (if (= i delta-pos) delta-idx full-idx))
     (for*/list ([w worlds]
                 [fg (candidates-for clause (car w) idx)]
                 [b (in-value (match-fact clause (car fg) (car w)))]
                 #:when b)
-      (cons b (and (cdr w) (cdr fg))))))
+      (cons b (guard-and (cdr w) (cdr fg))))))
 
-
-;; `delta` is what was freshly derived in the most recent iteration.
-;; Only derivations using delta in at least one clause position are
-;; computed, since anything using only older facts was already found.
-
-;; try every clause position as the required-delta position.
-;; produces a list of worlds (bindings . guard) pairs
-(define (find-bindings-prob/delta body full delta)
-  (define full-idx (time-it! add-index-time! (lambda () (index-by-name full))))
-  (define delta-idx (time-it! add-index-time! (lambda () (index-by-name delta))))
-  (define n (length body))
-  (for*/list ([delta-pos (in-range n)]
-              [w (find-bindings-prob/at body full-idx delta-idx delta-pos)])
-    w))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Timing instrumentation
@@ -171,26 +191,40 @@
 (define (add-set-union-time! dt) (set! total-set-union-time (+ total-set-union-time dt)))
 (define (add-index-time! dt) (set! total-index-time (+ total-index-time dt)))
 
-(define (rule-apply-prob/delta r full delta)
-  (define bindings (time-it! add-find-bindings-time!
-                              (lambda () (find-bindings-prob/delta (rule-body r) full delta))))
-  ;; for/sym-set/fast (rather than for/sym-set) since the same head
-  ;; fact is typically derived from many different bindings.
-  (time-it! add-guard-build-time!
-            (lambda ()
-              (for/sym-set/fast ([w bindings])
-                (values (substitute (rule-head r) (car w)) (cdr w))))))
 
-;; Returns (values new-full new-delta): new-delta is exactly what's
-;; fresh this round, new-full is full ∪ new-delta.
-(define (immediate-prob full delta rules)
-  (for/fold ([full-acc full] [new-acc (set)])
-            ([r rules])
-    (define delta-pool (time-it! add-set-union-time! (lambda () (set-union delta new-acc))))
-    (define fresh (rule-apply-prob/delta r full-acc delta-pool))
-    (define new-full-acc (time-it! add-set-union-time! (lambda () (set-union full-acc fresh))))
-    (define new-new-acc (time-it! add-set-union-time! (lambda () (set-union new-acc fresh))))
-    (values new-full-acc new-new-acc)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Immediate consequence operator
+
+;; The given keys, carrying their guards from `full`.
+(define (restrict-to full keys)
+  (for/sym-set ([k keys])
+    (values k (set-member? full k))))
+
+;; Keys whose guard changed; a pointer comparison each.
+(define (changed-keys old new)
+  (for/list ([(k g) new] #:unless (guard-equiv? g (set-member? old k))) k))
+
+(define (immediate-semi full delta-keys rules)
+  (define full-idx (time-it! add-index-time! (lambda () (index-by-name full))))
+  (define delta-idx
+    (time-it! add-index-time!
+              (lambda () (index-by-name (restrict-to full delta-keys)))))
+  (for/fold ([acc full]) ([r rules])
+    (define n (length (rule-body r)))
+    ;; Each clause position in turn draws from the delta; a derivation
+    ;; with two changed facts is built twice, and the second is free.
+    (define bindings
+      (time-it! add-find-bindings-time!
+                (lambda ()
+                  (for*/list ([pos (in-range n)]
+                              [w (find-bindings-prob/at (rule-body r) full-idx delta-idx pos)])
+                    w))))
+    (define fresh
+      (time-it! add-guard-build-time!
+                (lambda ()
+                  (for/sym-set ([w bindings])
+                    (values (substitute (rule-head r) (car w)) (cdr w))))))
+    (time-it! add-set-union-time! (lambda () (set-union acc fresh)))))
 
 ;; Reports a runtime failure the way the parser reports a syntax one:
 ;; prefixed with the source location of the statement responsible.
@@ -200,9 +234,54 @@
   (raise (make-exn:fail (format "~a: ~a" (or where who) (apply format fmt args))
                         (current-continuation-marks))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Weighing and conditioning guards
+;;
+;; Roulette cannot see into a BDD, so its `query`/`observe!` are bypassed
+;; and the same semantics computed directly: conditioning conjoins
+;; evidence, a marginal is P(fact and evidence) / P(evidence).
+
+(define evidence (box (guard-true)))
+(define (current-evidence) (unbox evidence))
+
+;; Guards do not survive a reset of the manager, so neither can the
+;; evidence built out of them.
+(add-reset-hook! (lambda () (set-box! evidence (guard-true))))
+
+;; Whether a guard can hold in some world satisfying the evidence.
+(define (satisfiable? g) (not (guard-known-false? g)))
+
+;; A pmf over #t/#f for a guard, conditioned on the evidence so far, or
+;; #f when no world satisfies the evidence at all -- matching what
+;; Roulette's `query` returns in that case.
+;;
+;; An outcome is dropped only when it is impossible, which is what
+;; leaves a certain answer as a single-outcome pmf for
+;; `query-result->string` to print as #t or #f. An outcome that is
+;; merely too unlikely for a double to distinguish from 0 is kept.
+(define (guard->pmf g)
+  (define ev (current-evidence))
+  (define yes (guard-and g ev))
+  (define no (guard-and (guard-not g) ev))
+  (cond
+    [(not (satisfiable? ev)) #f]
+    [(not (satisfiable? no)) (for/pmf ([v (in-list '(#t))] [pr (in-list '(1))])
+                               (values v pr))]
+    [(not (satisfiable? yes)) (for/pmf ([v (in-list '(#f))] [pr (in-list '(1))])
+                                (values v pr))]
+    [else
+     (define p (/ (guard-prob yes) (guard-prob ev)))
+     (for/pmf ([value (in-list (list #t #f))]
+               [prob (in-list (list p (- 1 p)))])
+       (values value prob))]))
+
+;; Condition all later queries on `g` holding.
+(define (add-evidence! g)
+  (set-box! evidence (guard-and (current-evidence) g)))
+
 ;; re-exporting query from roulette/example/disrupt as query-fact
 (define (query-fact result f #:where [where #f])
-  (define pmf (query (set-member? result f)))
+  (define pmf (guard->pmf (set-member? result f)))
   (unless pmf
     (probalog-error
      'query-fact where
@@ -212,10 +291,6 @@
      f))
   pmf)
 
-;; How a query result is shown. A distribution over a single outcome
-;; carries no uncertainty, so it prints as that value rather than as a
-;; one-row table — the same choice Disrupt makes when printing a query
-;; whose result turned out to be concrete.
 (define (query-result->string pmf)
   (define outcomes (for/list ([(value prob) (in-pmf pmf)]) value))
   (if (= (length outcomes) 1)
@@ -223,13 +298,11 @@
       (format "~a" pmf)))
 
 ;; Whether `guard` can still take the given value in some world that
-;; satisfies every observation made so far. `query` returns #f when no
-;; world satisfies the observations at all.
+;; satisfies every observation made so far.
 (define (possible? guard value)
-  (define pmf (query guard))
-  (and pmf
-       (for/or ([(v p) (in-pmf pmf)])
-         (and (equal? v value) (positive? p)))))
+  (define ev (current-evidence))
+  (and (satisfiable? ev)
+       (satisfiable? (guard-and (if value guard (guard-not guard)) ev))))
 
 ;; Conditioning on something impossible divides by zero, and every
 ;; later query would silently report nothing rather than fail. So an
@@ -245,24 +318,21 @@
       "  there is no possible world in which this holds")
      what)))
 
-;; Condition the current probability distribution on the given fact
-;; being present (or absent) in the result set. All subsequent calls
-;; to query-fact (or query) are automatically conditioned on this
-;; observation. Observing something impossible is rejected rather than
-;; dividing by zero; see check-observable! above.
+;; Condition on the fact being present (or absent); all later queries
+;; see the posterior.
 (define (observe-fact result f #:where [where #f])
   (define guard (set-member? result f))
   (check-observable! 'observe-fact where guard #t f)
-  (observe! guard))
+  (add-evidence! guard))
 
 (define (observe-not-fact result f #:where [where #f])
   (define guard (set-member? result f))
   (check-observable! 'observe-not-fact where guard #f
                      (format "the absence of ~a" f))
-  (observe! (! guard)))
+  (add-evidence! (guard-not guard)))
 
 ;; Lower-level: condition on an arbitrary guard formula, e.g. a
 ;; disjunction of several facts being present.
 (define (observe-guard g #:where [where #f])
   (check-observable! 'observe-guard where g #t "this formula")
-  (observe! g))
+  (add-evidence! g))

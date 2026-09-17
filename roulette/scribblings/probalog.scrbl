@@ -29,7 +29,6 @@
 			      set-member?
 			      set-add
 			      set-remove
-			      set-count
 			      set-empty?
 			      set-union
 			      set-intersect
@@ -37,10 +36,26 @@
 			      subset?
 			      set-equal?
 			      for/sym-set
-			      for*/sym-set
-			      for/sym-set/fast)
+			      for*/sym-set)
 		     (only-in roulette/example/probalog/probalog-set-equal
-			      run-datalog))
+			      run-datalog
+			      saturate-semi)
+		     (only-in roulette/example/probalog/guards
+			      guard-true
+			      guard-false
+			      guard-var
+			      guard-and
+			      guard-or
+			      guard-not
+			      guard-implies
+			      guard-iff
+			      guard-equiv?
+			      guard-prob
+			      guard-known-true?
+			      guard-known-false?
+			      reset-guards!
+			      add-reset-hook!
+			      guard-stats))
 	  racket/sandbox
 	  scribble/example)
 
@@ -84,10 +99,12 @@ which happens with probability @racket[(* 0.5 0.6)].
 Derived facts are not independent,
 so their probabilities cannot be combined pairwise.
 Probalog handles this by evaluating the whole program symbolically:
-each fact in the database is paired with a Boolean formula
-over the base facts' @racket[flip]s
+each fact in the database is paired with a Boolean condition
+over the base facts
 describing exactly the worlds in which that fact is derivable.
-Querying a fact hands that formula to Roulette's inference engine.
+That condition is a binary decision diagram,
+built as the derivation proceeds rather than compiled at the end,
+and a query is a weighted model count over it.
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Syntax}
@@ -261,9 +278,18 @@ and a list of rules.
 	 sym-set?]{
   Saturates the database,
   returning the symbolic set of all derivable facts.
-  Each base fact is admitted under an independent @racket[flip]
-  of the given probability,
+  Each base fact is admitted under an independent @tech{guard}
+  variable of the given probability,
   and the immediate-consequence operator is iterated to a fixpoint.
+  Equivalent to @racket[(saturate-semi (make-base-set base-fact-probs) rules)].
+}
+
+@defproc[(saturate-semi [base sym-set?] [rules (listof rule?)]) sym-set?]{
+  Iterates the immediate-consequence operator over @racket[base]
+  until no fact's @tech{guard} changes.
+  Takes the database rather than building it,
+  so a caller that wants control over the variable order
+  can construct it with @racket[make-base-set] itself.
 }
 
 @subsection{Facts, rules, and queries}
@@ -286,10 +312,16 @@ and a list of rules.
 		     [#:where where (or/c string? #f) #f]) pmf?]{
   Returns the probability distribution of @racket[f]'s membership
   in @racket[result],
-  conditioned on all observations made so far.
-  Essentially @racket[(query (set-member? result f))],
-  but raises an error rather than returning @racket[#f]
-  when no possible world remains.
+  conditioned on all observations made so far ---
+  that is, @math{P(f ∧ evidence) / P(evidence)}.
+
+  This is what @racket[query] computes for
+  @racket[(set-member? result f)], but it is computed directly:
+  a @tech{guard} is a diagram Rosette cannot see into, so the engine
+  does its own conditioning rather than going through Roulette's
+  @racket[query] and @racket[observe!].
+  Where @racket[query] would return @racket[#f] because no possible
+  world remains, this raises an error instead.
 
   Every one of these procedures takes an optional @racket[where],
   a source location like @tt{"reachability.pdl:5:0"}
@@ -304,6 +336,13 @@ and a list of rules.
   renders as that outcome, and anything else as the distribution.
   @racket[query-fact] itself always returns a @racket[pmf?];
   this only affects what a @tt{?} statement prints.
+
+  So a printed @racket[#t] or @racket[#f] means the answer is
+  @emph{provably} certain, not that its probability rounded to
+  @racket[1] or @racket[0]. An outcome is dropped only when it is
+  impossible, which @racket[query-fact] decides with
+  @racket[guard-known-false?] rather than by weighing --- see there for
+  why the two differ.
 }
 
 @defproc[(observe-fact [result sym-set?] [f fact?]
@@ -325,7 +364,7 @@ and a list of rules.
   and rejects the observation when @racket[f] is certain.
 }
 
-@defproc[(observe-guard [g boolean?]
+@defproc[(observe-guard [g any/c]
 			[#:where where (or/c string? #f) #f]) void?]{
   Conditions on an arbitrary formula,
   such as a disjunction of several facts' membership tests,
@@ -335,11 +374,116 @@ and a list of rules.
 @defproc[(make-base-set [base-fact-probs (listof (cons/c fact? (real-in 0 1)))])
 	 sym-set?]{
   Builds the initial database:
-  each fact guarded by an independent @racket[flip] of its probability.
+  each fact guarded by an independent variable of its probability.
+  It is the only place a base fact's @tech{guard} is created,
+  which makes it the one place that decides
+  what order the variables come in.
   Called by @racket[run-datalog].
 }
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section{Guards}
+@defmodule[roulette/example/probalog/guards]
+
+A @deftech{guard} is the condition under which something holds --- for a
+@tech{symbolic set}, the condition under which an element is a member.
+Guards are binary decision diagrams, built through this module on top of
+the primitives @racketmodname[roulette/engine/rsdd] exports.
+
+The representation is chosen for canonicality: two guards that mean the
+same thing are the same object. Or-ing in a disjunct already implied
+gives back the identical diagram, so a redundant derivation collapses
+rather than accumulating; equivalence is a comparison rather than a
+solver call; and a marginal is a weighted count over a diagram that
+already exists. Building the diagram as the derivation proceeds, rather
+than compiling an accumulated formula at the end, is the idea of
+TP-compilation (Vlasselaer, Van den Broeck, Kimmig, Meert & De Raedt,
+IJAR 2016).
+
+A guard is not a Racket boolean and cannot be branched on. Ask
+@racket[guard-known-true?] or @racket[guard-known-false?] instead, or
+weigh it with @racket[guard-prob].
+
+@deftogether[(@defproc[(guard-true) any/c]
+	      @defproc[(guard-false) any/c])]{
+  The guards that hold in every world and in none.
+}
+
+@defproc[(guard-var [p (real-in 0 1)]) any/c]{
+  A fresh variable holding with probability @racket[p], independent of
+  every other. A @racket[p] of @racket[0] or @racket[1] gives a constant
+  rather than a variable, so a program with no @tt{::} annotations
+  allocates none and every guard in it stays constant.
+
+  This is the only way new randomness enters a guard, which is what
+  makes @racket[make-base-set] the one place the variable order is
+  decided.
+}
+
+@deftogether[(@defproc[(guard-and [a any/c] [b any/c]) any/c]
+	      @defproc[(guard-or [a any/c] [b any/c]) any/c]
+	      @defproc[(guard-not [a any/c]) any/c]
+	      @defproc[(guard-implies [a any/c] [b any/c]) any/c]
+	      @defproc[(guard-iff [a any/c] [b any/c]) any/c])]{
+  The propositional connectives.
+  @racket[guard-implies] is @racket[(guard-or (guard-not a) b)],
+  and @racket[guard-iff] is that both ways round.
+}
+
+@defproc[(guard-equiv? [a any/c] [b any/c]) boolean?]{
+  Whether two guards hold in exactly the same worlds.
+  Canonicality makes this a comparison rather than a search,
+  which is what the fixpoint loop is built on.
+}
+
+@deftogether[(@defproc[(guard-known-true? [g any/c]) boolean?]
+	      @defproc[(guard-known-false? [g any/c]) boolean?])]{
+  Whether a guard holds in every world, or in none.
+
+  These are exact, and are the right way to ask whether an outcome is
+  possible. Because @racket[guard-var] turns probability @racket[0] and
+  @racket[1] into constants, every variable has probability strictly
+  between them and every satisfying assignment carries positive weight
+  --- so a guard has probability zero @emph{exactly} when
+  @racket[guard-known-false?] holds of it. Comparing
+  @racket[guard-prob] against zero is not equivalent: a probability of
+  @racket[(- 1 (expt 2 -60))] rounds to @racket[1.0] in a flonum, which
+  would make a possible outcome look impossible.
+}
+
+@defproc[(guard-prob [g any/c]) real?]{
+  The unnormalised probability that @racket[g] holds.
+
+  @bold{Sharp edge:} this memoises in each diagram node's scratch cell
+  and never invalidates, so results are valid only while the weights are
+  unchanged. That holds here --- a fact's probability never changes, and
+  conditioning conjoins evidence rather than reweighting --- and it is
+  what makes repeated queries over overlapping guards nearly free.
+}
+
+@defproc[(reset-guards!) void?]{
+  Discards the diagram manager and starts over, which is how a fresh
+  program gets a fresh variable space.
+
+  This @emph{invalidates every existing guard}. A guard made before a
+  reset names variables in a manager that is gone, and nothing
+  afterwards can detect that: an operation on one may fault or may
+  quietly return a wrong answer. Callers holding guards across a reset
+  must drop them.
+}
+
+@defproc[(add-reset-hook! [thunk (-> any)]) void?]{
+  Registers @racket[thunk] to run after each @racket[reset-guards!],
+  once the new manager is in place so the thunk may build guards. This
+  is how state holding guards drops what a reset invalidated; the
+  engine uses it to clear accumulated evidence.
+}
+
+@defproc[(guard-stats) (listof (cons/c symbol? exact-nonnegative-integer?))]{
+  Counters for tuning: guard operations performed, diagram apply calls,
+  and variables allocated.
+}
+
 @section{Symbolic sets}
 @defmodule[roulette/example/probalog/hash-set]
 
@@ -349,28 +493,36 @@ is a set whose membership is symbolic.
 Rosette provides no such structure,
 so Probalog supplies one:
 a @deftech{symbolic set} maps each element
-to the Boolean formula --- its @deftech{guard} ---
+to its @tech{guard}: the condition
 under which the element is a member.
+Elements are concrete; only membership is uncertain.
 All bindings of this module
 are re-exported by @racketmodname[roulette/example/probalog/probalog-core].
 
 @examples[#:eval evaluator #:hidden
-  (require roulette/example/probalog/hash-set)]
+  (require roulette/example/probalog/hash-set
+	   roulette/example/probalog/guards)]
 @examples[#:eval evaluator #:label #f
-  (define x (flip 1/2))
-  (set 1 2 (if x 3 4))]
+  (define x (guard-var 1/2))
+  (set-add (set 1 2) 3 x)]
 
-Elements with a concrete guard of @racket[#t] print bare;
+Elements present in every world print bare;
 the rest print as @tt{[guard element]} pairs.
-Here @racket[3] and @racket[4] are each present in half the worlds.
+Here @racket[3] is present in half the worlds.
 The set operations lift to guards:
 a union disjoins the guards of a shared element,
 an intersection conjoins them.
 
 @examples[#:eval evaluator #:label #f
-  (define y (flip 1/2))
-  (set-union (set-add (set) 1 x) (set-add (set) 1 y))
-  (set-intersect (set-add (set) 1 x) (set-add (set) 1 y))]
+  (define y (guard-var 1/2))
+  (guard-equiv? (set-member? (set-union (set-add (set) 1 x)
+					(set-add (set) 1 y))
+			     1)
+		(guard-or x y))
+  (guard-equiv? (set-member? (set-intersect (set-add (set) 1 x)
+					    (set-add (set) 1 y))
+			     1)
+		(guard-and x y))]
 
 @defproc[(sym-set? [v any/c]) boolean?]{
   Predicate for @tech{symbolic sets}.
@@ -379,34 +531,33 @@ an intersection conjoins them.
 }
 
 @defform[(set elem ...)]{
-  Constructs a @tech{symbolic set} containing each @racket[elem].
-  An element that is itself a symbolic value
-  is decomposed into the concrete values it can take,
-  each guarded by the condition under which it takes that value.
+  Constructs a @tech{symbolic set} containing each @racket[elem]
+  in every world.
+  Elements are concrete;
+  to add one under a condition, pass a @tech{guard}
+  to @racket[set-add].
 }
 
-@deftogether[(@defproc[(set-member? [st sym-set?] [v any/c]) boolean?]
-	      @defproc[(set-add [st sym-set?] [v any/c] [guard boolean? #t]) sym-set?]
+@deftogether[(@defproc[(set-member? [st sym-set?] [v any/c]) any/c]
+	      @defproc[(set-add [st sym-set?] [v any/c] [guard any/c (guard-true)]) sym-set?]
 	      @defproc[(set-remove [st sym-set?] [v any/c]) sym-set?]
-	      @defproc[(set-count [st sym-set?]) integer?]
-	      @defproc[(set-empty? [st sym-set?]) boolean?]
+	      @defproc[(set-empty? [st sym-set?]) any/c]
 	      @defproc[(set-union [st sym-set?] [more sym-set?] ...) sym-set?]
 	      @defproc[(set-intersect [st sym-set?] [more sym-set?] ...) sym-set?]
 	      @defproc[(set-subtract [st sym-set?] [more sym-set?] ...) sym-set?]
-	      @defproc[(subset? [st1 sym-set?] [st2 sym-set?]) boolean?])]{
+	      @defproc[(subset? [st1 sym-set?] [st2 sym-set?]) any/c])]{
   The usual set operations,
   lifted to @tech{symbolic sets}.
-  Results are symbolic:
+  Results are guards rather than Booleans:
   @racket[set-member?] returns the element's @tech{guard},
-  @racket[set-count] a number that depends on which guards hold,
-  and @racket[set-empty?] and @racket[subset?] formulas
-  rather than concrete Booleans.
+  and @racket[set-empty?] and @racket[subset?]
+  the condition under which they hold.
   The optional @racket[guard] argument to @racket[set-add]
-  adds @racket[v] only in the worlds where @racket[guard] holds;
+  adds @racket[v] only in the worlds where that guard holds;
   it is passed explicitly rather than written as
   @racket[(when guard (set-add st v))]
-  because a conditional whose branches disagree on whether a key exists
-  cannot be expressed as a Rosette union over hashes.
+  because a guard is not a Racket Boolean
+  and so cannot be branched on.
 }
 
 @defproc[(set-equal? [st1 sym-set?] [st2 sym-set?] [keys (or/c list? #f) #f])
@@ -414,8 +565,8 @@ an intersection conjoins them.
   Whether the two sets are @emph{semantically} equal:
   every element's guard in @racket[st1]
   is logically equivalent to its guard in @racket[st2].
-  Structurally different formulas may be equivalent,
-  so this is decided with Rosette's solver rather than by comparison.
+  Because guards are canonical
+  this is decided by comparison rather than by a solver.
   When @racket[keys] is a list,
   only those elements are compared ---
   which is what makes fixpoint detection affordable,
@@ -427,19 +578,18 @@ an intersection conjoins them.
 	      @defform[(for*/sym-set (for-clause ...) body ...+)])]{
   Iteration forms that accumulate a @tech{symbolic set}.
   Each iteration's @racket[body] may return either an element,
+  which is added in every world,
   or an element and a @tech{guard} as two values.
-}
 
-@defform[(for/sym-set/fast (for-clause ...) body ...+)]{
-  Like @racket[for/sym-set],
-  but accumulates into a transient mutable hash
-  and converts to a @tech{symbolic set} only at the end.
+  Both accumulate into a transient mutable hash
+  and convert to a @tech{symbolic set} only at the end.
   When the same element is produced by many iterations ---
   as when one rule derives the same conclusion along many paths ---
-  this pays the cost of building the merged guard
-  once per distinct element rather than once per iteration.
+  this merges the duplicates in place,
+  so the cost of building the element's guard
+  is paid once per distinct element rather than once per iteration.
   The mutable hash never escapes,
-  so the form is observationally pure.
+  so the forms are observationally pure.
 }
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -457,13 +607,31 @@ Any derivation this skips
 used only older facts,
 and so was already found.
 
+There is a wrinkle in transplanting that rule
+onto a database whose facts carry guards.
+Classically a derivation from facts that all existed before
+was already performed, so it can be skipped;
+here a fact can exist from round one
+while its guard keeps weakening for many rounds.
+So the delta selects only @emph{which} facts to match,
+and every guard in a derivation
+is read out of the accumulated database
+rather than out of the delta.
+Deriving from a delta @emph{of guards} instead
+builds the condition ``newly derivable this round'',
+which has to encode the absence of the shorter derivations
+as well as the presence of a new one;
+on a friends-and-smokers ring of 14
+that cost 231 million diagram operations
+where this operator costs under 180 thousand,
+for the same result.
+
 Fixpoint detection compares the guards of the new database
 against the old with @racket[set-equal?],
 restricted to the facts that actually changed in the last round.
-Solver calls dominate the cost of a round,
-and this makes their number proportional
-to the size of the change rather than the size of the database ---
-a ratio that shrinks as saturation approaches its fixpoint.
+Comparing canonical guards is a pointer comparison,
+so a round's fixpoint test is proportional
+to the size of the change rather than the size of the database.
 
 Matching is driven by an index.
 Before each round the facts are grouped by predicate name,
