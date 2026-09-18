@@ -208,11 +208,14 @@
 
 ;; Each program's share of the total, so it is visible at a glance
 ;; whether any one of them is dictating the split.
+;; `void` because disrupt queries each top-level expression, and a bare
+;; `for` there yields no value for the query to take.
 (printf "\nshare of total per benchmark:\n")
-(for ([r results])
-  (printf "  ~a ~a%\n"
-          (~a (car r) #:width 12)
-          (~r (* 100 (/ (list-ref r 1) wall)) #:precision 1)))
+(void
+ (for ([r results])
+   (printf "  ~a ~a%\n"
+           (~a (car r) #:width 12)
+           (~r (* 100 (/ (list-ref r 1) wall)) #:precision 1))))
 
 (define named
   (list (cons "find-bindings"      bind)
