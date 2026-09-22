@@ -22,7 +22,7 @@ After all facts (along with their probabilities) have been derived, you can quer
 
 An ideal datastructure to represent the factset in this setting is a symbolic set. However, Rosette (the symbolic evaluation engine Roulette uses) doesn't have support for symbolic hashes/sets. So, we created our own implementation in `hash-set.rkt` that works by associating each set element with a **guard**: the condition under which that element is present. Elements themselves are concrete — the parser requires facts and queries to be ground, so it is only membership that is uncertain.
 
-Originally, the guards were represented as Rosette terms (formulas), but for the following reasons, it has been changed to BDDs (Binary Decision Diagrams), from the idea of [Tp compilation](https://www.sciencedirect.com/science/article/pii/S0888613X16300949):
+Originally, the guards were represented as Rosette terms (formulas), but for the following reasons, it has been changed to BDDs (Binary Decision Diagrams), following the idea of [Tp compilation](https://www.sciencedirect.com/science/article/pii/S0888613X16300949), for the following reasons:
 
 1. Fixpoint detection becomes pointer equality over BDDs: Checking equality of guards is constant time with BDDs, whereas with Rosette terms, fixpoint detection was the dominant cost of running a probalog program.
 
