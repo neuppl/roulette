@@ -3,12 +3,14 @@
 (provide main)
 
 
-(define first-coin (flip 0.5))
-(define second-coin (flip 0.5))
-(define both-heads (&& first-coin second-coin))
-(observe! (! both-heads))
+(define (model)
+  (define first-coin (flip 0.5))
+  (define second-coin (flip 0.5))
+  (define both-heads (&& first-coin second-coin))
+  (observe! (! both-heads))
+  first-coin)
 
-(define (main) (benchmark first-coin))
+(define (main) (benchmark (model)))
 
 
 (module+ main

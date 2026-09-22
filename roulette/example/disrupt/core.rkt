@@ -20,6 +20,7 @@
 
  ;; debug
  clear-cache!
+ clear-evidence!
  recursive-calls
  size
 
@@ -219,6 +220,22 @@
 
 (define (clear-cache!)
   (set! engine (rsdd-engine)))
+
+;; Discard accumulated observations, returning the program to "nothing has
+;; been observed". `observe!` only ever conjoins into `o-evidence` and
+;; `sample` into `s-evidence`; neither is reset by `clear-cache!`, which
+;; replaces the engine but not the evidence. A process that loads several
+;; independent models therefore conditions each query on every earlier
+;; model's evidence. Marginals over disjoint variables are unaffected, but
+;; the query does real extra work, so anything measuring that work needs
+;; this between runs.
+;;
+;; Only sound where the observations will be re-established afterwards --
+;; a model built at module level observes once, at load, and clearing that
+;; silently changes its answer.
+(define (clear-evidence!)
+  (set! o-evidence #t)
+  (set! s-evidence #t))
 
 (define (recursive-calls)
   (send engine recursive-calls))

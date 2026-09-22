@@ -1,20 +1,22 @@
 #lang roulette/example/disrupt
 (require "../benchmarking.rkt")
 (provide main)
-(define earthquake (flip 0.0001))
-(define burglary (flip 0.001))
-(define alarm (|| earthquake burglary))
-(define phone-working
-  (if earthquake (flip 0.7) (flip 0.99)))
-(define mary-wakes
-  (if alarm
-      (if earthquake (flip 0.8) (flip 0.6))
-      (flip 0.2)))
-(define called (&& mary-wakes phone-working))
-(observe! called)
 
+(define (model)
+  (define earthquake (flip 0.0001))
+  (define burglary (flip 0.001))
+  (define alarm (|| earthquake burglary))
+  (define phone-working
+    (if earthquake (flip 0.7) (flip 0.99)))
+  (define mary-wakes
+    (if alarm
+        (if earthquake (flip 0.8) (flip 0.6))
+        (flip 0.2)))
+  (define called (&& mary-wakes phone-working))
+  (observe! called)
+  burglary)
 
-(define (main) (benchmark burglary))
+(define (main) (benchmark (model)))
 
 
 (module+ main
