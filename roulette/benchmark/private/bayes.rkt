@@ -95,7 +95,7 @@
            (go cond-vals-rst (hash-ref tree cond-val)))
        ;; Using `for/all` gives worse performance!
        #;(for/all ([cond-val cond-val])
-         (go cond-vals-rst (hash-ref tree cond-val)))])))
+           (go cond-vals-rst (hash-ref tree cond-val)))])))
 
 (define (make-categorical xs)
   (bin-cat (filter (λ (x) (not (zero? (cdr x)))) xs)))
@@ -157,4 +157,4 @@
 
 (define (main* name query-var var-order)
   (with-input-from-file name
-    (λ () (query (bayes-eval (bif-parse) query-var var-order)))))
+    (λ () (bayes-eval (bif-parse) query-var var-order))))
