@@ -25,10 +25,4 @@
     "data-lib"
     "rosette"))
 
-(define update-implies
-  '("roulette-x86_64-linux"
-    "roulette-aarch64-macosx"
-    "roulette-x86_64-macosx"
-    "roulette-x86_64-win32"))
-
 (define build-deps '())

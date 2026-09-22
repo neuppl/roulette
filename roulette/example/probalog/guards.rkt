@@ -59,7 +59,7 @@
     [(= p 1) (guard-true)]
     [else
      (define l (rsdd-label builder))
-     (gvector-add! weights (list (- 1 p) p number-semiring))
+     (gvector-add! weights (cons (- 1 p) p))
      (rsdd-var builder l)]))
 
 (define (guard-and a b) (op!) (rsdd-and builder a b))
@@ -81,7 +81,7 @@
 ;; SHARP EDGE: `wmc` memoises in each node's scratch cell and never
 ;; invalidates, so results hold only while `weights` is unchanged. True
 ;; here: conditioning conjoins evidence rather than reweighting.
-(define (guard-prob g) (wmc g (hash) weights cache number-semiring))
+(define (guard-prob g) (wmc g weights cache real-semiring))
 
 (define (guard-stats)
   (list (cons 'guard-ops ops)

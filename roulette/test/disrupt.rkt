@@ -5,31 +5,38 @@
 
 (module+ test
   (require (for-syntax racket/base)
+           (only-in "../example/disrupt/core.rkt" pmf-hash)
            rackunit
            "util.rkt")
 
-  (define SAMPLES 2500)
-  (define TOL 0.03)
+  ;; eval
+  (define-namespace-anchor here)
+  (define anchored-ns (namespace-anchor->namespace here))
 
   ;; must have rosette's #%top-interaction for set! to work properly
-  (define (run datum #:samples [samples 1] #:query? [query? #t])
+  (define ((make-run lang #:anchor? [anchor? #t]) datum #:query? [query? #t])
     (define ns (make-base-namespace))
+    (when anchor?
+      (namespace-attach-module anchored-ns "../example/disrupt/core.rkt" ns))
     (parameterize ([current-namespace ns])
-      (namespace-require 'roulette/example/disrupt)
+      (namespace-require lang)
       (namespace-require `(prefix rosette: rosette))
       (eval (if query?
-                `(pmf-hash (query #:samples ,samples (rosette:#%top-interaction . ,datum)))
+                `(query (rosette:#%top-interaction . ,datum))
                 `(rosette:#%top-interaction . ,datum)))))
+
+  (define run (make-run 'roulette/example/disrupt))
+  (define run-safe (make-run 'roulette/example/disrupt/safe))
 
   ;; util
   (define-syntax-rule (check-program prog ([val pr] ...))
-    (check-program-fn run 'prog (hash (~@ val pr) ...) 1))
+    (check-program-fn run 'prog (hash (~@ val pr) ...) #f))
 
   (define-syntax-rule (check-program-samples body ... ([val pr] ...))
-    (check-program-fn run '(let () body ...) (hash (~@ val pr) ...) SAMPLES TOL))
+    (check-program-fn run '(with-sample 2500 body ...) (hash (~@ val pr) ...)))
 
-  (define (check-program-fn ev prog ht [samples 1] [tol #f])
-    (define result (ev prog #:samples samples))
+  (define (check-program-fn ev prog ht [tol 0.03])
+    (define result (pmf-hash (ev prog)))
     (with-check-info (['program prog] ['result result])
       (if tol (check-close tol result ht) (check-equal? result ht))))
 
@@ -37,6 +44,11 @@
   (check-program
    (flip 1/2)
    ([#t 1/2] [#f 1/2]))
+
+  (check-program-fn
+   run-safe
+   '(flip 1/2)
+   (hash #t 1/2 #f 1/2))
 
   (check-program
    (not (flip 1/2))
@@ -103,29 +115,19 @@
 
   (check-program
    (let ([x (flip 1/2)] [y (flip 1/2)])
-     (query (observe! (or x y)))
+     (with-observe
+       (observe! (or x y)))
      x)
    ([#t 1/2] [#f 1/2]))
 
   (check-equal?
-   (run #:query? #f
-        '(pmf-hash
-          (query
-           (let ([x (flip 1/2)] [y (flip 1/2)])
-             (observe! (or x y))
-             x))))
+   (pmf-hash
+    (run #:query? #f
+         '(let ([x (flip 1/2)] [y (flip 1/2)])
+            (with-observe
+              (observe! (or x y))
+              (query x)))))
    (hash #t 2/3 #f 1/3))
-
-  ;; Nested inference
-  (check-equal?
-   (run '(let ([x (flip 1/2)])
-           (pmf-hash
-            (query
-             (let ([y (flip 1/5)])
-               (observe! (or x y))
-               y)))))
-   (hash (hash #t 1) 1/2
-         (hash #t 1/5 #f 4/5) 1/2))
 
   (check-program
    (= (+ (if (flip 1/2) 0 1) (if (flip 1/2) 0 1)) 0)
@@ -134,10 +136,12 @@
   (check-program
    (let ([x (flip 1/2)])
      (if x ((query x) #t) 'none))
-  ([1 1/2] ['none 1/2]))
+   ([1 1/2] ['none 1/2]))
 
   ;; Should yield an error
-  #;(check-exn exn? (λ () (run '(observe! #f))))
+  (check-false
+   ((make-run 'roulette/example/disrupt #:anchor? #f)
+    '(observe! #f)))
 
   ;; samples tests
   (check-program-samples
@@ -228,49 +232,15 @@
 
   ;; generated programs
   (define (make-prog body)
-    `(let* ([x (sample (flip 1/3))]
-            [z (flip 1/4)])
-       (observe! (or x z))
-       (define y (sample z))
-       ,body))
+    `(with-sample 2500
+       (let* ([x (sample (flip 1/3))]
+              [z (flip 1/4)])
+         (observe! (or x z))
+         (define y (sample z))
+         ,body)))
 
-  (check-program-fn run (make-prog 'x) (hash #t 2/3 #f 1/3) SAMPLES TOL)
-  (check-program-fn run (make-prog 'y) (hash #t 1/2 #f 1/2) SAMPLES TOL)
-  (check-program-fn run (make-prog '(or x y)) (hash #t 1) SAMPLES TOL)
-  (check-program-fn run (make-prog '(and x y)) (hash #t 1/6 #f 5/6) SAMPLES TOL)
-
-  ;; allocated in outer region
-  (check-equal?
-   (run #:query? #f
-        '(pmf-hash (query #:region r (pmf-hash (query (flip 1/2 #:region r))))))
-   (hash (hash #t 1) 1/2 (hash #f 1) 1/2))
-
-  ;; region not active
-  (check-exn
-   exn?
-   (λ ()
-     (run '(let ()
-             (define escaped #f)
-             (query #:region r (set! escaped r))
-             (flip 1/2 #:region escaped)))))
-
-  ;; region escaped random variable
-  (check-exn
-   exn?
-   (λ ()
-     (run '(let ()
-             (define escaped #f)
-             (query (set! escaped (flip 1/2)))
-             escaped))))
-
-  ;; lifetime check
-  (check-exn
-   exn?
-   (λ ()
-     (run '(query
-            #:region r
-            (query
-             (if (flip 1/2)
-                 (flip 1/2 #:region r)
-                 #f))))))
+  (check-program-fn run (make-prog 'x) (hash #t 2/3 #f 1/3))
+  (check-program-fn run (make-prog 'y) (hash #t 1/2 #f 1/2))
+  (check-program-fn run (make-prog '(or x y)) (hash #t 1))
+  (check-program-fn run (make-prog '(and x y)) (hash #t 1/6 #f 5/6))
   )

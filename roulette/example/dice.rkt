@@ -168,10 +168,6 @@
     [(list) 0]
     [(cons x xt) (+ (if x 1 0) (* 2 (unint xt)))]))
 
-;; TODO: workaround for possible Rosette bug
-(define (xor a b)
-  (if a (not b) b))
-
 (define (bvadd xs ys)
   (let go ([xs xs] [ys ys] [cin #f])
     (match* (xs ys)

@@ -13,4 +13,3 @@ Roulette to show concretely how this works.
 @include-section["bn.scrbl"]
 @include-section["probalog.scrbl"]
 @include-section["dice.scrbl"]
-@include-section["bentham.scrbl"]
