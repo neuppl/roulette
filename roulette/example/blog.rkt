@@ -16,11 +16,17 @@
  call
  BooleanDistrib
  Categorical
+ UniformInt
+ Bernoulli
+ + - * < <= > >=
  if
  =>
  !=
  obs 
 (rename-out
+ [blog-null null]
+ [blog-case case]
+ [blog-index index]
  [blog-map map]
  [blog-entry entry]
  [blog-query query]
@@ -47,21 +53,31 @@
          (only-in racket/base [eq? base:eq?])
          (only-in roulette/private/util flatten-symbolic))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; not implemented
-
-; (define (distinct _x) (error 'distinct "not implemented"))
-; (define (fixed _x) (error 'distinct "not implemented"))
-; (define (random _x) (error 'distinct "not implemented"))
-; (define (true) (error 'distinct "not implemented"))
-; (define (false) (error 'distinct "not implemented"))
-; (define (obs) (error 'distinct "not implemented"))
-; (define (query) (error 'distinct "not implemented"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; run-time
 
 ;; The descriptor is opaque; its name is for display and errors.
+
+(struct blog-null-value ()
+  #:methods gen:custom-write
+  [(define (write-proc value port mode) (display "null" port))])
+(define blog-null (blog-null-value))
+
+;; Bind the selector once; branch expressions remain inside their conditions.
+(define-syntax blog-case
+  (syntax-parser
+    [(_ selector:expr ((~datum entry) key:expr value:expr) ...)
+     #'(let ([selected selector])
+         (blog-case-branches selected (key value) ...))]))
+
+(define-syntax blog-case-branches
+  (syntax-parser
+    [(_ selected) #'blog-null]
+    [(_ selected (key value) rest ...)
+     #'(if (equal? selected key)
+           value
+           (blog-case-branches selected rest ...))]))
 
 (struct blog-type (name [objects #:mutable]))
 (struct blog-object (type name))
@@ -96,10 +112,39 @@
 
 (define-syntax distinct
   (syntax-parser
-    [(_ ty:id name:id ...+)
+    [(_ ty:id declaration ...+)
      #'(begin
-         (define name (register-object! ty 'name))
+         (distinct-one ty declaration)
          ...)]))
+
+;; Keep indexed families separate from individual objects in the type domain.
+(struct blog-object-family (objects))
+
+(define-syntax distinct-one
+  (syntax-parser
+    [(_ ty:id name:id)
+     #'(define name (register-object! ty 'name))]
+    [(_ ty:id ((~datum indexed) name:id count:exact-nonnegative-integer))
+     #'(define name
+         (begin
+           (unless (blog-type? ty)
+             (raise-argument-error 'distinct "blog-type?" ty))
+           (blog-object-family
+            (for/vector ([i (in-range count)])
+              (register-object! ty (string->symbol (format "~a[~a]" 'name i)))))))]))
+
+(define (blog-index family index)
+  (unless (blog-object-family? family)
+    (raise-argument-error 'index "indexed distinct object family" family))
+  (define objects (blog-object-family-objects family))
+  ;; Validate outside symbolic branches so invalid alternatives raise an error.
+  (for ([(i guard) (in-hash (flatten-symbolic index))]
+        #:unless (base:eq? guard #f))
+    (unless (and (exact-integer? i) (<= 0 i) (< i (vector-length objects)))
+      (raise-arguments-error 'index "index outside the distinct object family"
+                             "index" i "size" (vector-length objects))))
+  (for/all ([i index #:exhaustive])
+    (vector-ref objects i)))
 
 (define-syntax fixed
   (syntax-parser
@@ -174,9 +219,11 @@
 
 (define (draw-distribution distribution)
   (for/all ([distribution distribution #:exhaustive])
-    (unless (blog-distribution? distribution)
+    (unless (or (blog-null-value? distribution) (blog-distribution? distribution))
       (raise-argument-error 'random "BLOG distribution" distribution))
-    ((blog-distribution-draw distribution))))
+    (if (blog-null-value? distribution)
+        blog-null
+        ((blog-distribution-draw distribution)))))
 
 (define (check-probabilities who probabilities)
   (for ([(ps guard) (in-hash (flatten-symbolic probabilities))]
@@ -187,6 +234,27 @@
 (define (BooleanDistrib probability)
   (check-probabilities 'BooleanDistrib (list probability))
   (blog-distribution (lambda () (flip probability))))
+
+(define (Bernoulli probability)
+  (check-probabilities 'Bernoulli (list probability))
+  (blog-distribution (lambda () (if (flip probability) 1 0))))
+
+;; Bounds may depend on finite random choices; validate correlated pairs together.
+(define (UniformInt lo hi)
+  (for ([(bounds guard) (in-hash (flatten-symbolic (list lo hi)))]
+        #:unless (base:eq? guard #f))
+    (define lower (car bounds))
+    (define upper (cadr bounds))
+    (unless (and (exact-integer? lower) (exact-integer? upper) (<= lower upper))
+      (raise-arguments-error 'UniformInt "expected integer bounds with lo <= hi"
+                             "lo" lower "hi" upper)))
+  (for*/all ([lo lo #:exhaustive]
+             [hi hi #:exhaustive])
+    (blog-distribution
+     (lambda ()
+       (make-categorical
+        (for/list ([value (in-range lo (add1 hi))])
+          (cons value (/ 1 (+ 1 (- hi lo))))))))))
 
 (struct blog-map-value (entries))
 (define (blog-entry key value) (cons key value))
@@ -238,9 +306,9 @@
 
 (define-empty-tokens empty-tokens
   (eof type distinct fixed random obs query
-       ift then elset truet falset
+       ift then elset caset int nullt truet falset
        comma semicolon eq distrib arrow
-       equal unequal not and or implies minus 
+       equal unequal not and or implies minus plus times lt le gt ge uminus
        forall exists
        lb rb lp rp lc rc))
 
@@ -253,6 +321,9 @@
         "query" token-query
         "forall" token-forall
         "exists" token-exists
+        "case" token-caset
+        "in" token-int
+        "null" token-nullt
         "if" token-ift
         "then" token-then
         "else" token-elset
@@ -326,6 +397,9 @@
    ["|" (token-or)]
    ["=>" (token-implies)]
    ["-" (token-minus)]
+   ["+" (token-plus)] ["*" (token-times)]
+   ["<" (token-lt)] ["<=" (token-le)]
+   [">" (token-gt)] [">=" (token-ge)]
 
    [(:+ whitespace)
     (return-without-pos (blog-lex input-port))]
@@ -356,12 +430,16 @@
    ;; Choose right-associative implication for this subset.
    (precs
     [nonassoc forall exists]
+    [nonassoc then]
     [nonassoc elset]
     [right implies]
     [left or]
     [left and]
     [nonassoc equal unequal]
-    [right not])
+    [nonassoc lt le gt ge]
+    [left plus minus]
+    [left times]
+    [right not uminus])
 
    (grammar
     (program
@@ -416,9 +494,25 @@
      [(atom) $1]
      [(lp expr rp) $2]
 
+     [(ift expr then expr)
+      (prec then)
+      `(if ,$2 ,$4 null)]
+
+     [(caset expr int lc entries rc)
+      `(case ,$2 ,@$5)]
+
      [(ift expr then expr elset expr)
       `(if ,$2 ,$4 ,$6)]
 
+     [(expr plus expr) `(+ ,$1 ,$3)]
+     [(expr minus expr) `(- ,$1 ,$3)]
+     [(expr times expr) `(* ,$1 ,$3)]
+     [(expr lt expr) `(< ,$1 ,$3)]
+     [(expr le expr) `(<= ,$1 ,$3)]
+     [(expr gt expr) `(> ,$1 ,$3)]
+     [(expr ge expr) `(>= ,$1 ,$3)]
+     [(minus expr) (prec uminus)
+      (if (number? $2) (- $2) `(- ,$2))]
      [(not expr) `(! ,$2)]
      [(expr and expr) `(& ,$1 ,$3)]
      [(expr or expr) `(,(string->symbol "|") ,$1 ,$3)]
@@ -437,8 +531,7 @@
      [(ident) $1]
      [(integer) $1]
      [(real) $1]
-     [(minus integer) (- $2)]
-     [(minus real) (- $2)]
+     [(nullt) 'null]
      [(truet) #t]
      [(falset) #f]
 
