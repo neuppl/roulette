@@ -14,6 +14,8 @@ random Boolean Healthy(Person p) ~
   if Smokes(p) then BooleanDistrib(0.4)
   else BooleanDistrib(0.9);
 
+//comments 
+
 
 random Boolean Infected(Person p) ~ BooleanDistrib(prob);
 
@@ -21,4 +23,6 @@ random Boolean ExtraHealthy(Person p) ~
   if (exists Person q Infected(q)) then BooleanDistrib(0.2)
   else BooleanDistrib(0.8);
 
-query (exists Person q Infected(q));
+obs Smokes(Alice) = true;
+
+query (ExtraHealthy(Alice));
