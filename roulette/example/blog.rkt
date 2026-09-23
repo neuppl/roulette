@@ -70,6 +70,26 @@
            [(equal? selected key) value] ...
            [else blog-null]))]))
 
+(struct blog-null-value ()
+  #:methods gen:custom-write
+  [(define (write-proc value port mode) (display "null" port))])
+(define blog-null (blog-null-value))
+
+;; Bind the selector once; branch expressions remain inside their conditions.
+(define-syntax blog-case
+  (syntax-parser
+    [(_ selector:expr ((~datum entry) key:expr value:expr) ...)
+     #'(let ([selected selector])
+         (blog-case-branches selected (key value) ...))]))
+
+(define-syntax blog-case-branches
+  (syntax-parser
+    [(_ selected) #'blog-null]
+    [(_ selected (key value) rest ...)
+     #'(if (equal? selected key)
+           value
+           (blog-case-branches selected rest ...))]))
+
 (struct blog-type (name [objects #:mutable]))
 (struct blog-object (type name))
 
