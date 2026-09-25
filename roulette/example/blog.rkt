@@ -18,11 +18,11 @@
  Categorical
  UniformInt
  Bernoulli
- + - * < <= > >=
+ + - * / modulo expt < <= > >=
  if
  =>
  !=
- obs 
+ obs
 (rename-out
  [blog-null null]
  [blog-case case]
@@ -35,8 +35,7 @@
  [equal? ==]
  [not !]
  [and &]
- [or \|])
- )
+ [or \|]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; require
@@ -44,8 +43,6 @@
 (require (for-syntax racket/base
                      syntax/parse)
          (prefix-in : parser-tools/lex-sre)
-         (only-in rosette assert)
-         rosette/lib/destruct
          parser-tools/lex
          parser-tools/yacc
          syntax/readerr
@@ -53,31 +50,25 @@
          (only-in racket/base [eq? base:eq?])
          (only-in roulette/private/util flatten-symbolic))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; run-time
 
 ;; The descriptor is opaque; its name is for display and errors.
-
 (struct blog-null-value ()
   #:methods gen:custom-write
-  [(define (write-proc value port mode) (display "null" port))])
+  [(define (write-proc value port mode)
+     (display "null" port))])
+
 (define blog-null (blog-null-value))
 
-;; Bind the selector once; branch expressions remain inside their conditions.
 (define-syntax blog-case
   (syntax-parser
-    [(_ selector:expr ((~datum entry) key:expr value:expr) ...)
+    #:datum-literals (entry)
+    [(_ selector:expr (entry key:expr value:expr) ...)
      #'(let ([selected selector])
-         (blog-case-branches selected (key value) ...))]))
-
-(define-syntax blog-case-branches
-  (syntax-parser
-    [(_ selected) #'blog-null]
-    [(_ selected (key value) rest ...)
-     #'(if (equal? selected key)
-           value
-           (blog-case-branches selected rest ...))]))
+         (cond
+           [(equal? selected key) value] ...
+           [else blog-null]))]))
 
 (struct blog-type (name [objects #:mutable]))
 (struct blog-object (type name))
@@ -308,7 +299,7 @@
   (eof type distinct fixed random obs query
        ift then elset caset int nullt truet falset
        comma semicolon eq distrib arrow
-       equal unequal not and or implies minus plus times lt le gt ge uminus
+       equal unequal not and or implies minus plus times div mod pow lt le gt ge uminus
        forall exists
        lb rb lp rp lc rc))
 
@@ -398,6 +389,9 @@
    ["=>" (token-implies)]
    ["-" (token-minus)]
    ["+" (token-plus)] ["*" (token-times)]
+   ["/" (token-div)]
+   ["%" (token-mod)]
+   ["^" (token-pow)]
    ["<" (token-lt)] ["<=" (token-le)]
    [">" (token-gt)] [">=" (token-ge)]
 
@@ -438,6 +432,9 @@
     [nonassoc equal unequal]
     [nonassoc lt le gt ge]
     [left plus minus]
+    [left pow]
+    [left mod]
+    [left div]
     [left times]
     [right not uminus])
 
@@ -507,6 +504,9 @@
      [(expr plus expr) `(+ ,$1 ,$3)]
      [(expr minus expr) `(- ,$1 ,$3)]
      [(expr times expr) `(* ,$1 ,$3)]
+     [(expr div expr) `(/ ,$1 ,$3)]
+     [(expr mod expr) `(modulo ,$1 ,$3)]
+     [(expr pow expr) `(expt ,$1 ,$3)]
      [(expr lt expr) `(< ,$1 ,$3)]
      [(expr le expr) `(<= ,$1 ,$3)]
      [(expr gt expr) `(> ,$1 ,$3)]
