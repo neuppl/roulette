@@ -28,7 +28,8 @@
   '("roulette-lib"))
 
 (define build-deps
-  '("racket-doc"
+  '("at-exp-lib"
+    "racket-doc"
     "rosette"
     "sandbox-lib"
     "scribble-lib"))
