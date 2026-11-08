@@ -563,19 +563,27 @@ matrix multiplication: the left matrix's column count must equal the right
 matrix's row count. It computes row/column dot products rather than multiplying
 corresponding cells.
 
-### Scalar scaling and division
+### Scalar addition, subtraction, scaling, and division
 
 ```text
 fixed RealMatrix a = [1, 2; 3, 4];
+query a + 10;       // [11, 12; 13, 14]
+query 10 + a;       // [11, 12; 13, 14]
+query a - 10;       // [-9, -8; -7, -6]
+query 10 - a;       // [9, 8; 7, 6]
 query 2 * a;        // [2, 4; 6, 8]
 query a * 2;        // [2, 4; 6, 8]
 query a / 2;        // [1/2, 1; 3/2, 2] internally, with exact rational entries
 ```
 
+Scalar addition and subtraction apply to every cell, preserving the matrix's
+dimensions and symbolic correlations. `10 - a` computes `10 - cell` for each
+entry. Adding a scalar does not mean adding a scaled identity matrix; write
+`a + 10 * eye(2)` to add 10 only to this matrix's diagonal.
+
 Scaling works on either side of multiplication. Division supports a nonzero
-scalar denominator. Matrix division and scalar addition/subtraction with a
-matrix are not supported; use explicit matrix operations instead. For example,
-`a * inv(b)` expresses multiplication by a matrix inverse.
+scalar denominator. Matrix division remains unsupported; for example,
+`a * inv(b)` explicitly expresses multiplication by a matrix inverse.
 
 ### Constructors and diagonal matrices
 
@@ -749,8 +757,10 @@ individual source spans on every parsed subexpression.
 `test/blog-test-support.rkt` provides the common parser helper, evaluator setup,
 and expected-matrix constructor. Its `make-blog-runner` shares the BLOG module
 instance with tests so actual and expected structs have matching identities.
-Each runner evaluates a program inside an inference query and returns its PMF
-hash. Tests retain exact probability comparisons for exact computations.
+The single-query helper evaluates a program inside an inference query and
+returns its last expression's PMF hash. Multi-query tests use
+`make-blog-multi-runner`, which calls `blog-run` and returns every snapshot's
+PMF hash. Tests retain exact probability comparisons for exact computations.
 
 To build the language manual into a temporary directory:
 
@@ -760,3 +770,99 @@ raco scribble --html --dest /private/tmp/roulette-blog-docs ../scribblings/blog.
 
 Building this section by itself can report unresolved cross references to
 other parts of the Roulette and Racket manuals; it still generates the HTML.
+
+## 13. Sequential queries and joint distributions
+
+Separate query statements use the observations preceding each statement:
+
+```text
+#lang roulette/example/blog
+
+random Integer X ~ UniformInt(0, 1);
+query X;             // {0: 1/2, 1: 1/2}
+obs X = 1;
+query X;             // {1: 1}
+query X + X;         // {2: 1}
+```
+
+Running the file prints each result in order. The observation does not change
+the already-computed first answer. All queries share the same model choices;
+they do not redraw `X` or recreate grounded random functions.
+
+Use commas in one query statement to request one joint distribution:
+
+```text
+random Integer X ~ UniformInt(0, 1);
+query X, X + X;
+// {(0, 0): 1/2, (1, 2): 1/2}
+```
+
+Joint outcomes are ordinary Racket lists in expression order. The two entries
+share `X`, so neither `(0, 2)` nor `(1, 0)` occurs. A single-expression query
+still produces its original value rather than a singleton tuple. In
+particular, `query [X, X];` queries one BLOG list value, while `query X, X;`
+uses ordinary Racket list keys for a joint tuple.
+
+```text
+random Integer X ~ UniformInt(0, 1);
+random Integer Y ~ UniformInt(0, 1);
+query X, Y;
+// {(0, 0): 1/4, (0, 1): 1/4, (1, 0): 1/4, (1, 1): 1/4}
+```
+
+Independent variables can produce every tuple. Joint support can grow as the
+product of the component supports; separate marginal queries can be cheaper
+when an application does not need their correlation.
+
+### Returning every query result to a Racket application
+
+`blog-run` executes raw BLOG text without a `#lang` line and returns an ordered
+list of `blog-query-result` records. It is usable from ordinary Racket:
+
+```racket
+#lang racket/base
+
+(require (only-in roulette/example/blog
+                 blog-run
+                 blog-query-result-number
+                 blog-query-result-expressions
+                 blog-query-result-probabilities))
+
+(define results
+  (blog-run 'example.blog
+            (open-input-string
+             "random Integer X ~ UniformInt(0, 1);
+              query X;
+              query X, X + X;
+              obs X = 1;
+              query X;")))
+
+(map blog-query-result-number results)
+;; → '(1 2 3)
+
+(map blog-query-result-expressions results)
+;; → '((X) (X (+ X X)) (X))
+
+(map blog-query-result-probabilities results)
+;; → (list (hash 0 1/2 1 1/2)
+;;          (hash '(0 0) 1/2 '(1 2) 1/2)
+;;          (hash 1 1))
+```
+
+Expression metadata contains parsed datums, not copies of the original source
+text. Duplicate queries remain separate records. A program with no queries
+returns an empty list. Each call isolates its definitions and observations,
+produces no automatic query output, and propagates errors rather than returning
+a partial collection. The next call starts with a fresh observation session.
+
+To run a raw BLOG file from Racket:
+
+```racket
+(define results
+  (call-with-input-file "model.blog"
+    (lambda (in) (blog-run "model.blog" in))))
+```
+
+For a module containing `#lang roulette/example/blog`, `(require "model.rkt")`
+continues to execute it and print all query results. That module-loading path
+does not automatically export the records returned by `blog-run`.

@@ -94,10 +94,170 @@ Here are the supported features:
  @item{
   Supply evidence with @tt{obs expression = expression;}
   and query an expression with @tt{query expression;}.
+  Queries execute sequentially using preceding observations.
+  @tt{query expression1, expression2;} requests one joint distribution.
  }
 
  @item{Comments use @tt{//} or non-nesting @tt{/* ... */}.}
 ]
+
+@section{Declaration order and random-function domains}
+
+Random functions are instantiated eagerly: when a declaration is evaluated,
+its body is evaluated once for every argument tuple formed from the objects
+currently declared in its parameter types. The resulting table is fixed for
+that function. Later object declarations do not extend it.
+
+For example, both people below exist before @tt{Age} is declared:
+
+@verbatim{
+#lang roulette/example/blog
+
+type Person;
+distinct Person Alice, Bob;
+random Integer Age(Person p) ~ UniformInt(20, 40);
+
+query Age(Alice);                    // works
+query Age(Bob);                      // works
+query Age(Alice) == Age(Alice);       // always true
+}
+
+The declaration creates one random age for Alice and another for Bob.
+Repeated calls with the same person retrieve that person's stored choice;
+calling the function does not draw another age.
+
+In this separate example, Bob is declared too late for @tt{Age}:
+
+@verbatim{
+type Person;
+distinct Person Alice;
+random Integer Age(Person p) ~ UniformInt(20, 40);
+distinct Person Bob;
+
+query Age(Alice);                    // works
+query Age(Bob);                      // runtime error: outside grounded domains
+}
+
+Bob belongs to @tt{Person}, but the existing function table has no entry for
+him. A quantifier over @tt{Person} can see Bob after his declaration; this does
+not create an @tt{Age(Bob)} entry. Declare the complete object population
+before the random function when all of its members need entries:
+
+@verbatim{
+type Person;
+distinct Person Alice;
+distinct Person Bob;
+random Integer Age(Person p) ~ UniformInt(20, 40);
+query Age(Alice), Age(Bob);           // works
+}
+
+For multiple parameters, instantiation covers every ordered argument tuple:
+
+@verbatim{
+type Person;
+distinct Person Alice, Bob;
+random Boolean Friends(Person p, Person q) ~ BooleanDistrib(0.5);
+}
+
+This creates entries for @tt{Friends(Alice, Alice)},
+@tt{Friends(Alice, Bob)}, @tt{Friends(Bob, Alice)}, and
+@tt{Friends(Bob, Bob)}. Declaring Charlie afterward creates no additional
+entries in this table. An empty parameter domain produces no entries.
+
+These rules apply to random declarations using either @tt{~} or @tt{=}.
+Types, objects, and parent functions used by the eagerly evaluated body must
+already be available. A zero-parameter random declaration evaluates its body
+once and stores a single value. Fixed functions are ordinary functions and do
+not create a table over the object population when declared.
+
+@section{Sequential and joint queries}
+
+Each query uses declarations and observations evaluated before its statement.
+Later observations do not change an earlier result. Running a BLOG module
+prints every query result in source order:
+
+@verbatim{
+#lang roulette/example/blog
+
+random Integer X ~ UniformInt(0, 1);
+query X;             // 0 or 1, each with probability 1/2
+obs X = 1;
+query X;             // 1 with probability 1
+query X + X;         // 2 with probability 1
+}
+
+Queries reuse the same model allocations; they do not redraw random constants
+or grounded random functions. Declarations remain subject to the existing
+loading order and grounding rules.
+
+Separate query statements request separate marginal distributions. To request
+a joint distribution, separate two or more expressions with commas in a
+single statement:
+
+@verbatim{
+random Integer X ~ UniformInt(0, 1);
+query X, X + X;
+// Joint outcomes: (0, 0) and (1, 2), each with probability 1/2.
+}
+
+Each joint outcome is an ordinary Racket list in expression order. Correlations
+are preserved: @tt{(0, 2)} and @tt{(1, 0)} cannot occur in this example.
+A single-expression query retains its scalar or structured result; it is not
+wrapped in a singleton tuple. In particular, @tt{query [X, X];} queries one
+BLOG list value, whereas @tt{query X, X;} produces ordinary Racket tuple keys.
+List literals and function arguments can themselves contain commas without
+splitting the outer query expressions.
+
+Observations also affect subsequent joint queries. For example,
+@tt{obs X = 1;} followed by @tt{query X, X + X;} has only the outcome
+@tt{(1, 2)}. Empty joint components and trailing commas are syntax errors.
+
+@subsection{Collecting results from Racket}
+
+The exported @tt{blog-run} function accepts a source name and an input port,
+using the same optional-argument convention as @tt{blog-parse}. Input is raw
+BLOG text without a @tt{#lang} line. It executes the model once, returns every
+query result, and does not print them:
+
+@verbatim{
+#lang racket/base
+(require (only-in roulette/example/blog
+                 blog-run blog-query-result-probabilities))
+
+(define results
+  (blog-run 'example.blog
+            (open-input-string
+             "random Integer X ~ UniformInt(0, 1);
+              query X;
+              query X, X + X;
+              obs X = 1;
+              query X;")))
+
+(map blog-query-result-probabilities results)
+; A list containing these PMF hashes, in order:
+; {0: 1/2, 1: 1/2}
+; {(0, 0): 1/2, (1, 2): 1/2}
+; {1: 1}
+}
+
+The exported transparent @tt{blog-query-result} struct has three fields:
+@itemlist[
+ @item{@tt{number}: the one-based query position.}
+ @item{@tt{expressions}: the list of parsed expression datums, including one
+  expression for a marginal query and multiple expressions for a joint query.}
+ @item{@tt{probabilities}: a PMF hash mapping outcomes to probabilities.}
+]
+The generated accessors are @tt{blog-query-result-number},
+@tt{blog-query-result-expressions}, and @tt{blog-query-result-probabilities}.
+Results preserve statement order and duplicate queries. A program with no
+queries returns an empty list. Each invocation uses a fresh definition scope
+and observation session. Errors propagate instead of returning a partial
+collection, and the next invocation starts with fresh observations.
+
+For an existing @tt{#lang roulette/example/blog} module, ordinary Racket
+@tt{require} still loads the module and prints its sequential results;
+it does not automatically export a result collection. Use @tt{blog-run} with
+the raw program body when an embedding application needs structured results.
 
 @section{Lists and matrices}
 
@@ -184,9 +344,13 @@ automatically converted at an arithmetic operator or library call.
   Unary @tt{+} preserves a matrix and unary @tt{-} negates its cells.}
  @item{@tt{a * b} performs matrix multiplication, requiring the left column
   count to equal the right row count. It is not elementwise multiplication.}
+ @item{@tt{a + s}, @tt{s + a}, @tt{a - s}, and @tt{s - a} apply real
+  scalar addition/subtraction to every matrix cell, preserving the shape.
+  In particular, @tt{s - a} computes @tt{s - cell} for each cell; adding a
+  scalar does not mean adding a scaled identity matrix.}
  @item{@tt{s * a} and @tt{a * s} scale a matrix by a real scalar.
-  @tt{a / s} divides each cell by a nonzero scalar. Matrix divisors and
-  scalar addition/subtraction with a matrix are unsupported.}
+  @tt{a / s} divides each cell by a nonzero scalar. Matrix divisors remain
+  unsupported.}
  @item{@tt{eye(n)}, @tt{zeros(rows, columns)}, and @tt{ones(rows, columns)}
   construct identity, zero-filled, and one-filled matrices. Dimensions must
   be nonnegative exact integers.}
@@ -208,6 +372,8 @@ automatically converted at an arithmetic operator or library call.
 
 @verbatim{
 fixed RealMatrix a = [1, 2; 3, 4];
+query a + 10;                       // [11, 12; 13, 14]
+query 10 - a;                       // [9, 8; 7, 6]
 query a * a;                        // [7, 10; 15, 22]
 query sum(a);                       // row matrix [4, 6]
 query inv(a) * a == eye(2);          // true with these exact inputs
@@ -270,4 +436,7 @@ these operations can be expensive with many independent random entries.
   characters, and timestep literals are not supported. Numeric matrices use
   @tt{RealMatrix}; no separate @tt{IntegerMatrix} type is provided.
   Distributions other than the four listed above are not provided.
+  @bold{Multivariate Gaussian sampling is not implemented.}
+  Matrix-valued categorical distributions support finite vector outcomes;
+  matrix support does not provide continuous Gaussian distributions.
 }]
