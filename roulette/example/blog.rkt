@@ -8,6 +8,8 @@
  #%app
  #%datum
  blog-parse
+ blog-run
+ (struct-out blog-query-result)
  blog-lex
  blog-list
  type
@@ -371,8 +373,9 @@
       [(list (list lr lc) (list rr rc))
        (if (eq? who '*) (= lc rr)
            (and (memq who '(+ -)) (= lr rr) (= lc rc)))]
-      [(list 'scalar (list _ _)) (eq? who '*)]
-      [(list (list _ _) 'scalar) (and (memq who '(* /)) #t)]
+      ;; Scalars add/subtract every cell; operand order matters for subtraction.
+      [(list 'scalar (list _ _)) (and (memq who '(+ - *)) #t)]
+      [(list (list _ _) 'scalar) (and (memq who '(+ - * /)) #t)]
       [_ #f]))
   (blog-check-cases who (list (blog-number-shape left) (blog-number-shape right))
                     valid? "incompatible arithmetic operand types or matrix dimensions")
@@ -756,8 +759,17 @@
 (define (obs actual expected)
   (observe! (equal? actual expected)))
 
-(define-syntax-rule (blog-query expression)
-  expression)
+;; A single query returns its value; comma-separated expressions form one joint
+;; outcome in source order. Use a Racket list as the joint tuple, distinct from
+;; a BLOG list literal supplied as one query expression.
+(define-syntax blog-query
+  (syntax-parser
+    [(_ expression:expr) #'expression]
+    [(_ first:expr second:expr rest:expr ...)
+     #'(list first second rest ...)]))
+
+;; The programmatic runner returns frozen marginal/joint PMF hashes in order.
+(struct blog-query-result (number expressions probabilities) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lexer
@@ -929,8 +941,8 @@
      [(obs expr eq expr semicolon)
       `(obs ,$2 ,$4)]
 
-     [(query expr semicolon)
-      `(query ,$2)])
+     [(query args semicolon)
+      `(query ,@$2)])
 
     (dependency
      [(distrib) '~]
@@ -1083,6 +1095,45 @@
   (parameterize ([current-blog-source source-name])
     (define parse (blog-parser source-name))
     (parse (λ () (blog-lex port)))))
+
+(define-namespace-anchor blog-namespace)
+
+;; Like blog-parse, accepts raw BLOG text from a port (without a #lang line).
+;; Keep the model in one scope, but infer each query at its statement position.
+;; A fresh namespace and inference session isolate definitions and observations
+;; across calls without creating independent model draws for different queries.
+(define (blog-run [source-name (object-name (current-input-port))]
+                  [port (current-input-port)])
+  (define forms (blog-parse source-name port))
+  (define ns (make-base-namespace))
+  (namespace-attach-module (namespace-anchor->namespace blog-namespace)
+                           'roulette/example/blog ns)
+  (parameterize ([current-namespace ns])
+    (namespace-require 'roulette/example/blog)
+    (call-with-query-session
+     (lambda (infer)
+       (define reversed-results '())
+       (define query-number 0)
+       (define record-name (gensym 'record-query))
+       (namespace-set-variable-value!
+        record-name
+        (lambda (expressions thunk)
+          (define probabilities (pmf-hash (infer thunk)))
+          (set! query-number (add1 query-number))
+          (set! reversed-results
+                (cons (blog-query-result query-number
+                                         expressions probabilities)
+                      reversed-results)))
+        #t)
+       (eval
+        `(let ()
+           ,@(for/list ([form (in-list forms)])
+               (match form
+                 [(list 'query expressions ...)
+                  `(,record-name ',expressions (lambda () ,form))]
+                 [_ form]))
+           (void)))
+       (reverse reversed-results)))))
 
 ;; Internal helpers exposed only for the separate runtime tests.
 (module+ test-support
