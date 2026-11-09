@@ -172,6 +172,14 @@ not create a table over the object population when declared.
 
 @section{Sequential and joint queries}
 
+A program may contain multiple query statements. Each statement requests one
+result: either a usual single-expression marginal distribution or a joint
+distribution over comma-separated expressions. Both kinds execute sequentially.
+Here, "sequential" describes which preceding observations apply; "joint"
+describes which values are inferred together in one result.
+
+@subsection{Usual sequential queries}
+
 Each query uses declarations and observations evaluated before its statement.
 Later observations do not change an earlier result. Running a BLOG module
 prints every query result in source order:
@@ -190,9 +198,24 @@ Queries reuse the same model allocations; they do not redraw random constants
 or grounded random functions. Declarations remain subject to the existing
 loading order and grounding rules.
 
-Separate query statements request separate marginal distributions. To request
-a joint distribution, separate two or more expressions with commas in a
-single statement:
+@subsection{Multiple separate queries versus one joint query}
+
+Consider two expressions sharing one random variable:
+
+@verbatim{
+random Integer X ~ UniformInt(0, 1);
+query X;             // First result:  0 or 1, each with probability 1/2.
+query X + X;         // Second result: 0 or 2, each with probability 1/2.
+}
+
+These are two separate marginal distributions. They reuse the same @tt{X},
+but the results do not explicitly list which pairs can occur together.
+Multiplying their marginal probabilities would incorrectly assume independence:
+for example, the pair @tt{(0, 2)} is impossible even though each component
+appears in its respective marginal.
+
+To request that relationship explicitly, separate the expressions with commas
+in one joint-query statement:
 
 @verbatim{
 random Integer X ~ UniformInt(0, 1);
@@ -208,9 +231,26 @@ BLOG list value, whereas @tt{query X, X;} produces ordinary Racket tuple keys.
 List literals and function arguments can themselves contain commas without
 splitting the outer query expressions.
 
+@tabular[#:sep @hspace[2]
+ (list
+  (list @bold{Behavior} @bold{Separate queries} @bold{One joint query})
+  (list "Syntax" @tt{query X; query X + X;} @tt{query X, X + X;})
+  (list "Results" "Two marginal distributions" "One distribution over tuples")
+  (list "Outcome keys" "Each expression's value" "A list in expression order")
+  (list "Shared choices" "Reused across statements" "Reused within the tuple"))]
+
+Use separate queries when only individual distributions are needed. Use a
+joint query to inspect correlations or probabilities of combinations. Joint
+queries may have many more outcomes: two independent variables with @tt{m}
+and @tt{n} possible values can produce @tt{m * n} joint tuples.
+
 Observations also affect subsequent joint queries. For example,
 @tt{obs X = 1;} followed by @tt{query X, X + X;} has only the outcome
-@tt{(1, 2)}. Empty joint components and trailing commas are syntax errors.
+@tt{(1, 2)}. An observation placed between two separate queries affects only
+the later query; an observation before a joint query conditions the entire
+joint tuple. No observation can occur between the comma-separated expressions
+of one query statement. Empty joint components and trailing commas are syntax
+errors.
 
 @subsection{Collecting results from Racket}
 
