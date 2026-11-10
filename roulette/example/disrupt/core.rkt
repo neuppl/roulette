@@ -11,7 +11,6 @@
  ;; operations
  flip
  query
- call-with-query-session
  sample
  observe!
  region?
@@ -172,15 +171,6 @@
       (values (query-val val′ prev-vars)
               (query-val ev′ prev-vars)))
     (if global? (thk) (with-local thk))))
-
-;; Evaluate a standalone model once and take sequential inference snapshots.
-;; Each snapshot sees the same live allocation region and the evidence so far.
-;; Evidence is reset for the session and restored even if model evaluation fails.
-;; The callback receives an inference procedure taking a zero-argument thunk.
-(define (call-with-query-session procedure)
-  (parameterize ([current-regions (cons (make-region) (current-regions))]
-                 [current-evidence (evidence #t #t)])
-    (procedure (lambda (thunk) (query-fn thunk #t)))))
 
 (define (allocated-vars regs)
   (apply set-union (set) (map region-vals regs)))
