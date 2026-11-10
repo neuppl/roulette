@@ -17,11 +17,11 @@
 @title{The BLOG Language}
 @defmodule*[(roulette/example/blog) #:lang]
 
-@hyperlink["https://bayesianlogic.github.io/download/blog-langref.pdf"]{BLOG} is
-a small probabilistic programming language.
-This implementation supports a subset of BLOG,
+This implementation supports a subset of @hyperlink["https://bayesianlogic.github.io/download/blog-langref.pdf"]{BLOG},
 built on @racketmodname[roulette/example/disrupt].
-Simple BLOG programs should run without modification.
+Simple BLOG programs should run without modification after starting the file with
+@tt{#lang roulette/example/blog}. For example:
+
 
 @filebox["blog-example.rkt"]{@verbatim[#<<END
 #lang roulette/example/blog
@@ -95,13 +95,26 @@ Here are the supported features:
   Supply evidence with @tt{obs expression = expression;}
   and query an expression with @tt{query expression;}.
   Queries execute sequentially using preceding observations.
-  @tt{query expression1, expression2;} requests one joint distribution.
+ }
+
+ @item{
+  Query joint distributions with @tt{query expression1, expression2;}.
+  Each outcome is a tuple in expression order, preserving correlations
+  between expressions that share random choices.
+ }
+
+ @item{
+  Construct numeric vectors and matrices with @tt{RealMatrix} declarations,
+  such as @tt{fixed RealMatrix m = [1, 2; 3, 4];}.
+  Matrix support includes indexing, scalar conversion, arithmetic,
+  transpose, constructors, stacking, reductions, determinants, and inverses.
+  Entries and dimensions may depend on finite random choices.
  }
 
  @item{Comments use @tt{//} or non-nesting @tt{/* ... */}.}
 ]
 
-@section{Declaration order and random-function domains}
+@section[#:tag "blog-declarations"]{Declaration order and random-function domains}
 
 Random functions are instantiated eagerly: when a declaration is evaluated,
 its body is evaluated once for every argument tuple formed from the objects
@@ -170,13 +183,28 @@ already be available. A zero-parameter random declaration evaluates its body
 once and stores a single value. Fixed functions are ordinary functions and do
 not create a table over the object population when declared.
 
+@subsection{Shared and independent random choices}
+
+A stored random value represents all of its possible outcomes during
+inference. Reusing it preserves correlation; it does not select one outcome
+for the whole computation:
+
+@verbatim{
+random Integer X ~ Bernoulli(0.5);
+random Integer Y ~ Bernoulli(0.5);
+query X + X;     // 0 or 2, each with probability 0.5
+query X + Y;     // 0: 0.25, 1: 0.5, 2: 0.25
+}
+
+Both occurrences of @tt{X} refer to the same choice, so @tt{X + X} cannot
+equal 1. The second declaration creates an independent choice; @tt{X + Y}
+can equal 1 in either of two ways.
+
 @section{Sequential and joint queries}
 
 A program may contain multiple query statements. Each statement requests one
 result: either a usual single-expression marginal distribution or a joint
 distribution over comma-separated expressions. Both kinds execute sequentially.
-Here, "sequential" describes which preceding observations apply; "joint"
-describes which values are inferred together in one result.
 
 @subsection{Usual sequential queries}
 
@@ -223,26 +251,14 @@ query X, X + X;
 // Joint outcomes: (0, 0) and (1, 2), each with probability 1/2.
 }
 
-Each joint outcome is an ordinary Racket list in expression order. Correlations
-are preserved: @tt{(0, 2)} and @tt{(1, 0)} cannot occur in this example.
-A single-expression query retains its scalar or structured result; it is not
-wrapped in a singleton tuple. In particular, @tt{query [X, X];} queries one
-BLOG list value, whereas @tt{query X, X;} produces ordinary Racket tuple keys.
-List literals and function arguments can themselves contain commas without
-splitting the outer query expressions.
+Two independent variables instead produce all four pairs:
 
-@tabular[#:sep @hspace[2]
- (list
-  (list @bold{Behavior} @bold{Separate queries} @bold{One joint query})
-  (list "Syntax" @tt{query X; query X + X;} @tt{query X, X + X;})
-  (list "Results" "Two marginal distributions" "One distribution over tuples")
-  (list "Outcome keys" "Each expression's value" "A list in expression order")
-  (list "Shared choices" "Reused across statements" "Reused within the tuple"))]
-
-Use separate queries when only individual distributions are needed. Use a
-joint query to inspect correlations or probabilities of combinations. Joint
-queries may have many more outcomes: two independent variables with @tt{m}
-and @tt{n} possible values can produce @tt{m * n} joint tuples.
+@verbatim{
+random Integer X ~ UniformInt(0, 1);
+random Integer Y ~ UniformInt(0, 1);
+query X, Y;
+// (0, 0), (0, 1), (1, 0), (1, 1), each with probability 1/4.
+}
 
 Observations also affect subsequent joint queries. For example,
 @tt{obs X = 1;} followed by @tt{query X, X + X;} has only the outcome
@@ -252,54 +268,7 @@ joint tuple. No observation can occur between the comma-separated expressions
 of one query statement. Empty joint components and trailing commas are syntax
 errors.
 
-@subsection{Collecting results from Racket}
-
-The exported @tt{blog-run} function accepts a source name and an input port,
-using the same optional-argument convention as @tt{blog-parse}. Input is raw
-BLOG text without a @tt{#lang} line. It executes the model once, returns every
-query result, and does not print them:
-
-@verbatim{
-#lang racket/base
-(require (only-in roulette/example/blog
-                 blog-run blog-query-result-probabilities))
-
-(define results
-  (blog-run 'example.blog
-            (open-input-string
-             "random Integer X ~ UniformInt(0, 1);
-              query X;
-              query X, X + X;
-              obs X = 1;
-              query X;")))
-
-(map blog-query-result-probabilities results)
-; A list containing these PMF hashes, in order:
-; {0: 1/2, 1: 1/2}
-; {(0, 0): 1/2, (1, 2): 1/2}
-; {1: 1}
-}
-
-The exported transparent @tt{blog-query-result} struct has three fields:
-@itemlist[
- @item{@tt{number}: the one-based query position.}
- @item{@tt{expressions}: the list of parsed expression datums, including one
-  expression for a marginal query and multiple expressions for a joint query.}
- @item{@tt{probabilities}: a PMF hash mapping outcomes to probabilities.}
-]
-The generated accessors are @tt{blog-query-result-number},
-@tt{blog-query-result-expressions}, and @tt{blog-query-result-probabilities}.
-Results preserve statement order and duplicate queries. A program with no
-queries returns an empty list. Each invocation uses a fresh definition scope
-and observation session. Errors propagate instead of returning a partial
-collection, and the next invocation starts with fresh observations.
-
-For an existing @tt{#lang roulette/example/blog} module, ordinary Racket
-@tt{require} still loads the module and prints its sequential results;
-it does not automatically export a result collection. Use @tt{blog-run} with
-the raw program body when an embedding application needs structured results.
-
-@section{Lists and matrices}
+@section[#:tag "blog-matrices"]{Lists and matrices}
 
 Square brackets construct lists. These two expressions are equivalent:
 
@@ -330,48 +299,85 @@ The empty list becomes a 0-by-0 matrix. Explicit empty rows retain their
 dimensions: @tt{[[], []]} becomes a 2-by-0 matrix. Matrix constructors also
 accept zero dimensions.
 
-Conversion applies to fixed constants and functions, and to both forms of
-random declaration, after a distribution draw or deterministic evaluation.
-Random functions store the converted result once per grounded argument tuple.
-An unannotated list expression remains a list, so list and matrix equality
-does not treat identical-looking contents as the same value.
+@subsection{When a list becomes a matrix}
+
+The @tt{RealMatrix} annotation tells a declaration to convert its result
+into a matrix. Brackets alone create a list. For fixed declarations:
+
+@verbatim{
+fixed RealMatrix A = [1, 2];
+fixed RealMatrix Pair(Integer x) = [x, x];
+query Pair(3);                      // row matrix [3, 3]
+}
+
+Defining @tt{A} evaluates @tt{[1, 2]}, converts that list into a row matrix,
+and stores it once. Calling @tt{Pair(3)} evaluates @tt{[3, 3]} and converts
+the result before returning it. A fixed function performs this evaluation
+and conversion on each call.
+
+Random declarations convert their results too, but @tt{~} and @tt{=}
+produce those results in different ways:
+
+@verbatim{
+random Integer X ~ UniformInt(0, 1);
+random RealMatrix Draw ~ Categorical({[1, 2] -> 0.5, [3, 4] -> 0.5});
+random RealMatrix FromX = [X, X];
+query Draw;                         // matrix [1, 2] or [3, 4], equally likely
+query FromX;                        // matrix [0, 0] or [1, 1], equally likely
+}
+
+The @tt{~} declaration draws from a distribution of lists, then converts
+the result to a matrix. The @tt{=} declaration computes a list from the
+existing @tt{X}, then converts it. Both entries of @tt{FromX} share that
+same choice; this declaration introduces no independent draw. These
+zero-parameter random declarations store their results once.
+
+A random function stores one converted result for each combination of
+declared object arguments:
+
+@verbatim{
+type Person;
+distinct Person Alice, Bob;
+random RealMatrix M(Person p) ~ Categorical({[1, 2] -> 0.5, [3, 4] -> 0.5});
+query M(Alice) == M(Alice);          // always true
+query M(Alice) == M(Bob);            // true or false, each with probability 0.5
+}
+
+When @tt{M} is declared, Alice and Bob each get an independent matrix-valued
+choice. Each result is converted and stored at that time. Repeated calls to
+@tt{M(Alice)} retrieve Alice's stored choice; they do not draw or convert again.
+
+Outside a @tt{RealMatrix} declaration, a list stays a list. Equality compares
+the value types as well as their contents; it does not insert a conversion:
+
+@verbatim{
+fixed RealMatrix m = [1, 2];
+query m == [1, 2];                  // false: a matrix compared with a list
+fixed RealMatrix n = [1, 2];
+query m == n;                       // true: matrices with equal contents
+}
 
 @subsection{Indexing and scalar conversion}
 
-All indices are exact, zero-based integers. Indexing dispatches on the value:
-
-@itemlist[
- @item{An indexed distinct-object family returns the selected object.}
- @item{A list returns its stored element, which may itself be a list.}
- @item{A matrix with multiple rows and columns returns a row matrix.}
- @item{A row or column vector returns a 1-by-1 matrix.}
-]
+Indices are exact, zero-based integers. Families return objects and lists
+return stored elements. A matrix with multiple rows and columns returns a
+row matrix; indexing a row or column vector returns a 1-by-1 matrix.
 
 @verbatim{
-query [10, 20, 30][1];                // scalar 20
-query [[10, 20], [30, 40]][1];        // list [30, 40]
 query [[10, 20], [30, 40]][1][0];     // scalar 30
-
 fixed RealMatrix m = [10, 20, 30; 40, 50, 60];
 query m[1];                         // matrix [40, 50, 60]
 query m[1][2];                      // singleton matrix [60]
-query toInt(m[1][2]);                // scalar integer 60
 query toReal(m[1][2]);               // scalar real 60.0
 query transpose(m)[1];              // matrix [20, 50]
 }
 
-Indexing binds more tightly than arithmetic operators and can follow a literal,
-function call, parenthesized expression, or another index. For example,
-@tt{(a + b)[i][j]} selects a singleton from a matrix sum.
-Negative, fractional, inexact integer, Boolean, and out-of-bounds indices raise
-runtime errors. Empty vectors have no valid index; a row of a matrix with
-multiple empty rows can still be selected as an empty row matrix.
-
-@tt{toReal} and @tt{toInt} accept a real or Boolean scalar, or extract the
-element of a 1-by-1 matrix. Larger or empty matrices are rejected.
-@tt{toReal} produces an inexact real; @tt{toInt} truncates toward zero and
-produces an exact integer. Booleans convert to 1 or 0. Integer conversion
-rejects nonfinite numbers.
+Indexing binds tightly and supports calls and grouped expressions, such as
+@tt{(a + b)[i][j]}. Invalid or out-of-bounds indices raise errors.
+@tt{toReal} and @tt{toInt} accept real or Boolean scalars and singleton
+matrices. They produce an inexact real or an exact integer truncated toward
+zero; Booleans become 1 or 0. Larger or empty matrices are rejected, and
+integer conversion rejects nonfinite numbers.
 
 @subsection{Arithmetic and the matrix library}
 
@@ -412,42 +418,56 @@ automatically converted at an arithmetic operator or library call.
 
 @verbatim{
 fixed RealMatrix a = [1, 2; 3, 4];
+query a + a;                        // [2, 4; 6, 8]
 query a + 10;                       // [11, 12; 13, 14]
 query 10 - a;                       // [9, 8; 7, 6]
+query a / 2;                        // exact entries 1/2, 1, 3/2, 2
 query a * a;                        // [7, 10; 15, 22]
 query sum(a);                       // row matrix [4, 6]
+query det(a);                       // scalar -2
+query inv(a);                       // [-2, 1; 3/2, -1/2]
 query inv(a) * a == eye(2);          // true with these exact inputs
+}
+
+Other library calls construct and transform values:
+
+@verbatim{
+query hstack(eye(2), zeros(2, 1));    // [1, 0, 0; 0, 1, 0]
+query vstack(ones(1, 2), zeros(1, 2)); // [1, 1; 0, 0]
+fixed RealMatrix column = [2; 3];
+query diag(column);                 // [2, 0; 0, 3]
+query repmat(column, 1, 2);          // [2, 2; 3, 3]
+query abs(-3);                      // 3
+query exp(0);                       // 1
 }
 
 Inexact arithmetic has ordinary floating-point rounding. Use numerical
 tolerances when comparing floating-point results from outside BLOG; exact
 matrix equality is appropriate for the exact example above.
 
-@subsection{Random indices, entries, and dimensions}
+@subsection{Random entries and dimensions}
 
 Finite random values may determine indices, matrix entries, and dimensions.
 Repeated references preserve the same underlying random choices:
 
 @verbatim{
-random Integer i ~ UniformInt(0, 1);
-random RealMatrix a = [i, 10; 20, i];
-query toInt(a[i][i]) == i;           // always true
+random Integer x ~ UniformInt(0, 1);
+random RealMatrix a = [x, x];
+query a;                            // [0, 0] or [1, 1], each with probability 1/2
 }
 
-Bounds and dimension checks validate correlated alternatives together. For
-example, the two reachable shape/index combinations below are both valid:
+The cells share @tt{x}, so @tt{[0, 1]} and @tt{[1, 0]} cannot occur.
+Dimensions can also depend on a shared random choice:
 
 @verbatim{
-random Integer i ~ UniformInt(0, 1);
-random RealMatrix a =
-  if i == 0 then [7] else [10, 20; 30, 40];
-query toInt(a[i][0]);                // 7 or 30, each with probability 1/2
+random Integer n ~ UniformInt(1, 2);
+query eye(n) * ones(n, 1) == ones(n, 1); // always true
 }
 
-Validation skips alternatives whose guards simplify to false under the current
-execution assumptions. It does not invoke an SMT solver to establish arbitrary
-unreachability. Invalid alternatives retained by the checks raise errors;
-they are not silently dropped from the distribution.
+Shape checks consider correlated dimensions together, so the last expression
+does not pair @tt{eye(1)} with @tt{ones(2, 1)}. Invalid reachable alternatives
+raise errors rather than disappearing from a distribution; see
+@secref["blog-symbolic-validation"] for the validation rules.
 
 Routine arithmetic retains symbolic cells. Determinant and inverse enumerate
 finite concrete matrix alternatives before pivoted Gaussian elimination;
@@ -480,3 +500,139 @@ these operations can be expensive with many independent random entries.
   Matrix-valued categorical distributions support finite vector outcomes;
   matrix support does not provide continuous Gaussian distributions.
 }]
+
+@section{Implementation notes}
+
+The following Racket forms explain the implementation in
+@filepath{roulette/example/blog.rkt}; they are not BLOG source syntax.
+Internal helpers are not part of the public language API. The
+@tt{test-support} submodule exposes selected constructors for testing.
+
+@subsection{Parsing and normalized expressions}
+
+@tt{blog-parse} accepts a source name and an input port containing raw BLOG
+text, without a @tt{#lang} line. It returns declaration and expression
+datums; parsing does not evaluate them:
+
+@verbatim{
+(blog-parse 'example.blog
+            (open-input-string "fixed RealMatrix m = [1, 2; 3, 4];"))
+;; '((fixed RealMatrix m ()
+;;          (blog-list (blog-list 1 2) (blog-list 3 4))))
+}
+
+The empty parameter list marks a constant. Row shorthand has already become
+nested @tt{blog-list} calls; matrix conversion happens when the declaration
+is evaluated. Other representative translations are:
+
+@tabular[#:sep @hspace[2]
+ (list
+  (list @bold{BLOG source} @bold{Parsed expression})
+  (list @tt{42} @tt{42})
+  (list @tt{true} @tt{#t})
+  (list @tt{f(1, 2)} @tt{(call f 1 2)})
+  (list @tt{(a + b)} @tt{(+ a b)})
+  (list @tt{a[i][j]} @tt{(index (index a i) j)}))]
+
+Atoms include literals, names, calls, and parenthesized expressions. A
+postfix expression starts with an atom and may add index suffixes, associating
+to the left. Parentheses control grouping and disappear from the result.
+Parser actions such as @tt{$1} and @tt{$2} select matched grammar components;
+for a parenthesized expression, @tt{$2} selects its contents. Routing these
+forms through the postfix rule avoids duplicate grammar alternatives.
+
+@subsection{Matrix representation}
+
+BLOG lists use @tt{blog-list-value}; matrices use
+@tt{blog-matrix-value}, with explicit row and column counts and an immutable
+list of cells in row order. Constructor notation below shows those fields:
+
+@verbatim{
+(make-blog-matrix (blog-list 10 20))
+;; (blog-matrix-value 1 2 '(10 20))
+
+(make-blog-matrix (blog-list (blog-list 1 2) (blog-list 3 4)))
+;; (blog-matrix-value 2 2 '(1 2 3 4))
+
+(make-blog-matrix (blog-list))
+;; (blog-matrix-value 0 0 '())
+
+(make-blog-matrix (blog-list (blog-list) (blog-list)))
+;; (blog-matrix-value 2 0 '())
+}
+
+Converting an existing matrix returns that same value. Numeric cells keep
+their exactness: for example, a cell containing @tt{1/3} stays rational and
+@tt{2.5} stays inexact. The shape and cell restrictions are described in
+@secref["blog-matrices"]. The constructor additionally requires a tagged
+BLOG list or an existing matrix; an ordinary Racket list such as
+@tt{'(1 2)} and a standalone scalar are invalid inputs.
+
+@subsection{Declaration expansion and result conversion}
+
+The internal @tt{blog-result-warpper} macro inserts conversion for the
+@tt{RealMatrix} annotation:
+
+@verbatim{
+(define-syntax blog-result-warpper
+  (syntax-parser
+    [(_ (~datum RealMatrix) body:expr)
+     #'(make-blog-matrix body)]
+    [(_ result-type:id body:expr)
+     #'body]))
+}
+
+The first rule matches that specific type name; the second accepts other
+type identifiers and leaves the body unchanged. Thus
+@tt{(blog-result-warpper Boolean 42)} still evaluates to 42: annotations
+other than @tt{RealMatrix} are not checked by this wrapper.
+
+A fixed matrix constant passes through these expansion stages:
+
+@verbatim{
+(fixed RealMatrix m () (blog-list 1 2))
+;; expands to:
+(define m (blog-result-warpper RealMatrix (blog-list 1 2)))
+;; then to:
+(define m (make-blog-matrix (blog-list 1 2)))
+}
+
+Conversion runs once for a fixed constant and on each call to a fixed
+function. For a random declaration, the outer @tt{random} macro prepares
+the body: @tt{~} adds @tt{draw-distribution}, while @tt{=} uses the dependency
+expression directly. It then applies the result wrapper and delegates
+storage to @tt{define-random}:
+
+@verbatim{
+(define-syntax define-random
+  (syntax-parser
+    [(_ name:id () body:expr)
+     #'(define name body)]
+    [(_ name:id ((arg-type:id arg:id) ...+) body:expr)
+     #'(define name
+         (make-random-function 'name (list arg-type ...)
+                               (lambda (arg ...) body)))]))
+}
+
+The zero-parameter rule stores the prepared result directly. The parameterized
+rule passes the type domains and body procedure to @tt{make-random-function}.
+Here, @tt{...+} requires at least one parameter pair; the other ellipses
+collect the matched types and names. For example:
+
+@verbatim{
+(define-random X () (draw-distribution (Bernoulli 0.5)))
+;; expands to:
+(define X (draw-distribution (Bernoulli 0.5)))
+
+(define-random Healthy ((Person p))
+  (draw-distribution (BooleanDistrib 0.8)))
+;; expands to:
+(define Healthy
+  (make-random-function 'Healthy (list Person)
+    (lambda (p) (draw-distribution (BooleanDistrib 0.8)))))
+}
+
+The resulting function looks up stored values; it does not evaluate the
+procedure again on every call. Its eager grounding and declaration-order
+rules are described in @secref["blog-declarations"].
+
